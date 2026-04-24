@@ -1,0 +1,50 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "IaAmiOAqU1zk7GPPcz_k7"
+uri = "file://artifacts/provider-mais-fibra/public/images/hero.png"
+type = "image"
+title = "Hero image"
+
+[[generated]]
+id = "F06_geDSUhFCSehRwOCbF"
+uri = "file://artifacts/provider-mais-fibra/public/images/streaming-bg.png"
+type = "image"
+title = "Streaming background"
+
+[[generated]]
+id = "jg-ZpGXE0Sk6w0srUCub4"
+uri = "file://artifacts/provider-mais-fibra/public/images/app-mockup.png"
+type = "image"
+title = "App mockup"
+
+[[generated]]
+id = "SzeVD19qL3Ce7_uvhIMjc"
+uri = "file://artifacts/provider-mais-fibra/public/images/technician.png"
+type = "image"
+title = "Telecom technician"
+
+[[generated]]
+id = "42otkON8lsxEfjZ46sF1X"
+uri = "file://artifacts/provider-mais-fibra/public/images/avatar-1.png"
+type = "image"
+title = "Avatar 1"
+
+[[generated]]
+id = "Cmx0VXJR8mHZWYg_91_Ln"
+uri = "file://artifacts/provider-mais-fibra/public/images/avatar-2.png"
+type = "image"
+title = "Avatar 2"
+
+[[generated]]
+id = "mEdXRGp670FG7dD0oezjn"
+uri = "file://artifacts/provider-mais-fibra/public/images/avatar-3.png"
+type = "image"
+title = "Avatar 3"
+
+[[generated]]
+id = "gYN9esM4Zqzvl3vLjQs7J"
+uri = "file://artifacts/provider-mais-fibra/public/images/avatar-4.png"
+type = "image"
+title = "Avatar 4"
