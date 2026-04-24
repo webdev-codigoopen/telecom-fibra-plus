@@ -107,10 +107,6 @@ export default function AppSection() {
           >
             <div className="relative">
               <div
-                className="absolute -inset-8 rounded-full blur-3xl opacity-20"
-                style={{ background: "radial-gradient(ellipse, #003F99 0%, transparent 70%)" }}
-              />
-              <div
                 className="relative flex items-center justify-center rounded-3xl"
                 style={{
                   width: 280,

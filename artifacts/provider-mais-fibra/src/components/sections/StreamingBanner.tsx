@@ -165,7 +165,6 @@ export default function StreamingBanner() {
                   style={{
                     background: bg,
                     border: `1px solid ${border}`,
-                    backdropFilter: "blur(10px)",
                   }}
                 >
                   <div className="flex-shrink-0">

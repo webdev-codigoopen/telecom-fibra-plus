@@ -67,9 +67,8 @@ export default function Hero() {
             <div
               className="inline-block p-5 rounded-xl mb-8"
               style={{
-                background: "rgba(255,255,255,0.1)",
+                background: "rgba(0,0,0,0.25)",
                 border: "1px solid rgba(255,255,255,0.2)",
-                backdropFilter: "blur(10px)",
               }}
             >
               <div className="flex items-baseline gap-2 mb-1">
@@ -134,10 +133,6 @@ export default function Hero() {
             className="hidden lg:flex justify-center items-center"
           >
             <div className="relative">
-              <div
-                className="absolute -inset-8 rounded-full blur-2xl opacity-20"
-                style={{ background: "radial-gradient(ellipse, #FFD600 0%, transparent 70%)" }}
-              />
               <div
                 className="relative rounded-2xl overflow-hidden"
                 style={{
