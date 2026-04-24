@@ -1,50 +1,111 @@
 import { motion } from "framer-motion";
 import { Tv, MessageCircle } from "lucide-react";
 
-const categories = [
+function ChannelLogo({ name, bg, textColor = "white", abbr }: { name: string; bg: string; textColor?: string; abbr?: string }) {
+  const display = abbr || name.slice(0, 4).toUpperCase();
+  return (
+    <div
+      className="flex items-center justify-center rounded-lg font-black text-xs leading-none select-none"
+      style={{
+        width: 72,
+        height: 44,
+        background: bg,
+        color: textColor,
+        fontFamily: "Arial Black, sans-serif",
+        letterSpacing: "-0.5px",
+      }}
+    >
+      {display}
+    </div>
+  );
+}
+
+const channelGrid = [
   {
-    name: "Canais Abertos",
-    color: "#003F99",
-    channels: ["Globo", "SBT", "Record", "Band", "RedeTV", "TV Cultura"],
+    category: "Abertos",
+    color: "#1565C0",
+    channels: [
+      { name: "GLOBO", bg: "#1565C0" },
+      { name: "SBT", bg: "#E53935" },
+      { name: "RECORD", bg: "#333333" },
+      { name: "BAND", bg: "#FF6F00" },
+      { name: "RedeTV", bg: "#C62828" },
+    ],
   },
   {
-    name: "Notícias",
-    color: "#E53935",
-    channels: ["GloboNews", "CNN Brasil", "Band News"],
+    category: "Notícias",
+    color: "#B71C1C",
+    channels: [
+      { name: "CNN", bg: "#CC0000", abbr: "CNN" },
+      { name: "BAND NEWS", bg: "#FF6F00", abbr: "BN" },
+      { name: "GLOBOnews", bg: "#0D47A1", abbr: "GN" },
+    ],
   },
   {
-    name: "Esportes",
-    color: "#FF8C00",
-    channels: ["ESPN", "SporTV", "Fox Sports", "Combate"],
+    category: "Esportes",
+    color: "#E65100",
+    channels: [
+      { name: "ESPN", bg: "#CC0000", abbr: "ESPN" },
+      { name: "SporTV", bg: "#006064", abbr: "STV" },
+      { name: "COMBATE", bg: "#1B5E20", abbr: "CMB" },
+      { name: "FOX", bg: "#1A237E", abbr: "FOX" },
+    ],
   },
   {
-    name: "Filmes e Séries",
-    color: "#7B2FBE",
-    channels: ["TNT", "Warner", "Space", "AMC", "TELECINE"],
+    category: "Filmes e Séries",
+    color: "#6A1B9A",
+    channels: [
+      { name: "TNT", bg: "#B71C1C", abbr: "TNT" },
+      { name: "WARNER", bg: "#1565C0", abbr: "WBR" },
+      { name: "SPACE", bg: "#0D47A1", abbr: "SPC" },
+      { name: "AMC", bg: "#000000", abbr: "AMC" },
+      { name: "AXN", bg: "#212121", abbr: "AXN" },
+    ],
   },
   {
-    name: "Entretenimento",
-    color: "#E91E8C",
-    channels: ["Multishow", "GNT", "E!", "TLC"],
+    category: "Entretenimento",
+    color: "#AD1457",
+    channels: [
+      { name: "MULTI", bg: "#E91E63", abbr: "MSH" },
+      { name: "GNT", bg: "#7B1FA2", abbr: "GNT" },
+      { name: "E!", bg: "#880E4F", abbr: "E!" },
+      { name: "TLC", bg: "#283593", abbr: "TLC" },
+    ],
   },
   {
-    name: "Infantil",
-    color: "#00A86B",
-    channels: ["Cartoon Network", "Disney Channel", "Nickelodeon", "Discovery Kids"],
+    category: "Infantil",
+    color: "#2E7D32",
+    channels: [
+      { name: "CARTOON", bg: "#F57F17", textColor: "#000", abbr: "CN" },
+      { name: "DISNEY", bg: "#1565C0", abbr: "DCH" },
+      { name: "NICKEL", bg: "#E65100", abbr: "NICK" },
+      { name: "DISCOVERY", bg: "#00838F", abbr: "DSC" },
+    ],
   },
   {
-    name: "Documentários",
-    color: "#0099CC",
-    channels: ["Discovery", "National Geographic", "History", "Animal Planet"],
+    category: "Documentários",
+    color: "#00695C",
+    channels: [
+      { name: "NAT GEO", bg: "#F9A825", textColor: "#000", abbr: "NG" },
+      { name: "HISTORY", bg: "#5D4037", abbr: "HST" },
+      { name: "ANIMALS", bg: "#2E7D32", abbr: "APL" },
+      { name: "SCIENCE", bg: "#1565C0", abbr: "SCI" },
+    ],
   },
   {
-    name: "Música",
-    color: "#FF5500",
-    channels: ["MTV", "VH1"],
+    category: "Música",
+    color: "#BF360C",
+    channels: [
+      { name: "MTV", bg: "#000000", abbr: "MTV" },
+      { name: "VH1", bg: "#880E4F", abbr: "VH1" },
+      { name: "BRASIL", bg: "#006064", abbr: "MBR" },
+    ],
   },
 ];
 
 export default function IPTVGrid() {
+  const totalChannels = channelGrid.reduce((acc, cat) => acc + cat.channels.length, 0);
+
   return (
     <section
       id="iptv"
@@ -64,18 +125,18 @@ export default function IPTVGrid() {
             style={{ background: "#F0F5FF", color: "#003F99", border: "1px solid #E8EAEF" }}
           >
             <Tv size={14} />
-            Grade de Canais
+            Grade de Canais IPTV
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-[#003F99] mb-3">
-            Mais de 100 Canais de TV no seu Plano
+            Mais de {totalChannels}+ Canais de TV no seu Plano
           </h2>
-          <p className="text-[#4A4F61]">Incluso a partir do plano 300 Mega</p>
+          <p className="text-[#4A4F61]">Incluso a partir do plano 300 Mega — assista em qualquer tela</p>
         </motion.div>
 
         <div className="space-y-8">
-          {categories.map((cat, ci) => (
+          {channelGrid.map((cat, ci) => (
             <motion.div
-              key={cat.name}
+              key={cat.category}
               initial={{ opacity: 0, y: 15 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -86,24 +147,41 @@ export default function IPTVGrid() {
                   className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ background: cat.color }}
                 />
-                <h3 className="text-sm font-bold text-[#B0B5C3] uppercase tracking-wide">
-                  {cat.name}
+                <h3 className="text-xs font-bold text-[#B0B5C3] uppercase tracking-widest">
+                  {cat.category}
                 </h3>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 {cat.channels.map((ch) => (
-                  <span
-                    key={ch}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold text-[#4A4F61] transition-all duration-200 hover:-translate-y-0.5"
+                  <motion.div
+                    key={ch.name}
+                    whileHover={{ scale: 1.06, y: -2 }}
+                    transition={{ duration: 0.15 }}
+                    className="rounded-lg overflow-hidden"
                     style={{
-                      background: "white",
-                      border: `1px solid ${cat.color}30`,
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                     }}
                   >
-                    {ch}
-                  </span>
+                    <ChannelLogo
+                      name={ch.name}
+                      bg={ch.bg}
+                      textColor={(ch as { textColor?: string }).textColor}
+                      abbr={(ch as { abbr?: string }).abbr}
+                    />
+                  </motion.div>
                 ))}
+                <div
+                  className="flex items-center justify-center rounded-lg text-xs font-bold"
+                  style={{
+                    width: 72,
+                    height: 44,
+                    background: "#F5F6FA",
+                    color: "#B0B5C3",
+                    border: "1px dashed #E8EAEF",
+                  }}
+                >
+                  +mais
+                </div>
               </div>
             </motion.div>
           ))}
