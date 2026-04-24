@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { MapPin } from "lucide-react";
+import logoBlue from "@assets/logo-provider+fibra_1777059547390.png";
 
 const cities = [
   "Barreiras",
@@ -32,6 +33,7 @@ export default function Coverage() {
           transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
+          <img src={logoBlue} alt="Provider Mais Fibra" className="h-8 w-auto mx-auto mb-4" />
           <div
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-4"
             style={{ background: "#E8F0FF", color: "#003F99", border: "1px solid #C5D8FF" }}
