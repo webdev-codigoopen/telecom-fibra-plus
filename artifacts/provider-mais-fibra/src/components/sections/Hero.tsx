@@ -170,7 +170,7 @@ export default function Hero() {
                     {[
                       { label: "Velocidade", value: "900 Mega" },
                       { label: "Wi-Fi", value: "Wi-Fi 6" },
-                      { label: "Latência", value: "&lt;5ms" },
+                      { label: "Latência", value: "<5ms" },
                       { label: "Uptime", value: "99.9%" },
                     ].map((stat) => (
                       <div
@@ -178,11 +178,9 @@ export default function Hero() {
                         className="rounded-xl p-3 text-center"
                         style={{ background: "rgba(255,255,255,0.1)" }}
                       >
-                        <p
-                          className="text-xl font-black"
-                          style={{ color: "#FFD600" }}
-                          dangerouslySetInnerHTML={{ __html: stat.value }}
-                        />
+                        <p className="text-xl font-black" style={{ color: "#FFD600" }}>
+                          {stat.value}
+                        </p>
                         <p className="text-white/60 text-xs font-medium">{stat.label}</p>
                       </div>
                     ))}
