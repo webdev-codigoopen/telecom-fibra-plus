@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Menu, X, Instagram } from "lucide-react";
+import { useLocation } from "wouter";
+import logoWhite from "@assets/logo-provider+fibra-branca_1777059547390.png";
 
 function WhatsAppIcon({ size = 18 }: { size?: number }) {
   return (
@@ -8,20 +10,26 @@ function WhatsAppIcon({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
-import logoWhite from "@assets/logo-provider+fibra-branca_1777059547390.png";
 
-const navLinks = [
-  { label: "Home", href: "#" },
+type NavLink = {
+  label: string;
+  href: string;
+  page?: string;
+};
+
+const navLinks: NavLink[] = [
+  { label: "Home", href: "/", page: "/" },
   { label: "Planos", href: "#planos" },
   { label: "IPTV", href: "#iptv" },
-  { label: "Sobre Nós", href: "#sobre" },
-  { label: "Onde Estamos", href: "#cobertura" },
-  { label: "Contato", href: "#contato" },
+  { label: "Quem Somos", href: "/quem-somos", page: "/quem-somos" },
+  { label: "Onde Estamos", href: "/onde-estamos", page: "/onde-estamos" },
+  { label: "Contato", href: "/contato", page: "/contato" },
 ];
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -29,14 +37,32 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleNav = (href: string) => {
+  const handleNav = (link: NavLink) => {
     setIsOpen(false);
-    if (href === "#") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (link.page) {
+      navigate(link.page);
+      window.scrollTo({ top: 0 });
       return;
     }
-    const el = document.querySelector(href);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+
+    if (link.href.startsWith("#")) {
+      if (location !== "/") {
+        navigate("/");
+        setTimeout(() => {
+          const el = document.querySelector(link.href);
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }, 150);
+      } else {
+        const el = document.querySelector(link.href);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
+
+  const isActive = (link: NavLink) => {
+    if (link.page) return location === link.page;
+    return false;
   };
 
   return (
@@ -51,25 +77,24 @@ export default function Header() {
       }}
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 flex items-center justify-between h-16">
-        <a
-          href="#"
-          onClick={(e) => { e.preventDefault(); handleNav("#"); }}
-          className="flex-shrink-0"
+        <button
+          onClick={() => { navigate("/"); window.scrollTo({ top: 0 }); }}
+          className="flex-shrink-0 focus:outline-none"
         >
           <img src={logoWhite} alt="Provider Mais Fibra" className="h-9 w-auto" />
-        </a>
+        </button>
 
-        <nav className="hidden lg:flex items-center gap-7">
+        <nav className="hidden lg:flex items-center gap-6">
           {navLinks.map((link) => (
-            <a
+            <button
               key={link.label}
-              href={link.href}
-              onClick={(e) => { e.preventDefault(); handleNav(link.href); }}
-              className="text-white/90 hover:text-white text-sm font-semibold transition-colors duration-200"
+              onClick={() => handleNav(link)}
               data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+              className="text-sm font-semibold transition-colors duration-200 focus:outline-none"
+              style={{ color: isActive(link) ? "#FFD600" : "rgba(255,255,255,0.90)" }}
             >
               {link.label}
-            </a>
+            </button>
           ))}
         </nav>
 
@@ -94,18 +119,17 @@ export default function Header() {
           >
             <Instagram size={18} />
           </a>
-          <a
-            href="#planos"
-            onClick={(e) => { e.preventDefault(); handleNav("#planos"); }}
+          <button
+            onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="ml-2 px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14] transition-all duration-200 hover:scale-105 active:scale-95"
+            className="ml-2 px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14] transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
             style={{
               background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
               boxShadow: "0 4px 12px rgba(255,140,0,0.35)",
             }}
           >
             Assine Agora
-          </a>
+          </button>
         </div>
 
         <button
@@ -124,14 +148,17 @@ export default function Header() {
           style={{ background: "rgba(0, 31, 96, 0.98)" }}
         >
           {navLinks.map((link) => (
-            <a
+            <button
               key={link.label}
-              href={link.href}
-              onClick={(e) => { e.preventDefault(); handleNav(link.href); }}
-              className="block py-3 text-white/90 hover:text-white text-sm font-semibold border-b border-white/10 transition-colors"
+              onClick={() => handleNav(link)}
+              className="w-full text-left py-3 text-sm font-semibold border-b transition-colors focus:outline-none"
+              style={{
+                color: isActive(link) ? "#FFD600" : "rgba(255,255,255,0.90)",
+                borderColor: "rgba(255,255,255,0.1)",
+              }}
             >
               {link.label}
-            </a>
+            </button>
           ))}
           <div className="flex items-center gap-4 pt-4">
             <a
@@ -150,14 +177,13 @@ export default function Header() {
             >
               <Instagram size={18} />
             </a>
-            <a
-              href="#planos"
-              onClick={(e) => { e.preventDefault(); handleNav("#planos"); }}
-              className="ml-auto px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14]"
+            <button
+              onClick={() => { setIsOpen(false); handleNav({ label: "Planos", href: "#planos" }); }}
+              className="ml-auto px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14] focus:outline-none"
               style={{ background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)" }}
             >
               Assine Agora
-            </a>
+            </button>
           </div>
         </div>
       )}

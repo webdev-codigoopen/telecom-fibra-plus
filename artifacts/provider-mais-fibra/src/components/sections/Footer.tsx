@@ -2,17 +2,20 @@ import { Instagram } from "lucide-react";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const links = [
-  { label: "Home", href: "#" },
-  { label: "Planos", href: "#planos" },
-  { label: "IPTV", href: "#iptv" },
-  { label: "Sobre Nós", href: "#sobre" },
-  { label: "Onde Estamos", href: "#cobertura" },
-  { label: "Trabalhe Conosco", href: "#" },
-  { label: "Blog", href: "#" },
+  { label: "Home", href: "/", page: true },
+  { label: "Planos", href: "#planos", page: false },
+  { label: "IPTV", href: "#iptv", page: false },
+  { label: "Quem Somos", href: "/quem-somos", page: true },
+  { label: "Onde Estamos", href: "/onde-estamos", page: true },
+  { label: "Contato", href: "/contato", page: true },
 ];
 
 export default function Footer() {
-  const handleNav = (href: string) => {
+  const handleNav = (href: string, page: boolean) => {
+    if (page) {
+      window.location.href = href;
+      return;
+    }
     if (href === "#") {
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
@@ -67,7 +70,7 @@ export default function Footer() {
                 <li key={link.label}>
                   <a
                     href={link.href}
-                    onClick={(e) => { e.preventDefault(); handleNav(link.href); }}
+                    onClick={(e) => { e.preventDefault(); handleNav(link.href, link.page); }}
                     className="text-white/50 hover:text-white text-sm transition-colors duration-200"
                   >
                     {link.label}
