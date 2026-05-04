@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X, Instagram } from "lucide-react";
 import { useLocation } from "wouter";
 import logoWhite from "@assets/logo-provider+fibra-branca_1777059547390.png";
@@ -30,12 +30,23 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [location, navigate] = useLocation();
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
 
   const handleNav = (link: NavLink) => {
     setIsOpen(false);
@@ -67,6 +78,7 @@ export default function Header() {
 
   return (
     <header
+      ref={menuRef}
       data-testid="header"
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
@@ -84,7 +96,7 @@ export default function Header() {
           <img src={logoWhite} alt="Provider Mais Fibra" className="h-9 w-auto" />
         </button>
 
-        <nav className="hidden lg:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-6">
           {navLinks.map((link) => (
             <button
               key={link.label}
@@ -98,7 +110,7 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-4">
           <a
             href="https://wa.me/5577998444757"
             target="_blank"
@@ -133,60 +145,70 @@ export default function Header() {
         </div>
 
         <button
-          className="lg:hidden text-white p-2"
+          className="md:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20"
           onClick={() => setIsOpen(!isOpen)}
           data-testid="header-mobile-menu"
-          aria-label="Menu"
+          aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
+          aria-expanded={isOpen}
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      {isOpen && (
-        <div
-          className="lg:hidden px-4 pb-4 pt-2"
-          style={{ background: "rgba(0, 31, 96, 0.98)" }}
-        >
-          {navLinks.map((link) => (
+      <div
+        className="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: isOpen ? "500px" : "0px",
+          opacity: isOpen ? 1 : 0,
+          background: "rgba(0, 25, 80, 0.98)",
+        }}
+      >
+        <div className="px-4 pb-5 pt-2">
+          {navLinks.map((link, i) => (
             <button
               key={link.label}
               onClick={() => handleNav(link)}
-              className="w-full text-left py-3 text-sm font-semibold border-b transition-colors focus:outline-none"
+              className="w-full text-left py-3.5 text-sm font-semibold border-b border-white/10 transition-colors last:border-b-0 focus:outline-none"
               style={{
                 color: isActive(link) ? "#FFD600" : "rgba(255,255,255,0.90)",
-                borderColor: "rgba(255,255,255,0.1)",
+                transitionDelay: isOpen ? `${i * 30}ms` : "0ms",
               }}
             >
               {link.label}
             </button>
           ))}
-          <div className="flex items-center gap-4 pt-4">
+          <div className="flex items-center gap-4 pt-4 mt-1">
             <a
               href="https://wa.me/5577998444757"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/80 hover:text-white"
+              className="text-white/80 hover:text-white transition-colors"
+              aria-label="WhatsApp"
             >
-              <WhatsAppIcon size={18} />
+              <WhatsAppIcon size={20} />
             </a>
             <a
               href="https://instagram.com/provider.fibra"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white/80 hover:text-white"
+              className="text-white/80 hover:text-white transition-colors"
+              aria-label="Instagram"
             >
-              <Instagram size={18} />
+              <Instagram size={20} />
             </a>
             <button
               onClick={() => { setIsOpen(false); handleNav({ label: "Planos", href: "#planos" }); }}
-              className="ml-auto px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14] focus:outline-none"
-              style={{ background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)" }}
+              className="ml-auto px-5 py-2.5 rounded-lg text-sm font-bold text-[#0D0E14] transition-all duration-200 active:scale-95 focus:outline-none"
+              style={{
+                background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
+                boxShadow: "0 4px 12px rgba(255,140,0,0.3)",
+              }}
             >
               Assine Agora
             </button>
           </div>
         </div>
-      )}
+      </div>
     </header>
   );
 }
