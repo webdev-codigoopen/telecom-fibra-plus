@@ -9,7 +9,6 @@ export default function FinalCTA() {
 
   return (
     <section
-      id="contato"
       data-testid="cta-final-section"
       className="py-24 relative overflow-hidden"
       style={{ background: "linear-gradient(135deg, #002D75 0%, #0055B8 100%)" }}

@@ -9,6 +9,7 @@ import AppSection from '@/components/sections/AppSection';
 import About from '@/components/sections/About';
 import Benefits from '@/components/sections/Benefits';
 import Coverage from '@/components/sections/Coverage';
+import ContactSection from '@/components/sections/ContactSection';
 import Testimonials from '@/components/sections/Testimonials';
 import FAQ from '@/components/sections/FAQ';
 import FinalCTA from '@/components/sections/FinalCTA';
@@ -29,6 +30,7 @@ export default function Home() {
         <About />
         <Benefits />
         <Coverage />
+        <ContactSection />
         <Testimonials />
         <FAQ />
         <FinalCTA />
