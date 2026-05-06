@@ -1,0 +1,388 @@
+# Provider + FIBRA — Briefing do Projeto
+
+## 📋 Visão Geral
+
+Landing page institucional e comercial para provedor de internet fibra óptica com atuação regional no Oeste da Bahia. Foco em **conversão direta** com apresentação de planos, diferenciais técnicos, prova social e canais de atendimento. Interface energética, moderna e orientada a vendas, com identidade visual forte em azul elétrico e verde-lima.
+
+---
+
+## 🎯 Objetivo da Página
+
+Converter visitantes em assinantes por meio de uma jornada clara:
+**Atenção → Interesse → Prova → Ação**
+
+---
+
+## 📐 Estrutura das Seções
+
+---
+
+### 1. Navbar — Navegação Principal
+
+**Objetivo:** Orientar o usuário e facilitar acesso direto à conversão.
+
+**Elementos:**
+- Logo à esquerda: `Provider + FIBRA` (ícone de sinal Wi-Fi + wordmark)
+- Menu de navegação central: `Home` · `Planos` · `IPTV` · `Sobre Nós` · `Onde Estamos` · `Contato` · `Aplicativo`
+- Ícones de apps (iOS / Android) ao lado do link Aplicativo
+- Ícones sociais: WhatsApp · Instagram
+- CTA fixo à direita: botão pill verde **"Assine Já"**
+
+**Comportamento:**
+- Sticky no scroll
+- Background azul escuro (`--color-primary-dark`)
+- Link ativo em verde (`--color-accent`)
+
+---
+
+### 2. Hero — Seção de Planos
+
+**Objetivo:** Apresentar os planos disponíveis de forma direta e impactante, conduzindo ao CTA imediato.
+
+**Headline:**
+> A **conexão** ideal para o seu dia a dia está na Provider
+
+**Subhero:**
+Quatro cards de planos lado a lado em grid 4 colunas:
+
+#### Card 1 — Plano 300 Mega
+- Badge: `INTERNET 100% FIBRA`
+- Destaque: **300** Mega
+- Incluso: Instalação · Roteador · 100 Canais
+- Preço: **R$ 69,90/mês**
+- CTA: `Assine Já`
+- Disclaimer: *\*Consultar disponibilidade de planos na sua cidade*
+
+#### Card 2 — Plano 400 Mega
+- Badge: `INTERNET 100% FIBRA`
+- Destaque: **400** Mega
+- Incluso: Instalação · Roteador · 100 Canais
+- Preço: **R$ 79,90/mês**
+- CTA: `Assine Já`
+- Disclaimer: *\*Consultar disponibilidade de planos na sua cidade*
+
+#### Card 3 — Plano 600 Mega ⭐ *Destaque*
+- Badge: `INTERNET 100% FIBRA`
+- Destaque: **600** Mega
+- Incluso: Instalação · Roteador · 100 Canais
+- Bônus: `ASSINATURA INCLUSA — WATCH`
+- Preço: **R$ 99,90/mês**
+- CTA: `Assine Já`
+- Disclaimer: *\*Consultar disponibilidade de planos na sua cidade*
+
+#### Card 4 — Plano 900 Mega 🏆 *Premium*
+- Badge: `INTERNET 100% FIBRA`
+- Destaque: **900** Mega
+- Incluso: Instalação · Roteador · 100 Canais
+- Bônus: `ASSINATURA INCLUSA — WATCH + POWER TOP`
+- Preço: **R$ 149,90/mês**
+- CTA: `Assine Já`
+- Disclaimer: *\*Consultar disponibilidade de planos na sua cidade*
+
+**Fundo:** Azul elétrico sólido (`--gradient-hero`)
+
+---
+
+### 3. Sobre — Identidade e Missão
+
+**Objetivo:** Criar conexão emocional e regional. Transmitir confiança e legitimidade institucional.
+
+**Layout:** Duas colunas — mapa ilustrativo à esquerda · texto à direita
+
+**Logo + Nome:** `Provider + FIBRA`
+
+**Headline:**
+> Conectando o Oeste da Bahia com **Fibra de Qualidade**
+
+**Corpo:**
+> A Provider Mais Fibra nasceu com a missão de levar internet de alta velocidade para o interior da Bahia. Com infraestrutura 100% em fibra óptica e foco no atendimento ao cliente, estamos presentes em 12 cidades do Oeste da Bahia, oferecendo conectividade confiável para famílias e empresas.
+>
+> Homologados pela Anatel, garantimos qualidade de serviço, suporte técnico especializado e planos que cabem no bolso. Nossa equipe trabalha 24h para que sua conexão nunca pare.
+
+**Elemento Visual:** Mapa estilizado do estado da Bahia com pins nas cidades de atuação — azul com marcadores brancos/verdes.
+
+**Cidades marcadas no mapa:**
+Barra · Barreiras · Buritirama · Correntina · Luís Eduardo Magalhães · Mansidão · Muquém · Posto Rosário · Roda Velha · Santa Rita · Wanderley
+
+**Fundo:** Branco / cinza muito claro (`--color-surface`)
+
+---
+
+### 4. Diferenciais — Por que escolher a Provider?
+
+**Objetivo:** Justificar a escolha racional com benefícios técnicos objetivos.
+
+**Headline:**
+> Por que escolher a **Provider** mais Fibra?
+
+**Subtítulo:**
+> Tecnologia e qualidade que fazem a diferença
+
+**Layout:** Grid de 3 colunas — ícone circular verde + título + descrição
+
+#### Diferencial 1 — Roteadores de Última Geração
+> Wi-Fi 6 nos planos 600 e 900 Mega para máxima performance em todos os dispositivos.
+
+#### Diferencial 2 — Velocidade Estável e Confiável
+> Fibra óptica dedicada com baixa latência, ideal para home office, games e streaming.
+
+#### Diferencial 3 — Conecte Todos os Dispositivos
+> Suporte a múltiplas conexões simultâneas sem perda de velocidade.
+
+**Fundo:** Branco (`--color-surface`)
+
+---
+
+### 5. Combo Destaque — Power Top
+
+**Objetivo:** Upsell do plano premium com ancoragem de valor e senso de exclusividade.
+
+**Label superior:** `COMBO POWER TOP`
+
+**Headline:**
+> Alterne entre seus streamings favoritos e tenha 3 pelo preço de 1
+
+**Destaque de velocidade:**
+> **900** Mega `+` MAIS PACOTES DE CANAIS EXCLUSIVOS
+> WATCH `+` POWER TOP
+
+**Logos de canais inclusos:**
+Globoplay · SBT · Terraviva · Claro · Multishow · BIS · ESPN · GNT · Universal · Gazeta
+
+**Preço:**
+> POR APENAS **R$ 139,90**/mês
+
+**CTA:**
+> `Contrate Já e Aproveite` — botão outline branco pill
+
+**Fundo:** Azul elétrico profundo (`--gradient-hero`) com efeito de brilho radial sutil
+
+---
+
+### 6. App — Facilidade no Dia a Dia
+
+**Objetivo:** Apresentar o aplicativo como canal de autoatendimento e valor agregado.
+
+**Headline:**
+> ✦ **Facilidade** no Seu Dia a Dia
+
+**Subtítulo:**
+> Gerencie sua internet direto pelo celular. Tudo que você precisa em um só lugar.
+
+**Layout:** Grid de 4 cards horizontais com ícone + título + descrição
+
+#### Feature 1 — 2ª Via de Boleto
+> Acesse e pague sua fatura com 1 clique
+
+#### Feature 2 — Teste de Velocidade
+> Verifique sua conexão a qualquer momento
+
+#### Feature 3 — Área do Cliente
+> Gerencie sua conta de onde estiver
+
+#### Feature 4 — Suporte via App
+> Atendimento rápido direto no aplicativo
+
+**Download:**
+> Baixe agora o nosso Aplicativo
+> [Disponível no Google Play] [Disponível no App Store]
+
+**Fundo:** Cinza muito claro (`--color-surface-alt`)
+
+---
+
+### 7. Atendimento — WhatsApp
+
+**Objetivo:** Criar urgência e proximidade via canal de atendimento humanizado. Seção de conversão secundária.
+
+**Headline:**
+> Atendimento rápido e direto pelo **WhatsApp**
+
+**Corpo:**
+> Fale com nossa equipe pelo WhatsApp e resolva tudo em poucos minutos. Atendimento humanizado para clientes e novos assinantes, com suporte completo para sua internet fibra.
+
+**Elemento Visual:** Foto de atendente + mockup de conversa no WhatsApp à direita
+
+**Ícones de atributo (rodapé da seção):**
+- Atendimento via WhatsApp
+- Atendimento humanizado
+- Soluções rápidas
+
+**Fundo:** Azul navy escuro com overlay fotográfico (`--color-primary-deep` com imagem)
+
+---
+
+### 8. Depoimentos — Prova Social
+
+**Objetivo:** Reduzir objeções e construir confiança por meio de experiências reais de clientes.
+
+**Headline:**
+> O que nossos **Clientes** dizem
+
+**Badge:** `Avaliações Google ⭐⭐⭐⭐⭐ 5.0`
+
+**Layout:** Grid de 4 depoimentos
+
+#### Depoimento 1 — Ana Lima · Barreiras
+> ⭐⭐⭐⭐⭐
+> "Excelente atendimento e internet muito rápida! Assino há 1 ano e nunca tive problemas. Recomendo para toda minha família."
+
+#### Depoimento 2 — Carlos Souza · Luís Eduardo Magalhães
+> ⭐⭐⭐⭐⭐
+> "Velocidade incrível, principalmente para home office. A conexão é estável e o suporte responde muito rápido no WhatsApp."
+
+#### Depoimento 3 — Patrícia Mendes · São Desidério
+> ⭐⭐⭐⭐⭐
+> "Instalação rápida e equipe muito atenciosa. Estou muito satisfeita com o serviço, o Wi-Fi 6 faz toda a diferença!"
+
+#### Depoimento 4 — Rafael Oliveira · Angical
+> ⭐⭐⭐⭐⭐
+> "Internet estável, sem quedas. O suporte via WhatsApp é muito ágil e resolvem tudo de forma bem rápida."
+
+**Fundo:** Branco (`--color-surface`)
+
+---
+
+### 9. FAQ — Tire suas Dúvidas
+
+**Objetivo:** Eliminar objeções de compra e reduzir volume de atendimento.
+
+**Headline:**
+> Tire suas **Dúvidas**
+
+**Subtítulo:**
+> As perguntas mais frequentes dos nossos clientes
+
+**Layout:** Grid de 2 colunas de acordeões (accordion)
+
+**Perguntas:**
+
+| Coluna Esquerda | Coluna Direita |
+|---|---|
+| Como é feita a instalação? | Minha internet está lenta, o que posso fazer? |
+| Quanto tempo leva para instalar minha internet? | Como emitir a 2ª via do boleto? |
+| O que está incluso em todos os planos? | Como cancelar minha assinatura? |
+| O que é o serviço de IPTV? | A Provider atende na minha cidade? |
+| Como funciona o suporte 24h? | Qual a melhor velocidade para home office e streaming? |
+
+**Fundo:** Cinza muito claro (`--color-surface-alt`)
+
+---
+
+### 10. Footer
+
+**Objetivo:** Consolidar informações institucionais, links úteis e canais de contato.
+
+**Layout:** 4 colunas
+
+#### Coluna 1 — Institucional
+- Logo `Provider + FIBRA`
+- Texto institucional breve:
+  > Internet de alta velocidade com fibra óptica 100% para o Oeste da Bahia. Conectando famílias e empresas com qualidade e confiança.
+- Ícones sociais: Instagram · WhatsApp
+
+#### Coluna 2 — Links Úteis
+- Home
+- Planos
+- IPTV
+- Sobre Nós
+- Tire suas dúvidas
+
+#### Coluna 3 — Cidades de Atuação
+- Barra · Barreiras · Buritirama · Correntina · Luís Eduardo Magalhães · Mansidão · Muquém · Posto Rosário · Roda Velha · Santa Rita · Wanderley
+
+#### Coluna 4 — Atendimento
+- **WhatsApp:** (77) 99844-4757
+- **Horário:** Seg–Sex: 8h–18h · Sáb: 8h–12h
+- **Endereço:** Edifício São Matheus, térreo n° 49, Rua José Rocha — Centro, Barreiras — BA, 47800-184
+
+**Rodapé inferior:**
+> © 2026 Provider Mais Fibra. Todos os direitos reservados. · Política de Privacidade · Termos de Uso
+
+**Fundo:** Azul navy escuro (`--color-primary-dark`)
+
+---
+
+## 🎨 Design System Aplicado
+
+### Paleta de Cores
+
+| Token | HEX | Uso na página |
+|---|---|---|
+| `--color-primary` | `#0040FF` | Hero, cards de plano, seção Combo |
+| `--color-primary-dark` | `#001A6E` | Navbar, footer, seção WhatsApp |
+| `--color-primary-deep` | `#001050` | Gradientes de fundo, overlays |
+| `--color-accent` | `#00C040` | CTAs, ícones, badges, destaques |
+| `--color-surface` | `#FFFFFF` | Seções Sobre, Diferenciais, Depoimentos |
+| `--color-surface-alt` | `#F4F4F4` | Seções App, FAQ |
+| `--color-text-primary` | `#0D0D0D` | Corpo em fundos claros |
+| `--color-text-inverse` | `#FFFFFF` | Todo texto em fundos azuis |
+| `--color-warning` | `#FFD700` | Estrelas de avaliação |
+
+### Tipografia
+
+- **Display numérico** (300, 400, 600, 900): `font-size: 72–96px; font-weight: 900`
+- **Headline de seção**: `font-size: 32–48px; font-weight: 700`
+- **Subtítulo**: `font-size: 18–22px; font-weight: 600`
+- **Corpo**: `font-size: 15–16px; font-weight: 400`
+- **Caption / Disclaimer**: `font-size: 11–12px; font-weight: 400; opacity: 0.7`
+- **Preço principal**: `font-size: 36–48px; font-weight: 900`
+
+### Componentes Recorrentes
+
+- **Botão primário pill verde:** `background: --color-accent; border-radius: 9999px; color: white; padding: 12px 28px; font-weight: 700`
+- **Botão outline pill branco:** `border: 2px solid white; border-radius: 9999px; color: white; background: transparent`
+- **Card de plano:** `background: white ou azul; border-radius: 12px; padding: 24px; shadow: --shadow-card`
+- **Card de feature/app:** `background: --color-primary-dark; border-radius: 12px; padding: 20px; color: white`
+- **Ícone circular:** `width: 48px; height: 48px; border-radius: 50%; background: --color-accent; display: flex; align-items: center; justify-content: center`
+- **Badge de seção:** `border: 1px solid --color-accent; border-radius: 9999px; color: --color-accent; font-size: 13px; padding: 4px 16px`
+- **Accordion FAQ:** `border-bottom: 1px solid --gray-200; padding: 16px 0`
+- **Avatar de depoimento:** `width: 40px; height: 40px; border-radius: 50%; background: cor única por usuário; font-weight: 700; color: white`
+
+---
+
+## 🚀 Stack Tecnológica
+
+- **Frontend:** React + TypeScript
+- **Styling:** Tailwind CSS v4
+- **Icons:** Lucide React
+- **State:** React Hooks (useState)
+- **Build:** Vite
+- **Fontes:** Google Fonts (Inter)
+
+---
+
+## ✅ Requisitos
+
+### Funcionais
+- [ ] Navbar responsiva com CTA fixo
+- [ ] Hero com 4 cards de plano e preços
+- [ ] Seção Sobre com mapa ilustrativo
+- [ ] Grid de diferenciais com ícones
+- [ ] Seção Combo Power Top com logos de canais
+- [ ] Seção App com 4 features e botões de download
+- [ ] Seção WhatsApp com imagem e atributos
+- [ ] Grid de depoimentos com avatares e estrelas
+- [ ] FAQ em accordion com grid de 2 colunas
+- [ ] Footer com 4 colunas e informações completas
+
+### UI/UX
+- [ ] Design responsivo mobile-first
+- [ ] Hover states em todos os botões e cards
+- [ ] Transições suaves (200–300ms ease)
+- [ ] Contraste WCAG AA em todas as seções
+- [ ] Tipografia hierárquica bem definida
+- [ ] Espaçamento consistente (8pt grid)
+- [ ] Accordion animado no FAQ
+- [ ] Scroll suave para âncoras de navegação
+
+### Performance
+- [ ] Carregamento < 3s
+- [ ] Imagens otimizadas (WebP)
+- [ ] Lazy loading em seções abaixo do fold
+- [ ] Font display: swap
+
+---
+
+**Versão:** 1.0
+**Última atualização:** Maio 2026

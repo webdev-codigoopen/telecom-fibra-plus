@@ -1,0 +1,275 @@
+# Design System — Provider + FIBRA
+> Sistema de design extraído e sintetizado com base na identidade visual da marca. Pronto para uso em Replit ou qualquer ambiente web moderno.
+
+---
+
+## 1. Conceito e Estilo
+
+A linguagem visual da Provider + FIBRA se posiciona no cruzamento entre **tech-consumer** e **telecom regional premium**. O sistema comunica força, confiabilidade e velocidade por meio de contrastes deliberados: azul elétrico profundo como base institucional, verde-lima como acelerador visual, e branco como respiro. Não há timidez — cada seção comunica com energia e intenção.
+
+**Keywords:** `bold-tech` · `high-contrast` · `vibrant` · `regional-premium` · `energetic` · `structured`
+
+---
+
+## 2. Sistema de Cores
+
+### Primitivas
+
+```
+/* Azuis */
+--blue-900: #001050;   /* fundo mais escuro, seções noturnas */
+--blue-800: #001A6E;   /* dark navy — rodapé, seção WhatsApp */
+--blue-700: #0033CC;   /* azul institucional base */
+--blue-600: #0040FF;   /* azul primário vibrante — hero, cards */
+--blue-500: #1A5FFF;   /* hover states, variações */
+--blue-100: #D6E4FF;   /* fundos sutis, badges suaves */
+
+/* Verdes */
+--green-600: #00C040;  /* verde principal — CTAs, ícones, destaques */
+--green-500: #00D94A;  /* hover do verde */
+--green-400: #39E27A;  /* bordas de ícones, círculos decorativos */
+--green-100: #D4F7E3;  /* fundos de badges leves */
+
+/* Neutros */
+--gray-900: #0D0D0D;
+--gray-700: #333333;
+--gray-500: #666666;
+--gray-300: #AAAAAA;
+--gray-100: #F4F4F4;
+--white:    #FFFFFF;
+
+/* Âncora de avaliação */
+--yellow-400: #FFD700;  /* estrelas de avaliação */
+```
+
+### Semânticas
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--color-primary` | `--blue-600` | Identidade, hero, cards principais |
+| `--color-primary-dark` | `--blue-800` | Fundos de seção, navbar, footer |
+| `--color-accent` | `--green-600` | CTAs, ícones de feature, badges de destaque |
+| `--color-surface` | `--white` | Seções de conteúdo leve, cards em fundo claro |
+| `--color-surface-subtle` | `--gray-100` | Fundo de seções alternadas |
+| `--color-text-primary` | `--gray-900` | Corpo de texto em fundos claros |
+| `--color-text-inverse` | `--white` | Texto sobre fundos azuis |
+| `--color-text-muted` | `--gray-500` | Subtítulos, legendas, metadados |
+| `--color-success` | `--green-600` | Confirmações, status ativos |
+| `--color-warning` | `--yellow-400` | Avaliações, alertas leves |
+| `--color-error` | `#E53E3E` | Estados de erro, validações |
+
+**Lógica de uso:**
+- Fundos azuis escuros recebem texto branco e ícones/destaques em verde.
+- Fundos brancos/cinza claro recebem texto escuro com destaques em azul primário ou verde.
+- O verde nunca aparece como fundo de seção — sempre como acento pontual.
+
+---
+
+## 3. Tipografia
+
+### Direção Geral
+
+Sistema de tipografia **sans-serif grotesk**, com forte hierarquia de peso. A marca comunica velocidade e escala — números de preço e megabytes aparecem em tamanhos exagerados e peso máximo (Black/ExtraBold). O corpo de texto é leve e legível.
+
+### Hierarquia
+
+| Nível | Tamanho | Peso | Uso |
+|---|---|---|---|
+| Display / Hero | `72px – 96px` | Black (900) | Valores numéricos de plano (300, 600, 900 Mega) |
+| H1 | `36px – 48px` | Bold (700) | Título principal de seção |
+| H2 | `24px – 32px` | SemiBold (600) | Subtítulos de seção |
+| H3 | `18px – 22px` | SemiBold (600) | Cabeçalhos de card/feature |
+| Body | `14px – 16px` | Regular (400) | Corpo de texto, parágrafos |
+| Caption / Label | `11px – 13px` | Regular / Medium (400–500) | Legendas, tags, disclaimers |
+| Preço | `32px – 48px` | Black (900) | Valor monetário em destaque |
+
+### Comportamento
+
+- **Espaçamento:** line-height `1.2` para displays; `1.5–1.6` para corpo.
+- **Letter-spacing:** levemente negativo em títulos grandes (`-0.02em`); neutro em corpo.
+- **Mistura de pesos:** títulos de seção misturam Regular e Bold na mesma linha para enfatizar palavras-chave (ex: "Fibra de **Qualidade**").
+- Texto de destaque em verde é usado para palavras-chave de impacto dentro de títulos.
+
+---
+
+## 4. Espaçamento e Layout
+
+### Escala de Espaçamento (8pt grid)
+
+```
+--space-1:  4px
+--space-2:  8px
+--space-3:  12px
+--space-4:  16px
+--space-5:  24px
+--space-6:  32px
+--space-7:  48px
+--space-8:  64px
+--space-9:  96px
+--space-10: 128px
+```
+
+### Grid
+
+- **Desktop:** 12 colunas, gutter de `24px`, margem lateral de `80px–120px`
+- **Tablet:** 8 colunas, gutter de `16px`, margem de `32px`
+- **Mobile:** 4 colunas, gutter de `12px`, margem de `16px`
+
+### Densidade e Ritmo
+
+- **Seções:** padding vertical de `80px–96px` em desktop; `48px` em mobile.
+- **Cards de plano:** grid de 4 colunas em desktop, 2 em tablet, 1 em mobile; gap de `16px`.
+- **Feature cards:** grid de 3 colunas com ícone acima do texto — espaçamento interno de `24px`.
+- **Depoimentos:** grid de 4 colunas com avatar + nome + localidade — gap de `16px`.
+- A densidade é **moderada-alta** em seções de produto; **espaçosa** em seções editoriais/institucionais.
+
+---
+
+## 5. Shapes e Linguagem de UI
+
+### Border Radius
+
+```
+--radius-sm:  6px    /* inputs, badges, tags */
+--radius-md:  12px   /* cards de plano, feature cards */
+--radius-lg:  16px   /* cards maiores, painéis */
+--radius-xl:  24px   /* seções de destaque, banners internos */
+--radius-full: 9999px /* botões pill, avatares, ícones circulares */
+```
+
+### Estilo de Componentes
+
+- **Cards:** cantos médios (`12px`), sem borda visível em fundos azuis; borda sutil cinza (`1px solid rgba(255,255,255,0.12)`) em fundos escuros.
+- **Botões primários:** pill (`border-radius: 9999px`), fundo verde ou azul, texto branco em bold. Padding: `12px 28px`.
+- **Botões outline:** pill com borda `2px` verde ou branca, fundo transparente.
+- **Ícones de feature:** círculo com fundo verde sólido, ícone branco centralizado. Tamanho do círculo: `48px – 56px`.
+- **Avatares de depoimento:** círculo colorido com inicial em branco (sem foto real em fallback).
+- **Badge de avaliação:** pill com borda verde, texto verde pequeno + estrelas amarelas.
+
+### Strokes
+
+- Bordas de card em fundos escuros: `1px solid rgba(255,255,255,0.10)`
+- Separadores de seção: sem linha visível — a mudança de cor de fundo faz o trabalho
+- Ícones de interface: stroke weight `1.5px – 2px`, estilo outline
+
+---
+
+## 6. Detalhes Visuais
+
+### Sombras
+
+```
+--shadow-card:   0 4px 16px rgba(0, 0, 0, 0.12);
+--shadow-hover:  0 8px 32px rgba(0, 64, 255, 0.20);
+--shadow-strong: 0 16px 48px rgba(0, 0, 0, 0.24);
+```
+
+- Cards em fundo claro recebem `shadow-card`.
+- Cards em hover recebem `shadow-hover` com tint azul.
+- Modais e elementos flutuantes recebem `shadow-strong`.
+- Em fundos azuis escuros, sombras são suprimidas — o contraste de cor faz o trabalho.
+
+### Gradientes
+
+```css
+/* Hero / seções de destaque */
+--gradient-hero: linear-gradient(135deg, #001A6E 0%, #0040FF 100%);
+
+/* Seção escura com profundidade */
+--gradient-dark: linear-gradient(180deg, #001050 0%, #001A6E 100%);
+
+/* Acento de card ativo */
+--gradient-card-accent: linear-gradient(135deg, #0040FF 0%, #001A6E 100%);
+```
+
+### Efeitos Decorativos
+
+- **Overlay de brilho:** camada com `radial-gradient` azul claro no centro de seções hero para criar profundidade luminosa.
+- **Textura de mapa:** imagem estilizada/ilustrativa do estado/região em azul — elemento identitário regional.
+- **Sem blur ou glassmorphism** — o sistema prefere sólidos e opacos para transmitir solidez.
+- **Sem noise texture** — a marca é clean e direta.
+
+---
+
+## 7. Contraste e Acessibilidade
+
+### Comportamento de Contraste
+
+| Contexto | Fundo | Texto | Contraste estimado |
+|---|---|---|---|
+| Seção hero | `--blue-600` | `--white` | ≥ 4.5:1 ✅ |
+| Seção escura | `--blue-800` | `--white` | ≥ 7:1 ✅ |
+| Seção clara | `--white` | `--gray-900` | ≥ 12:1 ✅ |
+| CTA verde | `--green-600` | `--white` | ≥ 4.5:1 ✅ |
+| Texto muted | `--white` | `--gray-500` | ~ 3.5:1 ⚠️ usar só em captions |
+
+### Diretrizes
+
+- Nunca usar verde como fundo de texto corrido — apenas para botões, ícones e badges.
+- Em textos de caption/disclaimer sobre fundo azul, aumentar opacity para `rgba(255,255,255,0.75)` no mínimo.
+- Elementos interativos (botões, links) devem ter estado de foco visível com `outline: 2px solid --green-500` offset `2px`.
+- Ícones de feature em círculo verde: garantir que o ícone interno tenha contraste mínimo de 3:1 contra o verde.
+- Hierarquia visual é reforçada por tamanho e peso tipográfico — não apenas por cor — garantindo legibilidade mesmo em contextos de baixa saturação.
+
+---
+
+## 8. Tokens CSS — Referência Rápida
+
+```css
+:root {
+  /* Cores */
+  --color-primary:       #0040FF;
+  --color-primary-dark:  #001A6E;
+  --color-primary-deep:  #001050;
+  --color-accent:        #00C040;
+  --color-accent-hover:  #00D94A;
+  --color-surface:       #FFFFFF;
+  --color-surface-alt:   #F4F4F4;
+  --color-text-primary:  #0D0D0D;
+  --color-text-inverse:  #FFFFFF;
+  --color-text-muted:    #666666;
+  --color-warning:       #FFD700;
+  --color-error:         #E53E3E;
+
+  /* Tipografia */
+  --font-family-base:    'Inter', 'Nunito Sans', sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-medium:  500;
+  --font-weight-semibold:600;
+  --font-weight-bold:    700;
+  --font-weight-black:   900;
+
+  /* Espaçamento */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  24px;
+  --space-6:  32px;
+  --space-7:  48px;
+  --space-8:  64px;
+  --space-9:  96px;
+  --space-10: 128px;
+
+  /* Border Radius */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-full: 9999px;
+
+  /* Sombras */
+  --shadow-card:   0 4px 16px rgba(0,0,0,0.12);
+  --shadow-hover:  0 8px 32px rgba(0,64,255,0.20);
+  --shadow-strong: 0 16px 48px rgba(0,0,0,0.24);
+
+  /* Gradientes */
+  --gradient-hero:  linear-gradient(135deg, #001A6E 0%, #0040FF 100%);
+  --gradient-dark:  linear-gradient(180deg, #001050 0%, #001A6E 100%);
+  --gradient-card:  linear-gradient(135deg, #0040FF 0%, #001A6E 100%);
+}
+```
+
+---
+
+*Design System gerado com base na análise visual da marca Provider + FIBRA. Versão 1.0 — pronto para implementação.*
