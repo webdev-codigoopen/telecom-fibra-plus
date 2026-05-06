@@ -84,15 +84,18 @@ export default function PlanCard({ plan, index = 0, idSuffix = "" }: Props) {
         )}
 
         <div className="mb-5">
-          <div className="flex items-baseline gap-1">
-            <span className="text-sm font-semibold text-[#666666]">R$</span>
+          <div className="flex items-start gap-1">
+            <span className="text-sm font-semibold text-[#666666] mt-2">R$</span>
             <span
-              className="font-black text-[#0D0D0D]"
-              style={{ fontSize: 40, letterSpacing: "-0.02em", lineHeight: 1 }}
+              className="font-black text-[#0D0D0D] leading-none"
+              style={{ fontSize: 40, letterSpacing: "-0.02em" }}
             >
-              {plan.price}
+              {plan.price.split(",")[0]}
             </span>
-            <span className="text-sm text-[#666666] font-medium">/mês</span>
+            <span className="font-black text-[#0D0D0D] text-lg leading-none mt-1">
+              ,{plan.price.split(",")[1] ?? "00"}
+            </span>
+            <span className="text-sm text-[#666666] font-medium self-end mb-1">/mês</span>
           </div>
         </div>
 
@@ -105,7 +108,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "" }: Props) {
           style={{ background: "#00C040", boxShadow: "0 6px 16px rgba(0,192,64,0.35)" }}
         >
           <MessageCircle size={16} />
-          Assine Já
+          Quero esse plano
         </a>
 
         <p className="text-[10px] text-[#999999] text-center mt-3 italic">

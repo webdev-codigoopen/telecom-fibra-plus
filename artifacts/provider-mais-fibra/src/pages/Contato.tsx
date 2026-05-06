@@ -314,7 +314,7 @@ export default function Contato() {
                     <h3 className="text-base font-bold text-[#0040FF]">Cobertura</h3>
                   </div>
                   <p className="text-sm text-[#4A4F61] mb-3">
-                    Atendemos 12 cidades no Oeste da Bahia.
+                    Atendemos 11 cidades no Oeste da Bahia.
                   </p>
                   <a
                     href="/onde-estamos"

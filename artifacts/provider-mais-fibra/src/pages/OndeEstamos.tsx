@@ -146,7 +146,7 @@ export default function OndeEstamos() {
                 <span style={{ color: "#FFD600" }}> Mais Fibra</span> está
               </h1>
               <p className="text-white/70 text-lg mb-8">
-                Presentes em <strong className="text-white">12 cidades</strong> do Oeste da Bahia com fibra óptica 100%
+                Presentes em <strong className="text-white">11 cidades</strong> do Oeste da Bahia com fibra óptica 100%
               </p>
 
               <div className="flex flex-wrap justify-center gap-4">
@@ -154,7 +154,7 @@ export default function OndeEstamos() {
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <span className="text-2xl font-black text-[#FFD600]">12</span>
+                  <span className="text-2xl font-black text-[#00D94A]">11</span>
                   Cidades Atendidas
                 </div>
                 <div

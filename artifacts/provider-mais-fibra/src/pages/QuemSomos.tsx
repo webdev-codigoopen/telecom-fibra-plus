@@ -6,7 +6,7 @@ import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const stats = [
-  { value: "12", label: "Cidades Atendidas", suffix: "+" },
+  { value: "11", label: "Cidades Atendidas", suffix: "+" },
   { value: "100", label: "Fibra Óptica", suffix: "%" },
   { value: "24", label: "Suporte ao Cliente", suffix: "h" },
   { value: "2016", label: "Ano de Fundação", suffix: "" },
@@ -50,7 +50,7 @@ const milestones = [
   { year: "2018", title: "Expansão Regional", desc: "Chegamos a 5 cidades do Oeste da Bahia, investindo em infraestrutura própria de fibra óptica." },
   { year: "2020", title: "Planos Gigabit", desc: "Lançamos nossos planos de alta velocidade com Wi-Fi 6 para atender home office e famílias conectadas." },
   { year: "2022", title: "IPTV e Streaming", desc: "Integramos serviços de entretenimento — TV e streaming — aos nossos planos de internet." },
-  { year: "2024", title: "12 Cidades", desc: "Ampliamos nossa cobertura para 12 municípios, consolidando nossa presença em toda a região Oeste." },
+  { year: "2024", title: "11 Cidades", desc: "Ampliamos nossa cobertura para 11 municípios, consolidando nossa presença em toda a região Oeste." },
 ];
 
 export default function QuemSomos() {
@@ -94,7 +94,7 @@ export default function QuemSomos() {
                   A Provider Mais Fibra nasceu com uma missão simples: levar internet de alta velocidade e qualidade para o interior da Bahia, democratizando o acesso à conectividade para famílias e empresas da região.
                 </p>
                 <p className="text-white/60 text-base leading-relaxed">
-                  Com infraestrutura 100% em fibra óptica e uma equipe comprometida, crescemos de uma cidade para 12 municípios, sempre com o mesmo cuidado e atenção ao cliente que nos trouxe até aqui.
+                  Com infraestrutura 100% em fibra óptica e uma equipe comprometida, crescemos de uma cidade para 11 municípios, sempre com o mesmo cuidado e atenção ao cliente que nos trouxe até aqui.
                 </p>
               </motion.div>
 
