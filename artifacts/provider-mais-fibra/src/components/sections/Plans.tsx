@@ -1,48 +1,11 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, MessageCircle } from "lucide-react";
+import { Check, X, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { plans, buildWhatsAppUrl, ALL_INCLUSIONS } from "../../lib/plans";
 
-type Plan = {
-  speed: string;
-  wifi: string;
-  price: string;
-  inclusions: string[];
-  featured: boolean;
-  badge?: string;
-};
+function PlanCard({ plan, index, idSuffix = "" }: { plan: typeof plans[0]; index: number; idSuffix?: string }) {
+  const whatsappUrl = buildWhatsAppUrl(plan);
 
-const plans: Plan[] = [
-  {
-    speed: "300",
-    wifi: "Wi-Fi",
-    price: "69,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "IPTV"],
-    featured: false,
-  },
-  {
-    speed: "400",
-    wifi: "Wi-Fi",
-    price: "79,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "IPTV"],
-    featured: false,
-  },
-  {
-    speed: "600",
-    wifi: "Wi-Fi 6",
-    price: "99,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "IPTV", "WATCH"],
-    featured: true,
-    badge: "MAIS VENDIDO",
-  },
-  {
-    speed: "900",
-    wifi: "Wi-Fi 6",
-    price: "149,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "IPTV", "WATCH", "Power Top"],
-    featured: false,
-  },
-];
-
-function PlanCard({ plan, index, idSuffix = "" }: { plan: Plan; index: number; idSuffix?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -115,7 +78,7 @@ function PlanCard({ plan, index, idSuffix = "" }: { plan: Plan; index: number; i
         </div>
 
         <a
-          href="https://wa.me/5577998444757"
+          href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
           data-testid={`plan-cta-${plan.speed}${idSuffix}`}
@@ -141,7 +104,105 @@ function PlanCard({ plan, index, idSuffix = "" }: { plan: Plan; index: number; i
   );
 }
 
+function ComparisonTable() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5 }}
+      className="mt-14 overflow-x-auto"
+    >
+      <h3 className="text-center text-xl font-bold text-[#003F99] mb-6">Comparativo de Planos</h3>
+      <table className="w-full border-collapse text-sm" style={{ minWidth: 560 }}>
+        <thead>
+          <tr>
+            <th className="text-left py-3 px-4 text-[#4A4F61] font-semibold border-b border-[#E8EAEF]">Recurso</th>
+            {plans.map((plan) => (
+              <th
+                key={plan.speed}
+                className="py-3 px-4 text-center font-black border-b border-[#E8EAEF]"
+                style={{ color: plan.featured ? "#0055B8" : "#003F99" }}
+              >
+                {plan.speed} MEGA
+                {plan.badge && (
+                  <span
+                    className="block text-[10px] font-black mt-0.5 px-2 py-0.5 rounded-full mx-auto w-fit"
+                    style={{ background: "linear-gradient(90deg,#FF8C00,#FFD600)", color: "#0D0E14" }}
+                  >
+                    {plan.badge}
+                  </span>
+                )}
+              </th>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-2 px-4 text-[#4A4F61] border-b border-[#E8EAEF] font-medium">Preço/mês</td>
+            {plans.map((plan) => (
+              <td key={plan.speed} className="py-2 px-4 text-center font-black text-[#003F99] border-b border-[#E8EAEF]">
+                R${plan.price}
+              </td>
+            ))}
+          </tr>
+          <tr style={{ background: "#F8F9FC" }}>
+            <td className="py-2 px-4 text-[#4A4F61] border-b border-[#E8EAEF] font-medium">Wi-Fi</td>
+            {plans.map((plan) => (
+              <td key={plan.speed} className="py-2 px-4 text-center text-[#4A4F61] border-b border-[#E8EAEF]">
+                {plan.wifi}
+              </td>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ALL_INCLUSIONS.map((feature, i) => (
+            <tr key={feature} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#F8F9FC" }}>
+              <td className="py-2 px-4 text-[#4A4F61] border-b border-[#E8EAEF]">{feature}</td>
+              {plans.map((plan) => (
+                <td key={plan.speed} className="py-2 px-4 text-center border-b border-[#E8EAEF]">
+                  {plan.inclusions.includes(feature) ? (
+                    <Check size={18} className="mx-auto" style={{ color: "#00A86B" }} />
+                  ) : (
+                    <X size={18} className="mx-auto text-[#D0D4E0]" />
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+          <tr>
+            <td className="py-3 px-4 border-t border-[#E8EAEF]" />
+            {plans.map((plan) => (
+              <td key={plan.speed} className="py-3 px-4 text-center border-t border-[#E8EAEF]">
+                <a
+                  href={buildWhatsAppUrl(plan)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`plan-table-cta-${plan.speed}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-xs transition-all duration-200 hover:scale-105 active:scale-95"
+                  style={
+                    plan.featured
+                      ? {
+                          background: "linear-gradient(90deg,#FF8C00,#FFD600)",
+                          color: "#0D0E14",
+                          boxShadow: "0 4px 12px rgba(255,140,0,0.3)",
+                        }
+                      : { background: "#003F99", color: "white" }
+                  }
+                >
+                  <MessageCircle size={13} />
+                  Assinar
+                </a>
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </motion.div>
+  );
+}
+
 export default function Plans() {
+  const [showTable, setShowTable] = useState(false);
+
   return (
     <section
       id="planos"
@@ -187,6 +248,20 @@ export default function Plans() {
         <p className="sm:hidden text-center text-xs text-[#B0B5C3] mt-3">
           ← Deslize para ver todos os planos →
         </p>
+
+        <div className="mt-10 text-center">
+          <button
+            onClick={() => setShowTable((v) => !v)}
+            data-testid="toggle-comparison-table"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full border font-semibold text-sm transition-all duration-200 hover:bg-[#F0F5FF]"
+            style={{ border: "1.5px solid #003F99", color: "#003F99" }}
+          >
+            {showTable ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            {showTable ? "Ocultar Comparativo" : "Ver Comparativo de Planos"}
+          </button>
+        </div>
+
+        {showTable && <ComparisonTable />}
       </div>
     </section>
   );
