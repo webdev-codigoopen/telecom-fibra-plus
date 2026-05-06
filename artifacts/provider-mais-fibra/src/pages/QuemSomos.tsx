@@ -61,7 +61,7 @@ export default function QuemSomos() {
       <main className="flex-1 pt-16">
         <section
           className="relative py-24 overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #002D75 0%, #0055B8 100%)" }}
+          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
         >
           <div
             className="absolute inset-0 opacity-5"
@@ -118,7 +118,7 @@ export default function QuemSomos() {
           </div>
         </section>
 
-        <section className="py-16" style={{ background: "#003F99" }}>
+        <section className="py-16" style={{ background: "#0040FF" }}>
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               {stats.map((stat, i) => (
@@ -153,7 +153,7 @@ export default function QuemSomos() {
               transition={{ duration: 0.5 }}
               className="text-center mb-14"
             >
-              <h2 className="text-3xl sm:text-4xl font-bold text-[#003F99] mb-3">
+              <h2 className="text-3xl sm:text-4xl font-bold text-[#0040FF] mb-3">
                 Nossa Missão e Valores
               </h2>
               <p className="text-[#4A4F61] max-w-2xl mx-auto">
@@ -176,11 +176,11 @@ export default function QuemSomos() {
                   >
                     <div
                       className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                      style={{ background: "#003F99" }}
+                      style={{ background: "#0040FF" }}
                     >
                       <Icon size={22} color="white" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#003F99] mb-2">{v.title}</h3>
+                    <h3 className="text-lg font-bold text-[#0040FF] mb-2">{v.title}</h3>
                     <p className="text-[#4A4F61] text-sm leading-relaxed">{v.desc}</p>
                   </motion.div>
                 );
@@ -197,7 +197,7 @@ export default function QuemSomos() {
               viewport={{ once: true }}
               className="text-center mb-14"
             >
-              <h2 className="text-3xl sm:text-4xl font-bold text-[#003F99] mb-3">Nossa Trajetória</h2>
+              <h2 className="text-3xl sm:text-4xl font-bold text-[#0040FF] mb-3">Nossa Trajetória</h2>
               <p className="text-[#4A4F61]">Cada marco representa nosso compromisso com a região</p>
             </motion.div>
 
@@ -219,7 +219,7 @@ export default function QuemSomos() {
                     <div className="flex flex-col items-center flex-shrink-0">
                       <div
                         className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-black text-white z-10"
-                        style={{ background: "#003F99" }}
+                        style={{ background: "#0040FF" }}
                       >
                         {m.year.slice(2)}
                       </div>
@@ -231,11 +231,11 @@ export default function QuemSomos() {
                       <div className="flex items-center gap-3 mb-2">
                         <span
                           className="text-xs font-bold px-2 py-1 rounded"
-                          style={{ background: "#E8F0FF", color: "#003F99" }}
+                          style={{ background: "#E8F0FF", color: "#0040FF" }}
                         >
                           {m.year}
                         </span>
-                        <h3 className="text-base font-bold text-[#0D0E14]">{m.title}</h3>
+                        <h3 className="text-base font-bold text-[#0D0D0D]">{m.title}</h3>
                       </div>
                       <p className="text-[#4A4F61] text-sm leading-relaxed">{m.desc}</p>
                     </div>
@@ -248,7 +248,7 @@ export default function QuemSomos() {
 
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #002D75 0%, #0055B8 100%)" }}
+          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
@@ -267,8 +267,8 @@ export default function QuemSomos() {
                 href="https://wa.me/5577998444757"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-105"
-                style={{ background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)", boxShadow: "0 4px 12px rgba(255,140,0,0.35)" }}
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base text-white transition-all duration-200 hover:scale-105"
+                style={{ background: "#00C040", boxShadow: "0 4px 12px rgba(0,192,64,0.35)" }}
               >
                 Falar com a Provider
               </a>

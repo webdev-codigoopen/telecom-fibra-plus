@@ -5,6 +5,7 @@ export type Plan = {
   inclusions: string[];
   featured: boolean;
   badge?: string;
+  bonus?: string;
 };
 
 export const WHATSAPP_NUMBER = "5577998444757";
@@ -12,32 +13,34 @@ export const WHATSAPP_NUMBER = "5577998444757";
 export const plans: Plan[] = [
   {
     speed: "300",
-    wifi: "Wi-Fi",
+    wifi: "Wi-Fi incluso",
     price: "69,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "IPTV"],
+    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "100 Canais"],
     featured: false,
   },
   {
     speed: "400",
-    wifi: "Wi-Fi",
+    wifi: "Wi-Fi incluso",
     price: "79,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "IPTV"],
+    inclusions: ["Instalação Grátis", "Roteador Wi-Fi", "100 Canais"],
     featured: false,
   },
   {
     speed: "600",
-    wifi: "Wi-Fi 6",
+    wifi: "Wi-Fi 6 incluso",
     price: "99,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "IPTV", "WATCH"],
+    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "100 Canais"],
     featured: true,
-    badge: "MAIS VENDIDO",
+    badge: "Mais Vendido",
+    bonus: "Assinatura Inclusa — Watch",
   },
   {
     speed: "900",
-    wifi: "Wi-Fi 6",
+    wifi: "Wi-Fi 6 incluso",
     price: "149,90",
-    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "IPTV", "WATCH", "Power Top"],
+    inclusions: ["Instalação Grátis", "Roteador Wi-Fi 6", "100 Canais"],
     featured: false,
+    bonus: "Assinatura Inclusa — Watch + Power Top",
   },
 ];
 
@@ -50,7 +53,7 @@ export const ALL_INCLUSIONS = [
   "Instalação Grátis",
   "Roteador Wi-Fi",
   "Roteador Wi-Fi 6",
-  "IPTV",
-  "WATCH",
+  "100 Canais",
+  "Watch",
   "Power Top",
 ];

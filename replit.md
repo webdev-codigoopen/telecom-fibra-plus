@@ -25,3 +25,14 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - `pnpm --filter @workspace/api-server run dev` — run API server locally
 
 See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+
+## Artifacts
+
+- `provider-mais-fibra` — Brazilian regional ISP landing site (Provider + FIBRA).
+  Brand: blue `#0040FF`, dark `#001A6E`, green CTA `#00C040`, Inter font.
+  Tokens live in `artifacts/provider-mais-fibra/src/index.css`.
+  Plan data in `src/lib/plans.ts`; reusable `PlanCard` in `src/components/PlanCard.tsx`.
+  Home flow: Header → Hero (with 4 plan cards) → About → Differentials → ComboPowerTop
+  → AppSection → WhatsAppSection → Testimonials → FAQ → Footer.
+  WhatsApp: `5577998444757`. Address: Edifício São Matheus, térreo n°49,
+  Rua José Rocha — Centro, Barreiras-BA.

@@ -49,11 +49,11 @@ export default function Contato() {
     window.open(`https://wa.me/5577998444757?text=${text}`, "_blank");
   };
 
-  const inputClass = "w-full px-4 py-3 rounded-lg text-sm font-medium text-[#0D0E14] outline-none transition-all duration-200 focus:ring-2";
+  const inputClass = "w-full px-4 py-3 rounded-lg text-sm font-medium text-[#0D0D0D] outline-none transition-all duration-200 focus:ring-2";
   const inputStyle = {
     background: "#F5F6FA",
     border: "1.5px solid #E8EAEF",
-    fontFamily: "Nunito, sans-serif",
+    fontFamily: "Inter, sans-serif",
   };
 
   return (
@@ -63,7 +63,7 @@ export default function Contato() {
       <main className="flex-1 pt-16">
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #002D75 0%, #0055B8 100%)" }}
+          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
@@ -105,7 +105,7 @@ export default function Contato() {
                   className="p-8 rounded-2xl"
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
                 >
-                  <h2 className="text-2xl font-bold text-[#003F99] mb-6">Envie sua mensagem</h2>
+                  <h2 className="text-2xl font-bold text-[#0040FF] mb-6">Envie sua mensagem</h2>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
@@ -120,7 +120,7 @@ export default function Contato() {
                           onChange={handleChange}
                           placeholder="João Silva"
                           className={inputClass}
-                          style={{ ...inputStyle, focusRingColor: "#003F99" }}
+                          style={inputStyle}
                         />
                       </div>
                       <div>
@@ -202,10 +202,10 @@ export default function Contato() {
 
                     <button
                       type="submit"
-                      className="w-full flex items-center justify-center gap-3 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                      className="w-full flex items-center justify-center gap-3 py-4 rounded-lg font-bold text-base text-white transition-all duration-200 hover:scale-[1.02] active:scale-95"
                       style={{
-                        background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
-                        boxShadow: "0 4px 12px rgba(255,140,0,0.35)",
+                        background: "#00C040",
+                        boxShadow: "0 4px 12px rgba(0,192,64,0.35)",
                       }}
                     >
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
@@ -232,7 +232,7 @@ export default function Contato() {
                   className="p-6 rounded-xl"
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
-                  <h3 className="text-base font-bold text-[#003F99] mb-4">Contato Direto</h3>
+                  <h3 className="text-base font-bold text-[#0040FF] mb-4">Contato Direto</h3>
                   <div className="space-y-4">
                     <a
                       href="https://wa.me/5577998444757"
@@ -251,7 +251,7 @@ export default function Contato() {
                       </div>
                       <div>
                         <p className="text-xs text-[#4A4F61] font-semibold mb-0.5">WhatsApp</p>
-                        <p className="text-base font-bold text-[#0D0E14]">(77) 99844-4757</p>
+                        <p className="text-base font-bold text-[#0D0D0D]">(77) 99844-4757</p>
                       </div>
                     </a>
 
@@ -270,7 +270,7 @@ export default function Contato() {
                       </div>
                       <div>
                         <p className="text-xs text-[#4A4F61] font-semibold mb-0.5">Instagram</p>
-                        <p className="text-base font-bold text-[#0D0E14]">@provider.fibra</p>
+                        <p className="text-base font-bold text-[#0D0D0D]">@provider.fibra</p>
                       </div>
                     </a>
                   </div>
@@ -281,8 +281,8 @@ export default function Contato() {
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <Clock size={16} style={{ color: "#003F99" }} />
-                    <h3 className="text-base font-bold text-[#003F99]">Horário de Atendimento</h3>
+                    <Clock size={16} style={{ color: "#0040FF" }} />
+                    <h3 className="text-base font-bold text-[#0040FF]">Horário de Atendimento</h3>
                   </div>
                   <div className="space-y-2">
                     {[
@@ -292,15 +292,15 @@ export default function Contato() {
                     ].map((h) => (
                       <div key={h.days} className="flex justify-between items-center py-2 border-b border-[#F0F2F5] last:border-0">
                         <span className="text-sm text-[#4A4F61]">{h.days}</span>
-                        <span className="text-sm font-bold text-[#0D0E14]">{h.hours}</span>
+                        <span className="text-sm font-bold text-[#0D0D0D]">{h.hours}</span>
                       </div>
                     ))}
                   </div>
                   <div
                     className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold"
-                    style={{ background: "#F0FFF6", color: "#00A86B" }}
+                    style={{ background: "#F0FFF6", color: "#00C040" }}
                   >
-                    <span className="w-2 h-2 rounded-full bg-[#00A86B] animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[#00C040] animate-pulse" />
                     Suporte 24h disponível agora
                   </div>
                 </div>
@@ -310,15 +310,15 @@ export default function Contato() {
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={16} style={{ color: "#003F99" }} />
-                    <h3 className="text-base font-bold text-[#003F99]">Cobertura</h3>
+                    <MapPin size={16} style={{ color: "#0040FF" }} />
+                    <h3 className="text-base font-bold text-[#0040FF]">Cobertura</h3>
                   </div>
                   <p className="text-sm text-[#4A4F61] mb-3">
                     Atendemos 12 cidades no Oeste da Bahia.
                   </p>
                   <a
                     href="/onde-estamos"
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#003F99] hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#0040FF] hover:underline"
                   >
                     Ver todas as cidades →
                   </a>

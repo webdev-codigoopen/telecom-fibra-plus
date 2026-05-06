@@ -1,204 +1,128 @@
 import { motion } from "framer-motion";
-import { MessageCircle, ChevronDown } from "lucide-react";
-
-const streamingBadges = ["WATCH", "Paramount+", "TELECINE"];
+import { useRef, useState, useCallback } from "react";
+import { plans } from "../../lib/plans";
+import PlanCard from "../PlanCard";
 
 export default function Hero() {
-  const scrollToPlans = () => {
-    const el = document.getElementById("planos");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const scrollMid = el.scrollLeft + el.clientWidth / 2;
+    let closest = 0, minDist = Infinity;
+    children.forEach((child, i) => {
+      const cardMid = child.offsetLeft + child.offsetWidth / 2;
+      const dist = Math.abs(scrollMid - cardMid);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveIndex(closest);
+  }, []);
+
+  const scrollToIndex = (i: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const child = children[i];
+    if (!child) return;
+    el.scrollTo({ left: child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2, behavior: "smooth" });
   };
 
   return (
     <section
+      id="planos"
       data-testid="hero-section"
-      className="relative flex items-center overflow-hidden pt-16"
-      style={{ background: "linear-gradient(135deg, #002D75 0%, #0055B8 100%)", minHeight: "100vh" }}
+      className="relative overflow-hidden pt-28 pb-20"
+      style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
     >
+      {/* Decorative radial overlay */}
       <div
-        className="absolute inset-0 opacity-10"
+        aria-hidden
+        className="absolute inset-0 opacity-30 pointer-events-none"
         style={{
-          backgroundImage: `radial-gradient(ellipse at 20% 50%, #FFD600 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 20%, #0099FF 0%, transparent 50%)`,
+          backgroundImage:
+            "radial-gradient(ellipse at 20% 30%, rgba(0,192,64,0.25) 0%, transparent 55%), radial-gradient(ellipse at 85% 70%, rgba(26,95,255,0.5) 0%, transparent 55%)",
+        }}
+      />
+      {/* Grid texture */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
         }}
       />
 
-      <div
-        className="absolute top-0 right-0 w-1/2 h-full opacity-5"
-        style={{
-          backgroundImage: `repeating-linear-gradient(
-            60deg,
-            transparent,
-            transparent 40px,
-            rgba(255,255,255,0.3) 40px,
-            rgba(255,255,255,0.3) 41px
-          )`,
-        }}
-      />
-
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 py-20 w-full relative z-10">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
+      <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center max-w-3xl mx-auto mb-12"
+        >
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider mb-6"
+            style={{ background: "rgba(0,192,64,0.15)", color: "#00D94A", border: "1px solid rgba(0,192,64,0.35)" }}
           >
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-              style={{ background: "rgba(255,214,0,0.15)", border: "1px solid rgba(255,214,0,0.3)" }}
-            >
-              <span className="w-2 h-2 rounded-full bg-[#FFD600] animate-pulse" />
-              <span className="text-[#FFD600]">Internet de Alta Velocidade</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00D94A] animate-pulse" />
+            Internet 100% Fibra Óptica
+          </div>
+          <h1
+            className="text-white font-bold leading-[1.05] mb-5"
+            style={{ fontSize: "clamp(34px, 5vw, 56px)", letterSpacing: "-0.025em" }}
+          >
+            A <span className="font-black" style={{ color: "#00D94A" }}>conexão</span> ideal para o seu dia a dia está na Provider
+          </h1>
+          <p className="text-white/75 text-base sm:text-lg max-w-2xl mx-auto">
+            Escolha o plano que combina com você e tenha velocidade, estabilidade e suporte 24h via WhatsApp.
+          </p>
+        </motion.div>
+
+        {/* Desktop grid */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+          {plans.map((plan, i) => (
+            <PlanCard key={plan.speed} plan={plan} index={i} />
+          ))}
+        </div>
+
+        {/* Mobile carousel */}
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex sm:hidden gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scroll-smooth no-scrollbar pt-4"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {plans.map((plan, i) => (
+            <div key={plan.speed} className="flex-none w-[82vw] max-w-[320px] snap-center">
+              <PlanCard plan={plan} index={i} idSuffix="-mobile" />
             </div>
+          ))}
+        </div>
 
-            <h1
-              className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-4"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              Internet Mais Fibra
-              <br />
-              <span style={{ color: "#FFD600" }}>Para Você</span>
-            </h1>
-
-            <p className="text-white/70 text-lg font-medium mb-8">
-              + Conteúdo para toda a família
-            </p>
-
-            <div
-              className="inline-block p-5 rounded-xl mb-8"
+        <div className="flex sm:hidden items-center justify-center gap-2 mt-5" data-testid="pagination-dots">
+          {plans.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollToIndex(i)}
+              aria-label={`Ir para plano ${i + 1}`}
+              data-testid={`pagination-dot-${i}`}
+              className="rounded-full transition-all duration-300"
               style={{
-                background: "rgba(0,0,0,0.25)",
-                border: "1px solid rgba(255,255,255,0.2)",
+                width: i === activeIndex ? 22 : 8,
+                height: 8,
+                background: i === activeIndex ? "#00C040" : "rgba(255,255,255,0.35)",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
               }}
-            >
-              <div className="flex items-baseline gap-2 mb-1">
-                <span
-                  className="text-6xl font-black leading-none"
-                  style={{ color: "#FFD600", letterSpacing: "-0.02em" }}
-                >
-                  600
-                </span>
-                <span className="text-2xl font-bold text-white">MEGA</span>
-              </div>
-              <p className="text-white/70 text-sm mb-2">Wi-Fi 6 incluso</p>
-              <p className="text-white text-lg font-semibold">
-                a partir de{" "}
-                <span className="text-[#FFD600] font-black text-2xl">R$ 99,90</span>
-                <span className="text-white/60 text-sm">/mês</span>
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-8">
-              {streamingBadges.map((badge) => (
-                <span
-                  key={badge}
-                  className="px-3 py-1 rounded-full text-xs font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}
-                >
-                  {badge}
-                </span>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                onClick={scrollToPlans}
-                data-testid="hero-cta-plans"
-                className="px-8 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
-                  boxShadow: "0 4px 12px rgba(255,140,0,0.35)",
-                }}
-              >
-                Ver Planos
-              </button>
-              <a
-                href="https://wa.me/5577998444757"
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="hero-cta-whatsapp"
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-lg font-bold text-base text-white transition-all duration-200 hover:bg-white/20"
-                style={{ border: "2px solid rgba(255,255,255,0.5)" }}
-              >
-                <MessageCircle size={20} />
-                Falar no WhatsApp
-              </a>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, x: 40 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-            className="hidden lg:flex justify-center items-center"
-          >
-            <div className="relative">
-              <div
-                className="relative rounded-2xl overflow-hidden"
-                style={{
-                  width: 420,
-                  height: 480,
-                  background: "linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                }}
-              >
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 text-center">
-                  <div
-                    className="w-24 h-24 rounded-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #FFD600 0%, #FF8C00 100%)" }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" className="w-12 h-12 text-[#002D75]" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
-                      <path d="M9 12l2 2 4-4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-white/60 text-sm font-medium mb-1">Conectividade Premium</p>
-                    <div className="flex items-center gap-3 justify-center mb-4">
-                      {["Família", "Home Office", "Games", "Streaming"].map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-xs text-white/80 font-semibold px-2 py-1 rounded-full"
-                          style={{ background: "rgba(255,255,255,0.1)" }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 w-full">
-                    {[
-                      { label: "Velocidade", value: "900 Mega" },
-                      { label: "Wi-Fi", value: "Wi-Fi 6" },
-                      { label: "Latência", value: "<5ms" },
-                      { label: "Uptime", value: "99.9%" },
-                    ].map((stat) => (
-                      <div
-                        key={stat.label}
-                        className="rounded-xl p-3 text-center"
-                        style={{ background: "rgba(255,255,255,0.1)" }}
-                      >
-                        <p className="text-xl font-black" style={{ color: "#FFD600" }}>
-                          {stat.value}
-                        </p>
-                        <p className="text-white/60 text-xs font-medium">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+            />
+          ))}
         </div>
       </div>
-
-      <button
-        onClick={scrollToPlans}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 hover:text-white/80 transition-colors animate-bounce"
-        aria-label="Rolar para planos"
-      >
-        <ChevronDown size={32} />
-      </button>
     </section>
   );
 }

@@ -1,20 +1,14 @@
-import React from 'react';
-import Header from '@/components/sections/Header';
-import Hero from '@/components/sections/Hero';
-import Differentials from '@/components/sections/Differentials';
-import Plans from '@/components/sections/Plans';
-import StreamingBanner from '@/components/sections/StreamingBanner';
-import IPTVGrid from '@/components/sections/IPTVGrid';
-import AppSection from '@/components/sections/AppSection';
-import About from '@/components/sections/About';
-import Benefits from '@/components/sections/Benefits';
-import Coverage from '@/components/sections/Coverage';
-import ContactSection from '@/components/sections/ContactSection';
-import Testimonials from '@/components/sections/Testimonials';
-import FAQ from '@/components/sections/FAQ';
-import FinalCTA from '@/components/sections/FinalCTA';
-import Footer from '@/components/sections/Footer';
-import WhatsAppFloat from '@/components/sections/WhatsAppFloat';
+import Header from "@/components/sections/Header";
+import Hero from "@/components/sections/Hero";
+import About from "@/components/sections/About";
+import Differentials from "@/components/sections/Differentials";
+import ComboPowerTop from "@/components/sections/ComboPowerTop";
+import AppSection from "@/components/sections/AppSection";
+import WhatsAppSection from "@/components/sections/WhatsAppSection";
+import Testimonials from "@/components/sections/Testimonials";
+import FAQ from "@/components/sections/FAQ";
+import Footer from "@/components/sections/Footer";
+import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 
 export default function Home() {
   return (
@@ -22,18 +16,13 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
-        <Differentials />
-        <Plans />
-        <StreamingBanner />
-        <IPTVGrid />
-        <AppSection />
         <About />
-        <Benefits />
-        <Coverage />
-        <ContactSection />
+        <Differentials />
+        <ComboPowerTop />
+        <AppSection />
+        <WhatsAppSection />
         <Testimonials />
         <FAQ />
-        <FinalCTA />
       </main>
       <Footer />
       <WhatsAppFloat />

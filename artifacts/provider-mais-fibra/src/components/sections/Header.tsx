@@ -20,10 +20,10 @@ type NavLink = {
 const navLinks: NavLink[] = [
   { label: "Home", href: "/", page: "/" },
   { label: "Planos", href: "#planos" },
-  { label: "IPTV", href: "#iptv" },
-  { label: "Quem Somos", href: "/quem-somos", page: "/quem-somos" },
+  { label: "Sobre Nós", href: "/quem-somos", page: "/quem-somos" },
   { label: "Onde Estamos", href: "/onde-estamos", page: "/onde-estamos" },
   { label: "Contato", href: "/contato", page: "/contato" },
+  { label: "Aplicativo", href: "#app" },
 ];
 
 export default function Header() {
@@ -50,13 +50,11 @@ export default function Header() {
 
   const handleNav = (link: NavLink) => {
     setIsOpen(false);
-
     if (link.page) {
       navigate(link.page);
       window.scrollTo({ top: 0 });
       return;
     }
-
     if (link.href.startsWith("#")) {
       if (location !== "/") {
         navigate("/");
@@ -71,10 +69,7 @@ export default function Header() {
     }
   };
 
-  const isActive = (link: NavLink) => {
-    if (link.page) return location === link.page;
-    return false;
-  };
+  const isActive = (link: NavLink) => (link.page ? location === link.page : false);
 
   return (
     <header
@@ -82,13 +77,12 @@ export default function Header() {
       data-testid="header"
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: scrolled
-          ? "rgba(0, 45, 117, 0.97)"
-          : "linear-gradient(135deg, #002D75 0%, #003F99 100%)",
-        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.25)" : "none",
+        background: scrolled ? "rgba(0, 26, 110, 0.97)" : "#001A6E",
+        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.30)" : "none",
+        backdropFilter: scrolled ? "blur(8px)" : "none",
       }}
     >
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 flex items-center justify-between h-16">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12 flex items-center justify-between h-16">
         <button
           onClick={() => { navigate("/"); window.scrollTo({ top: 0 }); }}
           className="flex-shrink-0 focus:outline-none"
@@ -96,21 +90,21 @@ export default function Header() {
           <img src={logoWhite} alt="Provider Mais Fibra" className="h-9 w-auto" />
         </button>
 
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden lg:flex items-center gap-7">
           {navLinks.map((link) => (
             <button
               key={link.label}
               onClick={() => handleNav(link)}
               data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-              className="text-sm font-semibold transition-colors duration-200 focus:outline-none"
-              style={{ color: isActive(link) ? "#FFD600" : "rgba(255,255,255,0.90)" }}
+              className="text-sm font-semibold transition-colors duration-200 focus:outline-none hover:text-[#00D94A]"
+              style={{ color: isActive(link) ? "#00C040" : "rgba(255,255,255,0.92)" }}
             >
               {link.label}
             </button>
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-4">
           <a
             href="https://wa.me/5577998444757"
             target="_blank"
@@ -134,77 +128,61 @@ export default function Header() {
           <button
             onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="ml-2 px-5 py-2 rounded-lg text-sm font-bold text-[#0D0E14] transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
-            style={{
-              background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
-              boxShadow: "0 4px 12px rgba(255,140,0,0.35)",
-            }}
+            className="ml-2 px-6 py-2.5 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
+            style={{ background: "#00C040", boxShadow: "0 6px 16px rgba(0,192,64,0.35)" }}
           >
-            Assine Agora
+            Assine Já
           </button>
         </div>
 
         <button
-          className="md:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20"
+          id="mobile-menu-trigger"
+          className="lg:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20"
           onClick={() => setIsOpen(!isOpen)}
           data-testid="header-mobile-menu"
           aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
           aria-expanded={isOpen}
+          aria-controls="mobile-menu"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
       <div
-        className="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
+        id="mobile-menu"
+        role="region"
+        aria-labelledby="mobile-menu-trigger"
+        className="lg:hidden overflow-hidden transition-all duration-300 ease-in-out"
         style={{
-          maxHeight: isOpen ? "500px" : "0px",
+          maxHeight: isOpen ? "560px" : "0px",
           opacity: isOpen ? 1 : 0,
-          background: "rgba(0, 25, 80, 0.98)",
+          background: "rgba(0, 16, 80, 0.98)",
         }}
       >
         <div className="px-4 pb-5 pt-2">
-          {navLinks.map((link, i) => (
+          {navLinks.map((link) => (
             <button
               key={link.label}
               onClick={() => handleNav(link)}
               className="w-full text-left py-3.5 text-sm font-semibold border-b border-white/10 transition-colors last:border-b-0 focus:outline-none"
-              style={{
-                color: isActive(link) ? "#FFD600" : "rgba(255,255,255,0.90)",
-                transitionDelay: isOpen ? `${i * 30}ms` : "0ms",
-              }}
+              style={{ color: isActive(link) ? "#00C040" : "rgba(255,255,255,0.92)" }}
             >
               {link.label}
             </button>
           ))}
           <div className="flex items-center gap-4 pt-4 mt-1">
-            <a
-              href="https://wa.me/5577998444757"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/80 hover:text-white transition-colors"
-              aria-label="WhatsApp"
-            >
+            <a href="https://wa.me/5577998444757" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-colors" aria-label="WhatsApp">
               <WhatsAppIcon size={20} />
             </a>
-            <a
-              href="https://instagram.com/provider.fibra"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-white/80 hover:text-white transition-colors"
-              aria-label="Instagram"
-            >
+            <a href="https://instagram.com/provider.fibra" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-colors" aria-label="Instagram">
               <Instagram size={20} />
             </a>
             <button
               onClick={() => { setIsOpen(false); handleNav({ label: "Planos", href: "#planos" }); }}
-              className="ml-auto px-5 py-2.5 rounded-lg text-sm font-bold text-[#0D0E14] transition-all duration-200 active:scale-95 focus:outline-none"
-              style={{
-                background: "linear-gradient(90deg, #FF8C00 0%, #FFD600 100%)",
-                boxShadow: "0 4px 12px rgba(255,140,0,0.3)",
-              }}
+              className="ml-auto px-5 py-2.5 rounded-full text-sm font-bold text-white transition-all duration-200 active:scale-95 focus:outline-none"
+              style={{ background: "#00C040", boxShadow: "0 4px 12px rgba(0,192,64,0.30)" }}
             >
-              Assine Agora
+              Assine Já
             </button>
           </div>
         </div>
