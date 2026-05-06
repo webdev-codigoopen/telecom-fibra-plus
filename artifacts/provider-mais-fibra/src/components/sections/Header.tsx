@@ -90,13 +90,13 @@ export default function Header() {
           <img src={logoWhite} alt="Provider Mais Fibra" className="h-9 w-auto" />
         </button>
 
-        <nav className="hidden lg:flex items-center gap-7">
+        <nav className="hidden md:flex items-center gap-4 lg:gap-7">
           {navLinks.map((link) => (
             <button
               key={link.label}
               onClick={() => handleNav(link)}
               data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-              className="text-sm font-semibold transition-colors duration-200 focus:outline-none hover:text-[#00D94A]"
+              className="text-xs lg:text-sm font-semibold transition-colors duration-200 focus:outline-none hover:text-[#00D94A] whitespace-nowrap"
               style={{ color: isActive(link) ? "#00C040" : "rgba(255,255,255,0.92)" }}
             >
               {link.label}
@@ -104,12 +104,12 @@ export default function Header() {
           ))}
         </nav>
 
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-2 lg:gap-4">
           <a
             href="https://wa.me/5577998444757"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white/80 hover:text-white transition-colors"
+            className="hidden lg:block text-white/80 hover:text-white transition-colors"
             title="WhatsApp"
             data-testid="header-whatsapp"
           >
@@ -119,7 +119,7 @@ export default function Header() {
             href="https://instagram.com/provider.fibra"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-white/80 hover:text-white transition-colors"
+            className="hidden lg:block text-white/80 hover:text-white transition-colors"
             title="Instagram"
             data-testid="header-instagram"
           >
@@ -128,7 +128,7 @@ export default function Header() {
           <button
             onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="ml-2 px-6 py-2.5 rounded-full text-sm font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
+            className="px-4 py-2 lg:px-6 lg:py-2.5 lg:ml-2 rounded-full text-xs lg:text-sm font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none whitespace-nowrap"
             style={{ background: "#00C040", boxShadow: "0 6px 16px rgba(0,192,64,0.35)" }}
           >
             Assine Já
@@ -137,7 +137,7 @@ export default function Header() {
 
         <button
           id="mobile-menu-trigger"
-          className="lg:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20"
+          className="md:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20"
           onClick={() => setIsOpen(!isOpen)}
           data-testid="header-mobile-menu"
           aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
@@ -152,7 +152,7 @@ export default function Header() {
         id="mobile-menu"
         role="region"
         aria-labelledby="mobile-menu-trigger"
-        className="lg:hidden overflow-hidden transition-all duration-300 ease-in-out"
+        className="md:hidden overflow-hidden transition-all duration-300 ease-in-out"
         style={{
           maxHeight: isOpen ? "560px" : "0px",
           opacity: isOpen ? 1 : 0,
