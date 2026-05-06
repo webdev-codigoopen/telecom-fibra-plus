@@ -49,6 +49,12 @@
       "skillPath": "skills/imagegen-frontend-web/SKILL.md",
       "computedHash": "65f5ae59fa317567809438310b1c54f78cd133426deb43e4d3d4ca4c8f541628"
     },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": "skill/SKILL.md",
+      "computedHash": "8cdf2e788eaca3af7d02026ef9cec55b506100a00d130f938e3fb1ad669c0ad0"
+    },
     "industrial-brutalist-ui": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
