@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Check, X, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { plans, buildWhatsAppUrl, ALL_INCLUSIONS } from "../../lib/plans";
@@ -202,6 +202,33 @@ function ComparisonTable() {
 
 export default function Plans() {
   const [showTable, setShowTable] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const scrollMid = el.scrollLeft + el.clientWidth / 2;
+    let closest = 0;
+    let minDist = Infinity;
+    children.forEach((child, i) => {
+      const cardMid = child.offsetLeft + child.offsetWidth / 2;
+      const dist = Math.abs(scrollMid - cardMid);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    });
+    setActiveIndex(closest);
+  }, []);
+
+  const scrollToIndex = (i: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const children = Array.from(el.children) as HTMLElement[];
+    const child = children[i];
+    if (!child) return;
+    const targetLeft = child.offsetLeft - (el.clientWidth - child.offsetWidth) / 2;
+    el.scrollTo({ left: targetLeft, behavior: "smooth" });
+  };
 
   return (
     <section
@@ -232,6 +259,8 @@ export default function Plans() {
         </div>
 
         <div
+          ref={scrollRef}
+          onScroll={handleScroll}
           className="flex sm:hidden gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory scroll-smooth"
           style={{ scrollbarWidth: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
         >
@@ -245,9 +274,25 @@ export default function Plans() {
           ))}
         </div>
 
-        <p className="sm:hidden text-center text-xs text-[#B0B5C3] mt-3">
-          ← Deslize para ver todos os planos →
-        </p>
+        <div className="flex sm:hidden items-center justify-center gap-2 mt-4" data-testid="pagination-dots">
+          {plans.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollToIndex(i)}
+              aria-label={`Ir para plano ${i + 1}`}
+              data-testid={`pagination-dot-${i}`}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === activeIndex ? 20 : 8,
+                height: 8,
+                background: i === activeIndex ? "#003F99" : "#D0D4E0",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            />
+          ))}
+        </div>
 
         <div className="mt-10 text-center">
           <button
