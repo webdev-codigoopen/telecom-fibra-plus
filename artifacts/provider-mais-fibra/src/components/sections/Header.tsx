@@ -109,7 +109,7 @@ export default function Header() {
             href="https://wa.me/5577998444757"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden lg:block text-white/80 hover:text-white transition-colors"
+            className="text-white/80 hover:text-white transition-colors"
             title="WhatsApp"
             data-testid="header-whatsapp"
           >
@@ -119,7 +119,7 @@ export default function Header() {
             href="https://instagram.com/provider.fibra"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden lg:block text-white/80 hover:text-white transition-colors"
+            className="text-white/80 hover:text-white transition-colors"
             title="Instagram"
             data-testid="header-instagram"
           >
