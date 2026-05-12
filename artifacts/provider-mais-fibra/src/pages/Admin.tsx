@@ -649,6 +649,20 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropFileName, setCropFileName] = useState<string>("");
   const [cropFileType, setCropFileType] = useState<string>("");
+  const [incDragItem, setIncDragItem] = useState<string | null>(null);
+  const [incDragOver, setIncDragOver] = useState<string | null>(null);
+
+  function reorderInclusion(source: string, target: string) {
+    setForm((prev) => {
+      const list = [...prev.inclusions];
+      const from = list.indexOf(source);
+      const to = list.indexOf(target);
+      if (from === -1 || to === -1 || from === to) return prev;
+      list.splice(from, 1);
+      list.splice(to, 0, source);
+      return { ...prev, inclusions: list };
+    });
+  }
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -800,25 +814,89 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
 
         <div>
           <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Inclusos</label>
-          <div className="flex flex-wrap gap-2">
-            {ALL_INCLUSIONS.map((item) => {
-              const checked = form.inclusions.includes(item);
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => toggleInclusion(item)}
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
-                  style={checked
-                    ? { background: "#00C040", color: "white", borderColor: "#00C040" }
-                    : { background: "white", color: "#2A2D38", borderColor: "#E0E3EB" }
-                  }
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
+          {form.inclusions.length > 0 && (
+            <div className="mb-2">
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Arraste para reordenar — esta é a ordem que aparece no card.</p>
+              <div className="flex flex-wrap gap-2">
+                {form.inclusions.map((item) => {
+                  const isDragging = incDragItem === item;
+                  const isOver = incDragOver === item && incDragItem !== item;
+                  return (
+                    <div
+                      key={item}
+                      draggable
+                      onDragStart={(e) => {
+                        setIncDragItem(item);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", item);
+                      }}
+                      onDragOver={(e) => {
+                        if (!incDragItem) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (incDragOver !== item) setIncDragOver(item);
+                      }}
+                      onDragLeave={() => {
+                        if (incDragOver === item) setIncDragOver(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const src = incDragItem;
+                        setIncDragItem(null);
+                        setIncDragOver(null);
+                        if (src) reorderInclusion(src, item);
+                      }}
+                      onDragEnd={() => {
+                        setIncDragItem(null);
+                        setIncDragOver(null);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border cursor-grab active:cursor-grabbing transition-all ${
+                        isDragging ? "opacity-40" : ""
+                      } ${isOver ? "ring-2 ring-[#0040FF]/40" : ""}`}
+                      style={{ background: "#00C040", color: "white", borderColor: "#00C040" }}
+                      title="Arraste para reordenar"
+                      aria-label={`Reordenar ${item}`}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 opacity-80" fill="currentColor">
+                        <circle cx="9" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/>
+                        <circle cx="15" cy="6" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="15" cy="18" r="1.3"/>
+                      </svg>
+                      <span>{item}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleInclusion(item)}
+                        className="ml-1 -mr-1 w-4 h-4 inline-flex items-center justify-center rounded-full hover:bg-white/20"
+                        aria-label={`Remover ${item}`}
+                        title="Remover"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3">
+                          <line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {ALL_INCLUSIONS.some((item) => !form.inclusions.includes(item)) && (
+            <div>
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Disponíveis</p>
+              <div className="flex flex-wrap gap-2">
+                {ALL_INCLUSIONS.filter((item) => !form.inclusions.includes(item)).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => toggleInclusion(item)}
+                    className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
+                    style={{ background: "white", color: "#2A2D38", borderColor: "#E0E3EB" }}
+                  >
+                    + {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

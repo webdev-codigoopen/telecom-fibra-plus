@@ -115,27 +115,34 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         />
       </div>
 
-      {/* Icons row */}
-      <div className="flex items-start justify-center gap-5 mb-5">
-        <div className="flex flex-col items-center gap-1.5">
-          <img src={ICON_INSTALACAO} alt="" width={20} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
-            INSTALAÇÃO
-          </span>
-        </div>
-        <div className="flex flex-col items-center gap-1.5">
-          <img src={ICON_ROTEADOR} alt="" width={29} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
-            ROTEADOR
-          </span>
-        </div>
-        <div className="flex flex-col items-center gap-1.5">
-          <img src={ICON_CANAIS} alt="" width={64} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
-            CANAIS
-          </span>
-        </div>
-      </div>
+      {/* Icons row — driven by plan.inclusions order */}
+      {(() => {
+        const ICON_MAP: Record<string, { src: string; label: string; w: number; h: number }> = {
+          "Instalação Grátis": { src: ICON_INSTALACAO, label: "INSTALAÇÃO", w: 20, h: 20 },
+          "Roteador Wi-Fi": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
+          "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
+          "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
+        };
+        const items = plan.inclusions
+          .map((name) => ({ name, def: ICON_MAP[name] }))
+          .filter((x): x is { name: string; def: { src: string; label: string; w: number; h: number } } => Boolean(x.def));
+        if (items.length === 0) return null;
+        return (
+          <div className="flex items-start justify-center gap-5 mb-5">
+            {items.map((item, i) => (
+              <div key={`${item.name}-${i}`} className="flex flex-col items-center gap-1.5">
+                <img src={item.def.src} alt="" width={item.def.w} height={item.def.h} />
+                <span
+                  className="text-[10px] tracking-[0.05em]"
+                  style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}
+                >
+                  {item.def.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Streaming bonus (600 / 900) */}
       {has600Streaming && <StreamingBox logos="watch" />}
