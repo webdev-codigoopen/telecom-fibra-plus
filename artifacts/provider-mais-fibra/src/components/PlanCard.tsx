@@ -15,7 +15,8 @@ const FONT_SPEED = "'Amino', 'Montserrat', sans-serif";
 const FONT_PRICE = "'Nexa', 'Montserrat', sans-serif";
 
 const COLORS = {
-  cardBg: "#1A38D5",
+  cardBgFrom: "#2C41DA",
+  cardBgTo: "#172DD8",
   cardBorder: "rgba(255,255,255,0.08)",
   cardShadow: "0 12px 36px rgba(0, 8, 80, 0.35)",
   white: "#FFFFFF",
@@ -49,8 +50,8 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
       ? "+ Assinatura inclusa Watch + Power Top"
       : "+ Assinatura inclusa Watch";
   return (
-    <div className="plans-section__streaming flex justify-center mb-5">
-      <img src={src} alt={alt} width={193} height={42} className="max-w-full h-auto" />
+    <div className="plans-section__streaming flex justify-center">
+      <img src={src} alt={alt} width={193} height={42} style={{ width: 193, height: 42 }} className="max-w-full" />
     </div>
   );
 }
@@ -62,6 +63,11 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
 
   const has600Streaming = plan.speed === "600";
   const has900Streaming = plan.speed === "900";
+  const hasStreaming = has600Streaming || has900Streaming;
+
+  // Figma: cards with streaming = padding-top 30 / gap 11; without = padding-top 50 / gap 30
+  const paddingTop = hasStreaming ? 30 : 50;
+  const innerGap = hasStreaming ? 11 : 30;
 
   return (
     <motion.div
@@ -70,145 +76,218 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       viewport={{ once: true }}
       transition={{ delay: index * 0.08, duration: 0.45 }}
       data-testid={`plan-card-${plan.speed}${idSuffix}`}
-      className="plans-section__card relative flex flex-col h-full rounded-2xl px-6 pt-7 pb-6"
+      className="plans-section__card relative flex flex-col w-full sm:w-[295px] sm:h-[490px]"
       style={{
-        background: COLORS.cardBg,
+        paddingTop,
+        paddingBottom: 20,
+        paddingLeft: 25,
+        paddingRight: 25,
+        gap: innerGap,
+        background: `linear-gradient(135deg, ${COLORS.cardBgFrom} 20%, ${COLORS.cardBgTo} 96%)`,
         border: `1px solid ${COLORS.cardBorder}`,
+        borderRadius: 18,
         boxShadow: COLORS.cardShadow,
         fontFamily: FONT_BODY,
         color: COLORS.white,
       }}
     >
-      {/* "INTERNET 100% FIBRA" header */}
-      <div
-        className="text-center text-[12px] tracking-[0.04em] mb-3"
-        style={{ color: COLORS.white, fontWeight: 600 }}
-      >
-        INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
-      </div>
-
-      {/* Speed + MEGA tag (tag overlaps the last 0, centered vertically on it) */}
-      <div className="relative flex items-center justify-center mb-5" style={{ height: 88 * 0.85 }}>
-        <span
-          className="leading-none"
-          style={{
-            fontSize: 88,
-            fontFamily: FONT_SPEED,
-            color: COLORS.white,
-            letterSpacing: "-0.02em",
-            lineHeight: 0.85,
-          }}
+      {/* Top block: header + speed + icons */}
+      <div className="flex flex-col items-center" style={{ gap: 15 }}>
+        {/* INTERNET 100% FIBRA */}
+        <div
+          className="text-center"
+          style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.02em", color: COLORS.white }}
         >
-          {plan.speed}
-        </span>
-        <img
-          src={TAG_MEGA}
-          alt="Mega"
-          width={47}
-          height={16}
-          className="absolute pointer-events-none"
-          style={{
-            left: "calc(50% + 1.05ch)",
-            top: "50%",
-            transform: "translateY(-50%)",
-          }}
-        />
-      </div>
+          INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
+        </div>
 
-      {/* Icons row — driven by plan.inclusions order */}
-      {(() => {
-        const ICON_MAP: Record<string, { src: string; label: string; w: number; h: number }> = {
-          "Instalação Grátis": { src: ICON_INSTALACAO, label: "INSTALAÇÃO", w: 20, h: 20 },
-          "Roteador Wi-Fi": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
-          "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
-          "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
-        };
-        const items = plan.inclusions
-          .map((name) => ({ name, def: ICON_MAP[name] }))
-          .filter((x): x is { name: string; def: { src: string; label: string; w: number; h: number } } => Boolean(x.def));
-        if (items.length === 0) return null;
-        return (
-          <div className="flex items-start justify-center gap-5 mb-5">
-            {items.map((item, i) => (
-              <div key={`${item.name}-${i}`} className="flex flex-col items-center gap-1.5">
-                <img src={item.def.src} alt="" width={item.def.w} height={item.def.h} />
-                <span
-                  className="text-[10px] tracking-[0.05em]"
-                  style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}
-                >
-                  {item.def.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
+        {/* Speed + MEGA tag */}
+        <div className="relative flex items-center justify-center" style={{ height: 95 }}>
+          <span
+            className="leading-none"
+            style={{
+              fontSize: 111,
+              fontFamily: FONT_SPEED,
+              color: COLORS.white,
+              letterSpacing: "-0.02em",
+              lineHeight: 0.85,
+            }}
+          >
+            {plan.speed}
+          </span>
+          <img
+            src={TAG_MEGA}
+            alt="Mega"
+            width={47}
+            height={16}
+            className="absolute pointer-events-none"
+            style={{
+              left: "calc(50% + 1.05ch)",
+              top: "50%",
+              transform: "translateY(-50%)",
+            }}
+          />
+        </div>
+
+        {/* Icons row — driven by plan.inclusions order */}
+        {(() => {
+          const ICON_MAP: Record<string, { src: string; label: string; w: number; h: number }> = {
+            "Instalação Grátis": { src: ICON_INSTALACAO, label: "INSTALAÇÃO", w: 20, h: 20 },
+            "Roteador Wi-Fi": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
+            "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
+            "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
+          };
+          const items = plan.inclusions
+            .map((name) => ({ name, def: ICON_MAP[name] }))
+            .filter((x): x is { name: string; def: { src: string; label: string; w: number; h: number } } => Boolean(x.def));
+          if (items.length === 0) return null;
+          return (
+            <div className="flex items-end justify-center" style={{ gap: 16 }}>
+              {items.map((item, i) => (
+                <div key={`${item.name}-${i}`} className="flex flex-col items-center" style={{ gap: 6 }}>
+                  <img src={item.def.src} alt="" width={item.def.w} height={item.def.h} />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: FONT_BODY,
+                      fontWeight: 500,
+                      color: COLORS.white,
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    {item.def.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Streaming bonus (600 / 900) */}
       {has600Streaming && <StreamingBox logos="watch" />}
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
 
-      {/* Price block */}
-      <div className="flex items-end justify-center gap-2 mb-6 mt-auto">
-        <div className="flex flex-col items-end leading-none pb-2">
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 700 }}>
-            POR
+      {/* Bottom block: price + CTA + footer */}
+      <div className="flex flex-col mt-auto" style={{ gap: 10 }}>
+        {/* Price block */}
+        <div className="flex items-end justify-center" style={{ gap: 6 }}>
+          <div className="flex flex-col items-end leading-none" style={{ paddingBottom: 8 }}>
+            <span
+              style={{
+                fontSize: 8,
+                fontFamily: FONT_SPEED,
+                fontWeight: 400,
+                color: COLORS.white,
+                lineHeight: 1,
+              }}
+            >
+              POR
+            </span>
+            <span
+              style={{
+                fontSize: 8,
+                fontFamily: FONT_SPEED,
+                fontWeight: 400,
+                color: COLORS.white,
+                lineHeight: 1,
+                marginTop: 2,
+              }}
+            >
+              APENAS
+            </span>
+            <span
+              style={{
+                fontSize: 21,
+                fontFamily: FONT_SPEED,
+                color: COLORS.green,
+                lineHeight: 1,
+                marginTop: 4,
+              }}
+            >
+              R$
+            </span>
+          </div>
+          <span
+            className="leading-none"
+            style={{
+              fontSize: 70,
+              fontFamily: FONT_PRICE,
+              fontWeight: 900,
+              color: COLORS.white,
+              letterSpacing: "-0.04em",
+              lineHeight: 0.85,
+            }}
+          >
+            {reais}
           </span>
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 700 }}>
-            APENAS
-          </span>
-          <span className="text-[20px] mt-1" style={{ color: COLORS.green, fontFamily: FONT_PRICE }}>
-            R$
-          </span>
+          <div className="flex flex-col items-start leading-none" style={{ paddingBottom: 4 }}>
+            <span
+              style={{
+                fontSize: 26,
+                fontFamily: FONT_PRICE,
+                fontWeight: 700,
+                color: COLORS.white,
+                letterSpacing: "-0.04em",
+                lineHeight: 1,
+              }}
+            >
+              ,{centavos ?? "00"}
+            </span>
+            <span
+              style={{
+                fontSize: 12,
+                fontFamily: FONT_SPEED,
+                fontWeight: 400,
+                color: COLORS.green,
+                lineHeight: 1,
+                marginTop: 4,
+              }}
+            >
+              /MÊS
+            </span>
+          </div>
         </div>
-        <span
-          className="leading-none"
+
+        {/* CTA */}
+        <a
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid={`plan-cta-${plan.speed}${idSuffix}`}
+          onClick={() => trackPlanClick(plan, source)}
+          className="plans-section__cta flex items-center justify-center transition-all duration-200 hover:bg-white/10 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
           style={{
-            fontSize: 56,
-            fontFamily: FONT_PRICE,
+            gap: 8,
+            width: "100%",
+            height: 40,
+            borderRadius: 8,
+            border: `1.5px solid ${COLORS.white}`,
             color: COLORS.white,
-            letterSpacing: "-0.02em",
-            lineHeight: 0.85,
+            fontFamily: FONT_BODY,
+            fontSize: 14,
+            fontWeight: 500,
+            letterSpacing: "0.04em",
           }}
         >
-          {reais}
-        </span>
-        <div className="flex flex-col items-start leading-none pb-1">
-          <span className="text-[14px]" style={{ color: COLORS.white, fontFamily: FONT_PRICE }}>
-            ,{centavos ?? "00"}
-          </span>
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
-            /MÊS
-          </span>
-        </div>
+          <img src={ICON_WHATSAPP} alt="" width={16} height={16} />
+          <span>ASSINE JÁ</span>
+        </a>
+
+        {/* Footer note */}
+        <p
+          className="text-center italic"
+          style={{
+            fontSize: 10,
+            fontFamily: FONT_BODY,
+            fontWeight: 400,
+            lineHeight: "14.4px",
+            color: COLORS.whiteFaint,
+          }}
+        >
+          *Consultar a disponibilidade<br />de planos na sua cidade
+        </p>
       </div>
-
-      {/* CTA */}
-      <a
-        href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-testid={`plan-cta-${plan.speed}${idSuffix}`}
-        onClick={() => trackPlanClick(plan, source)}
-        className="plans-section__cta flex items-center justify-center gap-2 w-full h-11 rounded-lg text-[14px] transition-all duration-200 hover:bg-white/10 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
-        style={{
-          border: `1.5px solid ${COLORS.white}`,
-          color: COLORS.white,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-        }}
-      >
-        <img src={ICON_WHATSAPP} alt="" width={16} height={16} />
-        <span>ASSINE JÁ</span>
-      </a>
-
-      {/* Footer note */}
-      <p
-        className="text-center text-[10px] mt-4 italic leading-tight"
-        style={{ color: COLORS.whiteFaint, fontWeight: 400 }}
-      >
-        *Consultar a disponibilidade<br />de planos na sua cidade
-      </p>
     </motion.div>
   );
 }

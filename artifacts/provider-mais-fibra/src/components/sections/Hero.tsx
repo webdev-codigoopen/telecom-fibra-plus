@@ -35,35 +35,43 @@ export default function Hero() {
     <section
       id="planos"
       data-testid="hero-section"
-      className="plans-section relative overflow-hidden pt-24 pb-20"
+      className="plans-section relative overflow-hidden"
       style={{
+        paddingTop: 54,
+        paddingBottom: 100,
         background:
-          "linear-gradient(180deg, #122AD5 0%, #1A38D5 60%, #2138CD 100%)",
+          "linear-gradient(19.475deg, #122AD5 0%, #2138CD 50%, #2A41DB 100%)",
         fontFamily: "'Montserrat', system-ui, sans-serif",
       }}
     >
-      <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">
+      <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-0">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center max-w-3xl mx-auto mb-10"
+          className="text-center mx-auto"
+          style={{ paddingTop: 21, paddingBottom: 21, marginBottom: 20 }}
         >
           <h2
-            className="text-white leading-[1.25]"
+            className="text-white"
             style={{
-              fontSize: "clamp(20px, 2.4vw, 26px)",
-              fontWeight: 600,
-              letterSpacing: "-0.005em",
+              fontFamily: "'Montserrat', system-ui, sans-serif",
+              fontSize: 28,
+              fontWeight: 400,
+              lineHeight: "40px",
+              letterSpacing: 0,
             }}
           >
-            A <span style={{ fontWeight: 900 }}>conexão</span> ideal para o seu dia a dia está na{" "}
-            <span style={{ fontWeight: 900 }}>Provider</span>
+            A <span style={{ fontWeight: 800 }}>conexão</span> ideal para o seu dia a dia está na{" "}
+            <span style={{ fontWeight: 800 }}>Provider</span>
           </h2>
         </motion.div>
 
-        {/* Desktop grid */}
-        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-4">
+        {/* Desktop grid — 4 cards × 295px + 3 × 20px gap = 1240px */}
+        <div
+          className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 justify-items-center"
+          style={{ gap: 20 }}
+        >
           {plans.map((plan, i) => (
             <PlanCard key={plan.speed} plan={plan} index={i} />
           ))}
@@ -77,7 +85,7 @@ export default function Hero() {
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {plans.map((plan, i) => (
-            <div key={plan.speed} className="flex-none w-[82vw] max-w-[320px] snap-center">
+            <div key={plan.speed} className="flex-none w-[295px] snap-center">
               <PlanCard plan={plan} index={i} idSuffix="-mobile" />
             </div>
           ))}
