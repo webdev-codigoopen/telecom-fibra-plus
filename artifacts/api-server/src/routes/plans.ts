@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, plansTable } from "@workspace/db";
+import { db, plansTable, planClicksTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -56,6 +56,18 @@ router.get("/plans/:id/share", async (req, res) => {
     const apiIdx = req.originalUrl.indexOf("/api/");
     const basePath = apiIdx >= 0 ? req.originalUrl.slice(0, apiIdx) : "";
     const homeUrl = `${basePath}/` || "/";
+    Promise.resolve(
+      db.insert(planClicksTable).values({
+        planSpeed: plan.speed,
+        planPrice: plan.price,
+        source: "whatsapp-share",
+      }),
+    ).then(
+      () => undefined,
+      (err) => {
+        console.error("Failed to record whatsapp-share click", err);
+      },
+    );
     if (!plan.imageUrl) {
       res.redirect(302, homeUrl);
       return;
