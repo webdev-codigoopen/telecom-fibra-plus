@@ -1,11 +1,42 @@
 import { motion } from "framer-motion";
-import { FileText, Zap, User, Headphones, Sparkles } from "lucide-react";
+import iconPlus from "@assets/icone_plus_green.svg";
+import icon2Via from "@assets/icon_2via_boleto.svg";
+import iconVelocidade from "@assets/icon_teste_velocidade.svg";
+import iconArea from "@assets/icon_area_cliente.svg";
+import iconViaApp from "@assets/icon_via_app.svg";
+import ctaGoogle from "@assets/cta_google_play.svg";
+import ctaApple from "@assets/cta_app_store.svg";
 
-const features = [
-  { icon: FileText, label: "2ª Via de Boleto", desc: "Acesse e pague sua fatura com 1 clique." },
-  { icon: Zap, label: "Teste de Velocidade", desc: "Verifique sua conexão a qualquer momento." },
-  { icon: User, label: "Área do Cliente", desc: "Gerencie sua conta de onde estiver." },
-  { icon: Headphones, label: "Suporte via App", desc: "Atendimento rápido direto no aplicativo." },
+const FONT_MONTSERRAT = "Montserrat, sans-serif";
+const FONT_NUNITO = "Nunito, sans-serif";
+const COLOR_BG = "#FBFBFB";
+const COLOR_BLUE = "#003F99";
+const COLOR_TEXT = "#4A4F61";
+const COLOR_CARD = "#122AD5";
+const COLOR_CARD_BORDER = "#061CD2";
+const COLOR_GREEN = "#95EB1D";
+
+const cards = [
+  {
+    icon: icon2Via,
+    title: "2\u00AA Via de Boleto",
+    desc: "Acesse e pague sua fatura com 1\nclique",
+  },
+  {
+    icon: iconVelocidade,
+    title: "Teste de Velocidade",
+    desc: "Verifique sua conex\u00E3o a qualquer\nmomento",
+  },
+  {
+    icon: iconArea,
+    title: "\u00C1rea do Cliente",
+    desc: "Gerencie sua conta de onde estiver",
+  },
+  {
+    icon: iconViaApp,
+    title: "Suporte via App",
+    desc: "Atendimento r\u00E1pido direto no\naplicativo",
+  },
 ];
 
 export default function AppSection() {
@@ -13,97 +44,233 @@ export default function AppSection() {
     <section
       id="app"
       data-testid="app-section"
-      className="py-20 sm:py-24"
-      style={{ background: "#F4F4F4" }}
+      style={{
+        background: COLOR_BG,
+        paddingTop: 80,
+        paddingBottom: 80,
+      }}
     >
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">
+      <div
+        style={{
+          maxWidth: 1240,
+          margin: "0 auto",
+          paddingLeft: 20,
+          paddingRight: 20,
+          display: "flex",
+          flexDirection: "column",
+          rowGap: 15,
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Heading 2: + icon + title */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-14 max-w-2xl mx-auto"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 0,
+          }}
         >
-          <div className="inline-flex items-center gap-2 mb-3">
-            <Sparkles size={18} style={{ color: "#00C040" }} />
-            <span className="text-xs font-bold uppercase tracking-[0.18em]" style={{ color: "#0040FF" }}>
-              Aplicativo Provider
-            </span>
-          </div>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0D0D0D] mb-3" style={{ letterSpacing: "-0.025em" }}>
-            <span className="text-accent-green font-black">Facilidade</span> no Seu Dia a Dia
+          <img
+            src={iconPlus}
+            alt=""
+            aria-hidden
+            style={{ width: 27, height: 27, display: "block", marginRight: 8 }}
+          />
+          <h2
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: "40px",
+              color: COLOR_BLUE,
+              margin: 0,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontWeight: 700 }}>Facilidade</span> no Seu{" "}
+            <span style={{ fontWeight: 700 }}>Dia a Dia</span>
           </h2>
-          <p className="text-[#666666] text-base">
-            Gerencie sua internet direto pelo celular. Tudo que você precisa em um só lugar.
-          </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          {features.map((feat, i) => {
-            const Icon = feat.icon;
-            return (
-              <motion.div
-                key={feat.label}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08, duration: 0.45 }}
-                className="p-6 rounded-2xl text-white transition-all duration-300 hover:-translate-y-1"
-                style={{ background: "#001A6E", boxShadow: "0 8px 24px rgba(0,26,110,0.20)" }}
+        {/* Subtitle */}
+        <p
+          style={{
+            fontFamily: FONT_NUNITO,
+            fontWeight: 400,
+            fontSize: 16,
+            lineHeight: "24px",
+            color: COLOR_TEXT,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          Gerencie sua internet direto pelo celular. Tudo que voc&ecirc;
+          precisa em um s&oacute; lugar.
+        </p>
+
+        {/* Cards row */}
+        <div
+          className="appsection-cards"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            columnGap: 20,
+            rowGap: 20,
+            paddingTop: 20,
+            paddingBottom: 20,
+          }}
+        >
+          {cards.map((card, i) => (
+            <motion.div
+              key={card.title}
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.06, duration: 0.4 }}
+              style={{
+                background: COLOR_CARD,
+                border: `1px solid ${COLOR_CARD_BORDER}`,
+                borderRadius: 12,
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                rowGap: 8,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              }}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: COLOR_GREEN,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
               >
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-                  style={{ background: "#00C040", boxShadow: "0 4px 12px rgba(0,192,64,0.4)" }}
+                <img
+                  src={card.icon}
+                  alt=""
+                  aria-hidden
+                  style={{ width: 16, height: 16, display: "block" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", rowGap: 2 }}>
+                <h3
+                  style={{
+                    fontFamily: FONT_MONTSERRAT,
+                    fontWeight: 600,
+                    fontSize: 16,
+                    lineHeight: "20px",
+                    color: "#FFFFFF",
+                    margin: 0,
+                  }}
                 >
-                  <Icon size={20} color="white" />
-                </div>
-                <h3 className="text-base font-bold mb-1.5">{feat.label}</h3>
-                <p className="text-sm text-white/70 leading-relaxed">{feat.desc}</p>
-              </motion.div>
-            );
-          })}
+                  {card.title}
+                </h3>
+                <p
+                  style={{
+                    fontFamily: FONT_NUNITO,
+                    fontWeight: 400,
+                    fontSize: 12,
+                    lineHeight: "16px",
+                    color: "#FFFFFF",
+                    margin: 0,
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {card.desc}
+                </p>
+              </div>
+            </motion.div>
+          ))}
         </div>
 
+        {/* CTA row */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center"
+          className="appsection-cta"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            columnGap: 12,
+            rowGap: 12,
+            flexWrap: "wrap",
+          }}
         >
-          <p className="text-[#0D0D0D] font-bold text-base mb-4">Baixe agora o nosso Aplicativo</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <a
-              href="#"
-              data-testid="app-google-play"
-              className="flex items-center gap-3 px-6 py-3 rounded-full font-semibold text-sm text-white transition-all duration-200 hover:scale-105"
-              style={{ background: "#0D0D0D" }}
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                <path d="M3.18 23.76c.37.21.8.22 1.18.04l11.65-6.73L13.27 14l-10.09 9.76zM.75 1.13A1.35 1.35 0 0 0 .5 2v20a1.35 1.35 0 0 0 .25.87l.12.11L12.5 11.86v-.28L.87 1.02l-.12.11zM20.9 10.27l-3.27-1.89-3.27 3.18 3.27 3.18 3.3-1.9a1.36 1.36 0 0 0 0-2.57zM4.36.2 16 6.93l-2.74 2.63L3.18.2A1.34 1.34 0 0 0 4.36.2z" />
-              </svg>
-              <div className="text-left leading-tight">
-                <p className="text-[10px] text-white/60">Disponível no</p>
-                <p>Google Play</p>
-              </div>
-            </a>
-            <a
-              href="#"
-              data-testid="app-apple-store"
-              className="flex items-center gap-3 px-6 py-3 rounded-full font-semibold text-sm text-white transition-all duration-200 hover:scale-105"
-              style={{ background: "#0D0D0D" }}
-            >
-              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                <path d="M14.94 5.19A4.38 4.38 0 0 0 16 2a4.44 4.44 0 0 0-3 1.52 4.17 4.17 0 0 0-1 3.09 3.69 3.69 0 0 0 2.94-1.42zm2.52 7.44a4.51 4.51 0 0 1 2.16-3.81 4.66 4.66 0 0 0-3.66-2c-1.56-.16-3 .91-3.83.91s-2-.89-3.3-.87a4.92 4.92 0 0 0-4.14 2.53C2.86 12.29 4 17 5.93 19.51c.95 1.35 2.07 2.88 3.54 2.83s1.9-.9 3.57-.9 2.12.9 3.56.87 2.49-1.39 3.43-2.75a11 11 0 0 0 1.54-3.18 4.37 4.37 0 0 1-2.61-4.75z" />
-              </svg>
-              <div className="text-left leading-tight">
-                <p className="text-[10px] text-white/60">Disponível na</p>
-                <p>App Store</p>
-              </div>
-            </a>
-          </div>
+          <p
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 18,
+              lineHeight: "22px",
+              color: COLOR_BLUE,
+              margin: 0,
+              textAlign: "right",
+            }}
+          >
+            Baixa agora o
+            <br />
+            nosso <span style={{ fontWeight: 600 }}>Aplicativo</span>
+          </p>
+
+          <a
+            href="#"
+            data-testid="app-google-play"
+            aria-label="Disponível no Google Play"
+            style={{ display: "inline-block", lineHeight: 0 }}
+          >
+            <img
+              src={ctaGoogle}
+              alt="Disponível no Google Play"
+              style={{ width: 154, height: 48, display: "block" }}
+            />
+          </a>
+
+          <a
+            href="#"
+            data-testid="app-apple-store"
+            aria-label="Disponível na App Store"
+            style={{ display: "inline-block", lineHeight: 0 }}
+          >
+            <img
+              src={ctaApple}
+              alt="Disponível na App Store"
+              style={{ width: 145, height: 48, display: "block" }}
+            />
+          </a>
         </motion.div>
       </div>
+
+      <style>{`
+        @media (max-width: 1023px) {
+          .appsection-cards {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 599px) {
+          .appsection-cards {
+            grid-template-columns: 1fr !important;
+          }
+          .appsection-cta p {
+            text-align: center !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }
