@@ -10,6 +10,11 @@ import {
   refreshStreamingBrands,
 } from "../hooks/useStreamingBrands";
 import {
+  type AppSettings,
+  DEFAULT_SETTINGS,
+  refreshAppSettings,
+} from "../hooks/useAppSettings";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -223,8 +228,23 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas">("planos");
+  const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const fetchAppSettingsAdmin = useCallback(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`);
+      if (!res.ok) return;
+      const data = (await res.json()) as Partial<AppSettings>;
+      const merged: AppSettings = { ...DEFAULT_SETTINGS, ...data };
+      setAppSettingsState(merged);
+      await refreshAppSettings();
+    } catch {
+      /* ignore */
+    }
+  }, [baseUrl]);
 
   const fetchStreamingBrands = useCallback(async () => {
     try {
@@ -451,6 +471,7 @@ export default function Admin() {
         fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
         fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, null),
         fetchStreamingBrands(),
+        fetchAppSettingsAdmin(),
       ]);
       if (!plansRes.ok) throw new Error(`HTTP ${plansRes.status}`);
       const data: ApiPlan[] = await plansRes.json();
@@ -461,7 +482,7 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [baseUrl, fetchClickStats, fetchStreamingBrands]);
+  }, [baseUrl, fetchClickStats, fetchStreamingBrands, fetchAppSettingsAdmin]);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -673,6 +694,32 @@ export default function Admin() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        <div className="mb-6 inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="tablist" aria-label="Seções do painel">
+          {([
+            { id: "planos", label: "Planos" },
+            { id: "ctas", label: "Configuração de CTAs" },
+          ] as const).map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+                  active
+                    ? "bg-[#122AD5] text-white"
+                    : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                }`}
+                data-testid={`admin-tab-${tab.id}`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         {loading && (
           <div className="text-center text-[#7A7F8C] py-12">Carregando...</div>
         )}
@@ -682,7 +729,16 @@ export default function Admin() {
           </div>
         )}
 
-        {!loading && (
+        {!loading && activeTab === "ctas" && (
+          <CtaSettingsManager
+            settings={appSettings}
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            onChange={fetchAppSettingsAdmin}
+          />
+        )}
+
+        {!loading && activeTab === "planos" && (
           <>
             {/* Click stats */}
             <div className="mb-8">
@@ -2338,5 +2394,164 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
         </div>
       )}
     </div>
+  );
+}
+
+type CtaSettingsManagerProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function CtaSettingsManager({ settings, adminKey, baseUrl, onChange }: CtaSettingsManagerProps) {
+  const [form, setForm] = useState<AppSettings>(settings);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm(settings);
+  }, [settings]);
+
+  const dirty = useMemo(
+    () =>
+      form.whatsapp_number.trim() !== settings.whatsapp_number ||
+      form.cta_subscribe_message.trim() !== settings.cta_subscribe_message ||
+      form.cta_unavailable_message.trim() !== settings.cta_unavailable_message,
+    [form, settings],
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({
+          whatsapp_number: form.whatsapp_number.trim(),
+          cta_subscribe_message: form.cta_subscribe_message.trim(),
+          cta_unavailable_message: form.cta_unavailable_message.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao salvar.";
+      setErrorMsg(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function reset() {
+    setForm(settings);
+    setErrorMsg(null);
+    setSavedAt(null);
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">Configuração de CTAs</h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Define o número do WhatsApp e as mensagens enviadas pelos botões dos planos.
+          Use os marcadores <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">{"{speed}"}</code>,{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">{"{city}"}</code>,{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">{"{region}"}</code> e{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">{"{place}"}</code>{" "}
+          (cidade/UF).
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">
+            Número do WhatsApp
+          </label>
+          <input
+            type="text"
+            value={form.whatsapp_number}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, whatsapp_number: e.target.value }))
+            }
+            placeholder="Ex: 5577998444757"
+            className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#122AD5]/30"
+            data-testid="settings-whatsapp-number"
+          />
+          <p className="text-[11px] text-[#7A7F8C] mt-1">
+            Apenas dígitos, com código do país e DDD (formato wa.me).
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">
+            Mensagem do "ASSINE JÁ" (cidade atendida)
+          </label>
+          <textarea
+            value={form.cta_subscribe_message}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, cta_subscribe_message: e.target.value }))
+            }
+            rows={3}
+            className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#122AD5]/30 resize-y"
+            data-testid="settings-cta-subscribe-message"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">
+            Mensagem do "CONSULTAR DISPONIBILIDADE" (cidade fora da cobertura)
+          </label>
+          <textarea
+            value={form.cta_unavailable_message}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, cta_unavailable_message: e.target.value }))
+            }
+            rows={3}
+            className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#122AD5]/30 resize-y"
+            data-testid="settings-cta-unavailable-message"
+          />
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-2 border-t border-[#E0E3EB]">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="px-5 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#122AD5" }}
+            data-testid="settings-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          <button
+            type="button"
+            onClick={reset}
+            disabled={saving || !dirty}
+            className="px-5 py-2 rounded-lg text-sm font-medium text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors disabled:opacity-50"
+          >
+            Desfazer
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>
+          )}
+        </div>
+      </form>
+    </section>
   );
 }

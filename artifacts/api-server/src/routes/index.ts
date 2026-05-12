@@ -5,6 +5,7 @@ import clicksRouter from "./clicks";
 import storageRouter from "./storage";
 import streamingBrandsRouter from "./streaming_brands";
 import demandInterestsRouter from "./demand_interests";
+import appSettingsRouter from "./app_settings";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(clicksRouter);
 router.use(storageRouter);
 router.use(streamingBrandsRouter);
 router.use(demandInterestsRouter);
+router.use(appSettingsRouter);
 
 export default router;

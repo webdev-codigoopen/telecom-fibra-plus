@@ -1,4 +1,10 @@
 import { cities } from "./cities";
+import {
+  DEFAULT_SETTINGS,
+  fetchAppSettings,
+  getCachedAppSettings,
+  type AppSettings,
+} from "../hooks/useAppSettings";
 
 export type UserLocation = {
   city: string;
@@ -150,32 +156,59 @@ export async function loadUserLocation(): Promise<UserLocation | null> {
   return null;
 }
 
+function applyTemplate(
+  template: string,
+  vars: { speed: string; city: string; region: string; place: string },
+): string {
+  return template
+    .replace(/\{speed\}/g, vars.speed)
+    .replace(/\{city\}/g, vars.city)
+    .replace(/\{region\}/g, vars.region)
+    .replace(/\{place\}/g, vars.place);
+}
+
 export function buildPlanWhatsappMessage(
   speed: string,
   location: UserLocation | null,
+  settings: AppSettings = getCachedAppSettings(),
 ): string {
   if (location && location.city) {
     const place = location.region
       ? `${location.city}/${location.region}`
       : location.city;
-    if (location.isCovered) {
-      return `Quero assinar o plano ${speed} mega da Provider Mais Fibra na cidade de ${place}`;
-    }
-    return `Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, ${place}`;
+    const template = location.isCovered
+      ? settings.cta_subscribe_message
+      : settings.cta_unavailable_message;
+    return applyTemplate(template, {
+      speed,
+      city: location.city,
+      region: location.region,
+      place,
+    });
   }
-  return `Quero assinar o plano ${speed} mega da Provider Mais Fibra`;
+  // No location detected — fall back to the subscribe template with empty place.
+  return applyTemplate(settings.cta_subscribe_message, {
+    speed,
+    city: "",
+    region: "",
+    place: "",
+  })
+    .replace(/\s+na cidade de\s*$/i, "")
+    .replace(/,\s*$/, "")
+    .trim();
 }
 
-export const WHATSAPP_PHONE = "5577998444757";
+export const WHATSAPP_PHONE = DEFAULT_SETTINGS.whatsapp_number;
 
 export function buildPlanWhatsappHref(
   speed: string,
   location: UserLocation | null,
   extraSuffix?: string,
+  settings: AppSettings = getCachedAppSettings(),
 ): string {
-  const base = buildPlanWhatsappMessage(speed, location);
+  const base = buildPlanWhatsappMessage(speed, location, settings);
   const message = extraSuffix ? `${base}\n${extraSuffix}` : base;
-  return `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(message)}`;
 }
 
 export async function handlePlanWhatsappClick(
@@ -186,8 +219,11 @@ export async function handlePlanWhatsappClick(
   event.preventDefault();
   const whatsappWindow =
     typeof window !== "undefined" ? window.open("about:blank", "_blank") : null;
-  const location = await loadUserLocation();
-  const href = buildPlanWhatsappHref(speed, location, extraSuffix);
+  const [location, settings] = await Promise.all([
+    loadUserLocation(),
+    fetchAppSettings(),
+  ]);
+  const href = buildPlanWhatsappHref(speed, location, extraSuffix, settings);
   if (whatsappWindow) {
     whatsappWindow.location.href = href;
   } else if (typeof window !== "undefined") {

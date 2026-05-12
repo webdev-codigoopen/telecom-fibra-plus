@@ -6,6 +6,7 @@ import {
   getCachedLocation,
   handlePlanWhatsappClick,
 } from "../lib/userLocation";
+import { useAppSettings } from "../hooks/useAppSettings";
 
 const BASE = import.meta.env.BASE_URL;
 const ICON_INSTALACAO = `${BASE}images/icons/instalacao-planos-20.svg`;
@@ -109,12 +110,17 @@ export default function PlanCard({
   source = "hero",
   cityName,
 }: Props) {
+  const settings = useAppSettings();
   const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id, cityName) : undefined;
   const fallbackUrl = buildWhatsAppUrl(plan, shareUrl);
   const cachedLocation = getCachedLocation();
   const whatsappUrl = cachedLocation
-    ? buildPlanWhatsappHref(plan.speed, cachedLocation, shareUrl)
+    ? buildPlanWhatsappHref(plan.speed, cachedLocation, shareUrl, settings)
     : fallbackUrl;
+  const ctaLabel =
+    cachedLocation && !cachedLocation.isCovered
+      ? "CONSULTAR DISPONIBILIDADE"
+      : "ASSINE JÁ";
   const [reais, centavos] = plan.price.split(",");
 
   const allBrands = useStreamingBrands();
@@ -404,7 +410,7 @@ export default function PlanCard({
           }}
         >
           <img src={ICON_WHATSAPP} alt="" width={16} height={16} />
-          <span>ASSINE JÁ</span>
+          <span>{ctaLabel}</span>
         </a>
 
         {/* Footer note */}
