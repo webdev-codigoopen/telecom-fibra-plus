@@ -178,9 +178,12 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
       {/* Bottom block: price + CTA + footer (Figma Frame 33: gap 5, naturally compact) */}
       <div className="flex flex-col mt-auto" style={{ gap: 5 }}>
-        {/* Price block */}
-        <div className="flex items-end justify-center" style={{ gap: 6 }}>
-          <div className="flex flex-col items-end leading-none" style={{ paddingBottom: 8 }}>
+        {/* Price block — 3-col grid keeps the big numeral optically centered */}
+        <div
+          className="grid items-end justify-center"
+          style={{ gridTemplateColumns: "1fr auto 1fr", columnGap: 6 }}
+        >
+          <div className="flex flex-col items-end leading-none justify-self-end" style={{ paddingBottom: 8 }}>
             <span
               style={{
                 fontSize: 8,
@@ -229,7 +232,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           >
             {reais}
           </span>
-          <div className="flex flex-col items-start leading-none" style={{ paddingBottom: 4 }}>
+          <div className="flex flex-col items-start leading-none justify-self-start" style={{ paddingBottom: 4 }}>
             <span
               style={{
                 fontSize: 26,
