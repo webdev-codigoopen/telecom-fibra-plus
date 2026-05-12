@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
+import PlanCard from "../components/PlanCard";
+import { type Plan } from "../lib/plans";
+
+function apiPlanToPlan(p: ApiPlan): Plan {
+  return {
+    id: p.id,
+    speed: p.speed,
+    wifi: p.wifi,
+    price: p.price,
+    inclusions: p.inclusions,
+    featured: p.featured,
+    badge: p.badge ?? undefined,
+    bonus: p.bonus ?? undefined,
+    imageUrl: p.imageUrl ?? undefined,
+  };
+}
 
 const PLAN_IMAGE_ASPECT = 16 / 9;
 const PLAN_IMAGE_MAX_WIDTH = 1200;
@@ -63,6 +79,7 @@ export default function Admin() {
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -498,6 +515,55 @@ export default function Admin() {
                 onSave={savePlan}
                 onCancel={cancelEdit}
               />
+            )}
+
+            {plans.length > 0 && (
+              <div className="mb-6 bg-white rounded-xl border border-[#E0E3EB] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-[#F5F7FA] transition-colors"
+                  aria-expanded={previewOpen}
+                  aria-controls="admin-home-preview"
+                >
+                  <div className="flex items-center gap-2">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#0040FF]" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span className="font-bold text-sm text-[#0D0D0D]">Pré-visualização</span>
+                    <span className="text-xs text-[#7A7F8C]">como aparece na home</span>
+                  </div>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className={`w-4 h-4 text-[#7A7F8C] transition-transform ${previewOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
+                {previewOpen && (
+                  <div
+                    id="admin-home-preview"
+                    className="px-5 py-6 border-t border-[#E0E3EB]"
+                    style={{ background: "#0A1F8C" }}
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {plans.map((plan, i) => (
+                        <PlanCard
+                          key={plan.id}
+                          plan={apiPlanToPlan(plan)}
+                          index={i}
+                          idSuffix={`-preview-${plan.id}`}
+                          source="admin-preview"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="space-y-3">
