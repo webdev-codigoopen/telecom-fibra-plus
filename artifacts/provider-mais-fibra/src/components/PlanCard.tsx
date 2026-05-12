@@ -64,7 +64,7 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
         width={width}
         height={intrinsicH}
         style={{ width, height: intrinsicH }}
-        className="max-w-full"
+        className="max-w-full pb-[10px]"
       />
     </div>
   );
