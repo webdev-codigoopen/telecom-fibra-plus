@@ -122,7 +122,7 @@ export default function Header() {
                 key={link.label}
                 onClick={() => handleNav(link)}
                 data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                className="header-section__nav-link text-[16px] leading-[20px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] rounded whitespace-nowrap px-2 hover:text-[#95EB1D] text-[#ffffffe6] font-normal"
+                className="header-section__nav-link cursor-pointer text-[16px] leading-[20px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] rounded whitespace-nowrap px-2 hover:text-[#95EB1D] text-[#ffffffe6] font-normal"
                 style={{
                   color: active ? COLORS.active : COLORS.inactive,
                   fontFamily: FONT_NUNITO,
@@ -159,7 +159,7 @@ export default function Header() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="header-google-play"
-              className="flex items-center justify-center transition-opacity hover:opacity-100 opacity-90"
+              className="flex items-center justify-center cursor-pointer transition-opacity hover:opacity-100 opacity-90"
               aria-label="Baixar na Google Play"
             >
               <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" width={16} height={18} />
@@ -169,7 +169,7 @@ export default function Header() {
               target="_blank"
               rel="noopener noreferrer"
               data-testid="header-app-store"
-              className="flex items-center justify-center transition-opacity hover:opacity-100 opacity-90"
+              className="flex items-center justify-center cursor-pointer transition-opacity hover:opacity-100 opacity-90"
               aria-label="Baixar na App Store"
             >
               <img src={iconApple} alt="" className="w-[18px] h-[18px]" width={18} height={18} />
@@ -182,7 +182,7 @@ export default function Header() {
             target="_blank"
             rel="noopener noreferrer"
             data-testid="header-whatsapp"
-            className="flex items-center justify-center transition-opacity opacity-90 hover:opacity-100"
+            className="flex items-center justify-center cursor-pointer transition-opacity opacity-90 hover:opacity-100"
             aria-label="Fale no WhatsApp"
           >
             <img src={iconWhatsApp} alt="" className="w-[18px] h-[18px]" width={18} height={18} />
@@ -192,7 +192,7 @@ export default function Header() {
             target="_blank"
             rel="noopener noreferrer"
             data-testid="header-instagram"
-            className="flex items-center justify-center transition-opacity opacity-90 hover:opacity-100"
+            className="flex items-center justify-center cursor-pointer transition-opacity opacity-90 hover:opacity-100"
             aria-label="Siga no Instagram"
           >
             <img src={iconInstagram} alt="" className="w-[18px] h-[18px]" width={18} height={18} />
@@ -202,7 +202,7 @@ export default function Header() {
           <button
             onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="header-section__cta ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 hover:scale-[1.03] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] whitespace-nowrap"
+            className="header-section__cta cursor-pointer ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 hover:scale-[1.03] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] whitespace-nowrap"
             style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
           >
             Assine Já
@@ -212,7 +212,7 @@ export default function Header() {
         {/* Mobile / tablet hamburger */}
         <button
           id="mobile-menu-trigger"
-          className="lg:hidden text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
+          className="lg:hidden cursor-pointer text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
           onClick={() => setIsOpen(!isOpen)}
           data-testid="header-mobile-menu"
           aria-label={isOpen ? "Fechar menu" : "Abrir menu"}
