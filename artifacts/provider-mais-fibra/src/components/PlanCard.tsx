@@ -130,7 +130,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
             height={16}
             className="absolute pointer-events-none"
             style={{
-              left: "calc(50% + 1.05ch)",
+              left: "calc(50% + 1.55ch)",
               top: "62%",
               transform: "translateY(-50%)",
             }}
