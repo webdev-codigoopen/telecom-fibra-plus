@@ -47,6 +47,9 @@ export default function Admin() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -155,6 +158,48 @@ export default function Admin() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function persistOrder(newPlans: ApiPlan[]) {
+    const previous = plans;
+    setPlans(newPlans);
+    setReordering(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/plans/reorder`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({ order: newPlans.map((p) => p.id) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      const updated: ApiPlan[] = await res.json();
+      setPlans(updated);
+    } catch (err) {
+      setPlans(previous);
+      setSaveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  function handleDrop(targetId: number) {
+    const sourceId = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (sourceId == null || sourceId === targetId) return;
+    const sourceIdx = plans.findIndex((p) => p.id === sourceId);
+    const targetIdx = plans.findIndex((p) => p.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    const next = [...plans];
+    const [moved] = next.splice(sourceIdx, 1);
+    next.splice(targetIdx, 0, moved!);
+    void persistOrder(next);
   }
 
   function startEdit(plan: ApiPlan) {
@@ -300,7 +345,10 @@ export default function Admin() {
             </div>
 
             <div className="flex items-center justify-between mb-6">
-              <p className="text-sm text-[#7A7F8C]">{plans.length} plano(s) cadastrado(s)</p>
+              <p className="text-sm text-[#7A7F8C]">
+                {plans.length} plano(s) cadastrado(s){" "}
+                {reordering ? <span className="ml-2 text-[#0040FF]">Salvando ordem...</span> : <span className="hidden sm:inline">· arraste para reordenar</span>}
+              </p>
               <button
                 onClick={startNew}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90"
@@ -334,9 +382,44 @@ export default function Admin() {
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-4 flex items-center gap-4"
-                  style={plan.featured ? { borderColor: "#00C040" } : {}}
+                  draggable={!editingPlan && !reordering}
+                  onDragStart={(e) => {
+                    setDragId(plan.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", String(plan.id));
+                  }}
+                  onDragOver={(e) => {
+                    if (dragId == null) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    if (dragOverId !== plan.id) setDragOverId(plan.id);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverId === plan.id) setDragOverId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDrop(plan.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOverId(null);
+                  }}
+                  className={`bg-white rounded-xl border border-[#E0E3EB] px-5 py-4 flex items-center gap-4 transition-all ${
+                    dragId === plan.id ? "opacity-40" : ""
+                  } ${dragOverId === plan.id && dragId !== plan.id ? "border-[#0040FF] ring-2 ring-[#0040FF]/20" : ""}`}
+                  style={plan.featured && !(dragOverId === plan.id && dragId !== plan.id) ? { borderColor: "#00C040" } : {}}
                 >
+                  <div
+                    className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[#7A7F8C] hover:text-[#0040FF] transition-colors"
+                    title="Arraste para reordenar"
+                    aria-label="Arraste para reordenar"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                      <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
+                      <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                    </svg>
+                  </div>
                   {plan.imageUrl && (
                     <img
                       src={plan.imageUrl}

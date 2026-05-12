@@ -69,6 +69,41 @@ router.post("/plans", requireAdminKey, async (req, res) => {
   }
 });
 
+const reorderBodySchema = z.object({
+  order: z.array(z.number().int().positive()).min(1),
+});
+
+router.patch("/plans/reorder", requireAdminKey, async (req, res) => {
+  const parsed = reorderBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid reorder data", details: parsed.error.flatten() });
+    return;
+  }
+  const ids = parsed.data.order;
+  const unique = new Set(ids);
+  if (unique.size !== ids.length) {
+    res.status(400).json({ error: "Duplicate plan IDs in order" });
+    return;
+  }
+  try {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < ids.length; i++) {
+        await tx
+          .update(plansTable)
+          .set({ sortOrder: i })
+          .where(eq(plansTable.id, ids[i]!));
+      }
+    });
+    const rows = await db
+      .select()
+      .from(plansTable)
+      .orderBy(plansTable.sortOrder, plansTable.id);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to reorder plans" });
+  }
+});
+
 router.put("/plans/:id", requireAdminKey, async (req, res) => {
   const id = Number(req.params["id"]);
   if (!Number.isInteger(id) || id <= 0) {
