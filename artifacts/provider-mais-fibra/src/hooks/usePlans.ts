@@ -12,6 +12,10 @@ export type ApiPlan = {
   bonus: string | null;
   sortOrder: number;
   imageUrl: string | null;
+  shareHeadline: string | null;
+  shareSubcopy: string | null;
+  shareCtaText: string | null;
+  whatsappNumber: string | null;
 };
 
 function apiPlanToPlan(p: ApiPlan): Plan {

@@ -119,6 +119,10 @@ function emptyPlan(): Omit<ApiPlan, "id"> {
     bonus: null,
     sortOrder: 0,
     imageUrl: null,
+    shareHeadline: null,
+    shareSubcopy: null,
+    shareCtaText: null,
+    whatsappNumber: null,
   };
 }
 
@@ -1562,6 +1566,56 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
               className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
               placeholder="Ex: Mais Vendido"
             />
+          </div>
+        </div>
+
+        <div className="border-t border-[#E0E3EB] pt-4">
+          <h3 className="text-sm font-bold text-[#0D0D0D] mb-1">Página de compartilhamento (WhatsApp)</h3>
+          <p className="text-[11px] text-[#7A7F8C] mb-3">
+            Personalize o texto e o destino do link compartilhado deste plano. Deixe em branco para usar os padrões.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Título (acima do plano)</label>
+              <input
+                type="text"
+                value={form.shareHeadline ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, shareHeadline: e.target.value || null }))}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Padrão: Internet 100% Fibra"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Texto do botão (CTA)</label>
+              <input
+                type="text"
+                value={form.shareCtaText ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, shareCtaText: e.target.value || null }))}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Padrão: Assinar pelo WhatsApp"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Sub-texto (descrição extra)</label>
+              <textarea
+                value={form.shareSubcopy ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, shareSubcopy: e.target.value || null }))}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Ex: Promoção válida por tempo limitado em Vitória da Conquista."
+                rows={2}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Número de WhatsApp do destino</label>
+              <input
+                type="text"
+                value={form.whatsappNumber ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, whatsappNumber: e.target.value || null }))}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Ex: 5577998444757 (com DDI + DDD). Em branco usa o padrão."
+              />
+              <p className="text-[11px] text-[#7A7F8C] mt-1">Apenas números. Formato internacional, sem espaços ou símbolos.</p>
+            </div>
           </div>
         </div>
 

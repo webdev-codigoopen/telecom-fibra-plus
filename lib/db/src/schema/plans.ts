@@ -13,6 +13,10 @@ export const plansTable = pgTable("plans", {
   bonus: text("bonus"),
   sortOrder: integer("sort_order").notNull().default(0),
   imageUrl: text("image_url"),
+  shareHeadline: text("share_headline"),
+  shareSubcopy: text("share_subcopy"),
+  shareCtaText: text("share_cta_text"),
+  whatsappNumber: text("whatsapp_number"),
 });
 
 export const insertPlanSchema = createInsertSchema(plansTable).omit({ id: true });

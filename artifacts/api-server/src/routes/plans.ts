@@ -80,7 +80,14 @@ router.get("/plans/:id/share", async (req, res) => {
     const bonusLine = plan.bonus ? ` + ${plan.bonus}` : "";
     const title = `Plano ${plan.speed} MEGA por R$${plan.price}/mês — Provider Mais Fibra`;
     const description = `Internet 100% Fibra ${plan.speed} MEGA${plan.wifi ? ` com Wi-Fi ${plan.wifi}` : ""} por apenas R$${plan.price}/mês${bonusLine}. Assine agora pelo WhatsApp.`;
-    const whatsappNumber = "5577998444757";
+    const headlineSmall = (plan.shareHeadline ?? "").trim() || "Internet 100% Fibra";
+    const subcopy = (plan.shareSubcopy ?? "").trim();
+    const ctaText = (plan.shareCtaText ?? "").trim() || "Assinar pelo WhatsApp";
+    const defaultWhatsappNumber =
+      (process.env["DEFAULT_WHATSAPP_NUMBER"] ?? "").replace(/\D/g, "") ||
+      "5577998444757";
+    const planWhatsappNumber = (plan.whatsappNumber ?? "").replace(/\D/g, "");
+    const whatsappNumber = planWhatsappNumber || defaultWhatsappNumber;
     const whatsappText = encodeURIComponent(
       `Olá! Quero assinar o plano de ${plan.speed} MEGA (R$${plan.price}/mês) da Provider Mais Fibra.`,
     );
@@ -97,6 +104,9 @@ router.get("/plans/:id/share", async (req, res) => {
       : "";
     const bonusHtml = plan.bonus
       ? `<div class="bonus"><strong>Bônus:</strong> ${escapeHtml(plan.bonus)}</div>`
+      : "";
+    const subcopyHtml = subcopy
+      ? `<p class="subcopy">${escapeHtml(subcopy)}</p>`
       : "";
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -133,6 +143,7 @@ h1 small{display:block;font-size:14px;font-weight:600;color:#666;letter-spacing:
 .price .value{font-size:48px;font-weight:800;line-height:1}
 .price .period{font-size:16px;color:#666;font-weight:600}
 .bonus{margin-top:14px;background:#D4F7E3;color:#00701F;padding:10px 14px;border-radius:10px;font-size:14px}
+.subcopy{margin-top:14px;color:#444;font-size:15px;line-height:1.45}
 ul{list-style:none;margin-top:18px;display:grid;gap:8px}
 li{display:flex;align-items:center;gap:10px;font-size:15px;color:#0D0D0D}
 .check{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#00C040;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
@@ -151,13 +162,14 @@ footer{margin-top:18px;color:rgba(255,255,255,.85);font-size:12px;text-align:cen
 <div class="image-wrap"><img src="${escapeHtml(absoluteImage)}" alt="Plano ${escapeHtml(plan.speed)} MEGA" /></div>
 <div class="content">
 ${badgeHtml}
-<h1><small>Internet 100% Fibra</small>${escapeHtml(plan.speed)} MEGA</h1>
+<h1><small>${escapeHtml(headlineSmall)}</small>${escapeHtml(plan.speed)} MEGA</h1>
 ${plan.wifi ? `<div class="wifi">Wi-Fi ${escapeHtml(plan.wifi)}</div>` : ""}
 <div class="price"><span class="currency">R$</span><span class="value">${escapeHtml(plan.price)}</span><span class="period">/mês</span></div>
 ${bonusHtml}
+${subcopyHtml}
 ${inclusionsHtml ? `<ul>${inclusionsHtml}</ul>` : ""}
 <div class="cta">
-<a class="btn btn-primary" href="${escapeHtml(whatsappUrl)}">Assinar pelo WhatsApp</a>
+<a class="btn btn-primary" href="${escapeHtml(whatsappUrl)}">${escapeHtml(ctaText)}</a>
 <a class="btn btn-secondary" href="${escapeHtml(homeUrl)}">Ver todos os planos</a>
 </div>
 </div>
@@ -195,7 +207,23 @@ const planBodySchema = z.object({
   bonus: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
   imageUrl: z.string().nullable().optional(),
+  shareHeadline: z.string().nullable().optional(),
+  shareSubcopy: z.string().nullable().optional(),
+  shareCtaText: z.string().nullable().optional(),
+  whatsappNumber: z.string().nullable().optional(),
 });
+
+function normalizeOptional(s: string | null | undefined): string | null {
+  if (s == null) return null;
+  const t = s.trim();
+  return t.length === 0 ? null : t;
+}
+
+function normalizeWhatsapp(s: string | null | undefined): string | null {
+  if (s == null) return null;
+  const digits = s.replace(/\D/g, "");
+  return digits.length === 0 ? null : digits;
+}
 
 router.post("/plans", requireAdminKey, async (req, res) => {
   const parsed = planBodySchema.safeParse(req.body);
@@ -208,9 +236,13 @@ router.post("/plans", requireAdminKey, async (req, res) => {
       .insert(plansTable)
       .values({
         ...parsed.data,
-        badge: parsed.data.badge ?? null,
-        bonus: parsed.data.bonus ?? null,
-        imageUrl: parsed.data.imageUrl ?? null,
+        badge: normalizeOptional(parsed.data.badge),
+        bonus: normalizeOptional(parsed.data.bonus),
+        imageUrl: normalizeOptional(parsed.data.imageUrl),
+        shareHeadline: normalizeOptional(parsed.data.shareHeadline),
+        shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
+        shareCtaText: normalizeOptional(parsed.data.shareCtaText),
+        whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
       })
       .returning();
     res.status(201).json(created);
@@ -270,9 +302,13 @@ router.put("/plans/:id", requireAdminKey, async (req, res) => {
       .update(plansTable)
       .set({
         ...parsed.data,
-        badge: parsed.data.badge ?? null,
-        bonus: parsed.data.bonus ?? null,
-        imageUrl: parsed.data.imageUrl ?? null,
+        badge: normalizeOptional(parsed.data.badge),
+        bonus: normalizeOptional(parsed.data.bonus),
+        imageUrl: normalizeOptional(parsed.data.imageUrl),
+        shareHeadline: normalizeOptional(parsed.data.shareHeadline),
+        shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
+        shareCtaText: normalizeOptional(parsed.data.shareCtaText),
+        whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
       })
       .where(eq(plansTable.id, id))
       .returning();
