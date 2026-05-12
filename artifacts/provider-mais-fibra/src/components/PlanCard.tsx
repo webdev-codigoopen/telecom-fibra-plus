@@ -244,7 +244,7 @@ export default function PlanCard({
       */}
       <div style={{ marginTop: hasStreaming ? 0 : 44 }}>
         <div
-          className="grid items-end justify-center"
+          className="grid items-end justify-center pt-[0px] pb-[0px]"
           style={{ gridTemplateColumns: "1fr auto 1fr", columnGap: 6 }}
         >
           <div
@@ -330,7 +330,6 @@ export default function PlanCard({
           </div>
         </div>
       </div>
-
       {/*
         CTA + footer wrapper (sibling of price block).
         - WITHOUT streaming (6310:414): marginTop 45 (gap price→cta)
