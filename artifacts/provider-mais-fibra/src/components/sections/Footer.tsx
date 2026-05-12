@@ -228,18 +228,9 @@ export default function Footer() {
           >
             <h4 style={headingStyle}>Cidade(s) de Atua&ccedil;&atilde;o</h4>
             {cities.map((c) => (
-              <a
-                key={c.slug}
-                href={`/cidade/${c.slug}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate(`/cidade/${c.slug}`);
-                  window.scrollTo({ top: 0 });
-                }}
-                style={{ ...bodyStyle, textDecoration: "none", cursor: "pointer" }}
-              >
+              <span key={c.slug} style={bodyStyle}>
                 {c.name}
-              </a>
+              </span>
             ))}
           </div>
 

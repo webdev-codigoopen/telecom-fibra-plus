@@ -39,7 +39,6 @@ export default function OndeEstamos() {
           hasPart: cities.map((c) => ({
             "@type": "Place",
             name: c.name,
-            url: `https://www.providermaisfibra.com.br/cidade/${c.slug}`,
             address: {
               "@type": "PostalAddress",
               addressLocality: c.name,
@@ -116,10 +115,10 @@ export default function OndeEstamos() {
               className="text-center mb-12"
             >
               <h2 className="text-2xl sm:text-3xl font-bold text-[#122AD5] mb-2">
-                Escolha sua cidade e assine agora
+                Escolha sua cidade e fale com a gente
               </h2>
               <p className="text-[#4A4F61] text-sm">
-                Clique na cidade para ver os planos disponíveis ou fale direto pelo WhatsApp
+                Fale direto com nossa equipe pelo WhatsApp
               </p>
             </motion.div>
 
@@ -140,10 +139,8 @@ export default function OndeEstamos() {
                       : "0 2px 8px rgba(0,0,0,0.06)",
                   }}
                 >
-                  <Link
-                    href={`/cidade/${city.slug}`}
-                    data-testid={`link-city-header-${city.slug}`}
-                    className="p-5 flex items-start justify-between cursor-pointer"
+                  <div
+                    className="p-5 flex items-start justify-between"
                     style={{ background: city.highlight ? "#122AD5" : "#F5F6FA" }}
                   >
                     <div className="flex items-center gap-3">
@@ -176,7 +173,7 @@ export default function OndeEstamos() {
                         {city.badge}
                       </span>
                     )}
-                  </Link>
+                  </div>
 
                   <div className="p-5 flex-1 flex flex-col">
                     <p className="text-sm text-[#4A4F61] leading-relaxed mb-4 flex-1">

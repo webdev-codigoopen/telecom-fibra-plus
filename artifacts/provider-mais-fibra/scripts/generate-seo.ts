@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cities, phoneToTel, type City } from "../src/lib/cities";
+import { cities } from "../src/lib/cities";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, "..", "dist", "public");
@@ -64,10 +64,7 @@ const WEBSITE_LD = {
 
 function homeRoute(): RouteSpec {
   const citiesListHtml = cities
-    .map(
-      (c) =>
-        `<li><a href="/cidade/${c.slug}">Internet fibra em ${escapeHtml(c.name)} — ${escapeHtml(c.planos)}</a></li>`,
-    )
+    .map((c) => `<li>Internet fibra em ${escapeHtml(c.name)} - BA</li>`)
     .join("");
   return {
     path: "/",
@@ -105,7 +102,7 @@ function ondeEstamosRoute(): RouteSpec {
   const cardsHtml = cities
     .map(
       (c) =>
-        `<li><h3><a href="/cidade/${c.slug}">${escapeHtml(c.name)} - BA</a></h3><p>${escapeHtml(c.description)} Planos: ${escapeHtml(c.planos)}.</p></li>`,
+        `<li><h3>${escapeHtml(c.name)} - BA</h3><p>${escapeHtml(c.description)}</p></li>`,
     )
     .join("");
   return {
@@ -128,7 +125,6 @@ function ondeEstamosRoute(): RouteSpec {
         hasPart: cities.map((c) => ({
           "@type": "Place",
           name: c.name,
-          url: `${SITE_URL}/cidade/${c.slug}`,
           address: {
             "@type": "PostalAddress",
             addressLocality: c.name,
@@ -239,68 +235,6 @@ function demandaRoute(): RouteSpec {
   };
 }
 
-function cityRoute(c: City): RouteSpec {
-  const highlightsHtml = c.seo.highlights.map((h) => `<li>${escapeHtml(h)}</li>`).join("");
-  const cityUrl = `${SITE_URL}/cidade/${c.slug}`;
-  return {
-    path: `/cidade/${c.slug}`,
-    title: c.seo.title,
-    description: c.seo.description,
-    keywords: c.seo.keywords,
-    changefreq: "weekly",
-    priority: 0.9,
-    jsonLd: [
-      {
-        "@context": "https://schema.org",
-        "@type": "TelecommunicationsProvider",
-        "@id": `${cityUrl}#business`,
-        name: `Provider Mais Fibra — ${c.name}`,
-        url: cityUrl,
-        telephone: c.phones.length > 0 ? c.phones.map(phoneToTel) : "+5577998444757",
-        priceRange: "$$",
-        image: `${SITE_URL}/opengraph.jpg`,
-        areaServed: {
-          "@type": "City",
-          name: c.name,
-          containedInPlace: { "@type": "AdministrativeArea", name: c.region },
-        },
-        address: {
-          "@type": "PostalAddress",
-          addressLocality: c.name,
-          addressRegion: c.stateCode,
-          addressCountry: "BR",
-        },
-        description: c.seo.description,
-        parentOrganization: { "@type": "Organization", name: "Provider Mais Fibra", url: SITE_URL },
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
-          { "@type": "ListItem", position: 2, name: "Onde Estamos", item: `${SITE_URL}/onde-estamos` },
-          { "@type": "ListItem", position: 3, name: c.name, item: cityUrl },
-        ],
-      },
-    ],
-    bodyHtml: `
-      <header><h1>Internet Fibra em ${escapeHtml(c.name)} - BA</h1></header>
-      <p>${escapeHtml(c.seo.intro)}</p>
-      <h2>Planos disponíveis em ${escapeHtml(c.name)}</h2>
-      <p>${escapeHtml(c.planos)}</p>
-      <h2>Por que escolher a Provider Mais Fibra em ${escapeHtml(c.name)}</h2>
-      <ul>${highlightsHtml}</ul>
-      <h2>Atendimento em ${escapeHtml(c.name)}</h2>
-      <p>Telefones: ${c.phones
-        .map((p) => `<a href="tel:${phoneToTel(p)}">${escapeHtml(p)}</a>`)
-        .join(" • ")}</p>
-      <p>Endereço: ${escapeHtml(c.address)}</p>
-      <p>Fale também pelo WhatsApp <a href="https://wa.me/${c.whatsapp}">(77) 99844-4757</a>.</p>
-      <p><a href="/onde-estamos">Ver todas as cidades atendidas</a></p>
-    `,
-  };
-}
-
 function buildHead(route: RouteSpec): string {
   const url = `${SITE_URL}${route.path === "/" ? "/" : route.path}`;
   const image = `${SITE_URL}/opengraph.jpg`;
@@ -394,7 +328,6 @@ async function main() {
     quemSomosRoute(),
     contatoRoute(),
     demandaRoute(),
-    ...cities.map((c) => cityRoute(c)),
   ];
 
   for (const route of routes) {

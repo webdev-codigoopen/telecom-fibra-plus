@@ -5,7 +5,6 @@ import Home from "@/pages/Home";
 import QuemSomos from "@/pages/QuemSomos";
 import Contato from "@/pages/Contato";
 import OndeEstamos from "@/pages/OndeEstamos";
-import Cidade from "@/pages/Cidade";
 import DemandaCidades from "@/pages/DemandaCidades";
 import Admin from "@/pages/Admin";
 
@@ -16,7 +15,6 @@ function Router() {
       <Route path="/quem-somos" component={QuemSomos} />
       <Route path="/contato" component={Contato} />
       <Route path="/onde-estamos" component={OndeEstamos} />
-      <Route path="/cidade/:slug" component={Cidade} />
       <Route path="/demanda" component={DemandaCidades} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
