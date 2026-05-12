@@ -105,6 +105,39 @@ function colorForSource(source: string): string {
 
 const STORAGE_KEY = "pmf_admin_key";
 const FILTERS_STORAGE_KEY = "pmf_admin_stats_filters";
+const UI_STORAGE_KEY = "pmf_admin_ui_state";
+
+type ChartView = "total" | "source";
+type PreviewMode = "desktop" | "tablet" | "mobile";
+
+type StoredUiState = {
+  chartView: ChartView;
+  previewOpen: boolean;
+  previewMode: PreviewMode;
+};
+
+function loadStoredUiState(): StoredUiState {
+  const fallback: StoredUiState = {
+    chartView: "total",
+    previewOpen: true,
+    previewMode: "desktop",
+  };
+  try {
+    const raw = localStorage.getItem(UI_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<StoredUiState>;
+    return {
+      chartView: parsed.chartView === "source" || parsed.chartView === "total" ? parsed.chartView : fallback.chartView,
+      previewOpen: typeof parsed.previewOpen === "boolean" ? parsed.previewOpen : fallback.previewOpen,
+      previewMode:
+        parsed.previewMode === "desktop" || parsed.previewMode === "tablet" || parsed.previewMode === "mobile"
+          ? parsed.previewMode
+          : fallback.previewMode,
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 type StatsRange = "today" | "week" | "all" | "custom";
 
@@ -182,12 +215,12 @@ export default function Admin() {
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>(() => loadStoredFilters().source);
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
-  const [chartView, setChartView] = useState<"total" | "source">("total");
+  const [chartView, setChartView] = useState<ChartView>(() => loadStoredUiState().chartView);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(true);
-  const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -446,6 +479,17 @@ export default function Admin() {
       // ignore quota errors
     }
   }, [statsRange, sourceFilter, customFrom, customTo]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        UI_STORAGE_KEY,
+        JSON.stringify({ chartView, previewOpen, previewMode }),
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [chartView, previewOpen, previewMode]);
 
   async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
     setSaving(true);
