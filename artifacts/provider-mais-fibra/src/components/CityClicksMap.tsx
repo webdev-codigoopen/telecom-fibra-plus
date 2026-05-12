@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type CityCoord = { name: string; lat: number; lon: number };
 
@@ -19,22 +19,117 @@ const CITY_COORDS: CityCoord[] = [
 
 export type CityClickEntry = { name: string; total: number };
 
-type Props = {
-  clicks: CityClickEntry[];
+type StatRow = {
+  planSpeed: string;
+  planPrice: string;
+  source: string;
+  total: number;
 };
+
+type RangeId = "today" | "7d" | "30d" | "90d" | "all" | "custom";
+
+type Props =
+  | { adminKey: string; baseUrl: string; clicks?: undefined }
+  | { clicks: CityClickEntry[]; adminKey?: undefined; baseUrl?: undefined };
 
 const VIEW_W = 720;
 const VIEW_H = 460;
 const PAD = 60;
 
-export default function CityClicksMap({ clicks }: Props) {
+const RANGE_OPTIONS: { id: RangeId; label: string }[] = [
+  { id: "today", label: "Hoje" },
+  { id: "7d", label: "7 dias" },
+  { id: "30d", label: "30 dias" },
+  { id: "90d", label: "90 dias" },
+  { id: "all", label: "Tudo" },
+  { id: "custom", label: "Personalizado" },
+];
+
+function rangeToWindow(range: RangeId, customFrom: string, customTo: string): { since?: string; until?: string } | null {
+  if (range === "all") return {};
+  if (range === "custom") {
+    if (!customFrom || !customTo) return null;
+    const since = new Date(`${customFrom}T00:00:00`);
+    const until = new Date(`${customTo}T00:00:00`);
+    until.setDate(until.getDate() + 1);
+    if (Number.isNaN(since.getTime()) || Number.isNaN(until.getTime()) || until <= since) {
+      return null;
+    }
+    return { since: since.toISOString(), until: until.toISOString() };
+  }
+  const now = new Date();
+  const since = new Date(now);
+  if (range === "today") {
+    since.setHours(0, 0, 0, 0);
+  } else if (range === "7d") {
+    since.setDate(since.getDate() - 7);
+  } else if (range === "30d") {
+    since.setDate(since.getDate() - 30);
+  } else if (range === "90d") {
+    since.setDate(since.getDate() - 90);
+  }
+  return { since: since.toISOString() };
+}
+
+export default function CityClicksMap(props: Props) {
+  const isAdminMode = props.adminKey !== undefined;
+  const adminKey = props.adminKey;
+  const baseUrl = props.baseUrl;
+  const externalClicks = props.clicks;
+
   const [hovered, setHovered] = useState<string | null>(null);
+  const [range, setRange] = useState<RangeId>("all");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+  const [entries, setEntries] = useState<CityClickEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reqIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!isAdminMode || !adminKey || !baseUrl) return;
+    const window = rangeToWindow(range, customFrom, customTo);
+    if (window === null) {
+      // Custom range incomplete or invalid — don't fetch, keep current data.
+      return;
+    }
+    const myReqId = ++reqIdRef.current;
+    setLoading(true);
+    setError(null);
+    const params = new URLSearchParams();
+    if (window.since) params.set("since", window.since);
+    if (window.until) params.set("until", window.until);
+    const qs = params.toString();
+    const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
+    fetch(url, { headers: { "X-Admin-Key": adminKey } })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data: StatRow[] = await res.json();
+        if (myReqId !== reqIdRef.current) return;
+        const totals = new Map<string, number>();
+        for (const row of data) {
+          if (row.planSpeed !== "city") continue;
+          totals.set(row.planPrice, (totals.get(row.planPrice) ?? 0) + row.total);
+        }
+        setEntries(Array.from(totals.entries()).map(([name, total]) => ({ name, total })));
+      })
+      .catch(() => {
+        if (myReqId !== reqIdRef.current) return;
+        setError("Não foi possível carregar o mapa.");
+      })
+      .finally(() => {
+        if (myReqId !== reqIdRef.current) return;
+        setLoading(false);
+      });
+  }, [isAdminMode, range, customFrom, customTo, adminKey, baseUrl]);
+
+  const effectiveEntries = isAdminMode ? entries : externalClicks ?? [];
 
   const clickMap = useMemo(() => {
     const m = new Map<string, number>();
-    for (const c of clicks) m.set(c.name, c.total);
+    for (const c of effectiveEntries) m.set(c.name, c.total);
     return m;
-  }, [clicks]);
+  }, [effectiveEntries]);
 
   const { lonMin, lonMax, latMin, latMax } = useMemo(() => {
     const lons = CITY_COORDS.map((c) => c.lon);
@@ -75,6 +170,8 @@ export default function CityClicksMap({ clicks }: Props) {
           <h3 className="font-bold text-sm text-[#0D0D0D]">Mapa de cliques por cidade</h3>
           <p className="text-xs text-[#7A7F8C]">
             Bolhas maiores = mais cliques no CTA da cidade. Total: {totalClicks}.
+            {loading && <span className="ml-2 text-[#0040FF]">Atualizando...</span>}
+            {error && <span className="ml-2 text-red-500">{error}</span>}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[10px] text-[#7A7F8C]">
@@ -92,6 +189,56 @@ export default function CityClicksMap({ clicks }: Props) {
           </span>
         </div>
       </div>
+      {isAdminMode && (
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Período do mapa">
+          {RANGE_OPTIONS.map((opt) => {
+            const active = range === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setRange(opt.id)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors ${
+                  active
+                    ? "bg-[#0040FF] text-white"
+                    : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                }`}
+                aria-pressed={active}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        {range === "custom" && (
+          <div className="inline-flex items-center gap-2 text-xs text-[#2A2D38]">
+            <label className="flex items-center gap-1">
+              <span className="text-[#7A7F8C]">De</span>
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                aria-label="Data inicial do mapa"
+              />
+            </label>
+            <label className="flex items-center gap-1">
+              <span className="text-[#7A7F8C]">até</span>
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                aria-label="Data final do mapa"
+              />
+            </label>
+          </div>
+        )}
+      </div>
+      )}
       <div className="relative w-full overflow-hidden rounded-lg" style={{ background: "#F5F7FA" }}>
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
