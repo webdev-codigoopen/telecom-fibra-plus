@@ -7,6 +7,8 @@ const ICON_ROTEADOR = `${BASE}images/icons/roteador-planos-29x20.svg`;
 const ICON_CANAIS = `${BASE}images/icons/canais-planos-64x20.svg`;
 const ICON_WHATSAPP = `${BASE}images/icons/whatsapp-planos-16.svg`;
 const TAG_MEGA = `${BASE}images/icons/mega-tag-planos-47x16.svg`;
+const LOGO_WATCH = `${BASE}images/icons/watch-planos-193x42.svg`;
+const LOGO_WATCH_POWERTOP = `${BASE}images/icons/watch-powertop-planos-193x42.svg`;
 
 const FONT_BODY = "'Montserrat', system-ui, sans-serif";
 const FONT_SPEED = "'Amino', 'Montserrat', sans-serif";
@@ -41,37 +43,14 @@ function trackPlanClick(plan: Plan, source: string) {
 }
 
 function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
+  const src = logos === "watch+powertop" ? LOGO_WATCH_POWERTOP : LOGO_WATCH;
+  const alt =
+    logos === "watch+powertop"
+      ? "+ Assinatura inclusa Watch + Power Top"
+      : "+ Assinatura inclusa Watch";
   return (
-    <div
-      className="plans-section__streaming flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg mb-5"
-      style={{ border: "1px solid rgba(255,255,255,0.45)" }}
-    >
-      <div
-        className="text-[11px] tracking-[0.04em] flex items-center gap-1"
-        style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 700 }}
-      >
-        <span style={{ color: COLORS.green }}>+</span>
-        <span>ASSINATURA INCLUSA</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span
-          className="text-[20px] italic tracking-tight"
-          style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 800, fontStyle: "italic" }}
-        >
-          watch
-        </span>
-        {logos === "watch+powertop" && (
-          <>
-            <span style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 700 }}>+</span>
-            <span
-              className="text-[14px] tracking-tight leading-none text-left"
-              style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 900 }}
-            >
-              POWER<br />TOP
-            </span>
-          </>
-        )}
-      </div>
+    <div className="plans-section__streaming flex justify-center mb-5">
+      <img src={src} alt={alt} width={193} height={42} className="max-w-full h-auto" />
     </div>
   );
 }
