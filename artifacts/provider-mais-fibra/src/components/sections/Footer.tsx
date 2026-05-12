@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
+import { cities as cityList } from "@/lib/cities";
 
 const links = [
   { label: "Planos", href: "#planos", page: false },
@@ -9,19 +10,9 @@ const links = [
   { label: "Tire suas d\u00FAvidas", href: "#faq", page: false },
 ];
 
-const cities = [
-  "Barra",
-  "Barreiras",
-  "Buritirama",
-  "Correntina",
-  "Luis Eduardo Magalh\u00E3es",
-  "Mansid\u00E3o",
-  "Muqu\u00E9m",
-  "Posto Ros\u00E1rio",
-  "Roda Velha",
-  "Santa Rita",
-  "Wanderley",
-];
+const cities = [...cityList]
+  .map((c) => ({ name: c.name, slug: c.slug }))
+  .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 
 function InstagramIcon({ size = 18 }: { size?: number }) {
   return (
@@ -237,9 +228,18 @@ export default function Footer() {
           >
             <h4 style={headingStyle}>Cidade(s) de Atua&ccedil;&atilde;o</h4>
             {cities.map((c) => (
-              <span key={c} style={bodyStyle}>
-                {c}
-              </span>
+              <a
+                key={c.slug}
+                href={`/cidade/${c.slug}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/cidade/${c.slug}`);
+                  window.scrollTo({ top: 0 });
+                }}
+                style={{ ...bodyStyle, textDecoration: "none", cursor: "pointer" }}
+              >
+                {c.name}
+              </a>
             ))}
           </div>
 

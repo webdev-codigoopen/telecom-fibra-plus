@@ -26,16 +26,22 @@ export type City = {
 
 const DEFAULT_WHATSAPP = WHATSAPP_NUMBER;
 
-function maps(name: string): string {
-  return `https://maps.google.com/?q=${encodeURIComponent(`${name},BA`)}`;
+function maps(query: string): string {
+  return `https://maps.google.com/?q=${encodeURIComponent(`${query},BA`)}`;
 }
+
+const COMMON_HIGHLIGHTS = [
+  "Internet 100% fibra óptica",
+  "Roteador Wi-Fi moderno incluso",
+  "Sem limite de franquia",
+  "Atendimento humano via WhatsApp",
+];
 
 export const cities: City[] = [
   {
     slug: "barreiras",
     name: "Barreiras",
-    description:
-      "Sede regional e maior cobertura da rede Provider Mais Fibra.",
+    description: "Sede regional e maior cobertura da rede Provider Mais Fibra.",
     highlight: true,
     badge: "Sede Regional",
     planos: "100M • 300M • 600M • 900M",
@@ -72,8 +78,7 @@ export const cities: City[] = [
   {
     slug: "luis-eduardo-magalhaes",
     name: "Luís Eduardo Magalhães",
-    description:
-      "Cobertura completa para o maior polo agro do Oeste da Bahia.",
+    description: "Cobertura completa para o maior polo agro do Oeste da Bahia.",
     highlight: false,
     badge: null,
     planos: "100M • 300M • 600M • 900M",
@@ -84,12 +89,11 @@ export const cities: City[] = [
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title:
-        "Internet Fibra em Luís Eduardo Magalhães BA — 100M a 900M",
+      title: "Internet Fibra em Luís Eduardo Magalhães BA — 100M a 900M",
       description:
         "Provedor de internet fibra óptica em Luís Eduardo Magalhães (LEM). Planos de 100M, 300M, 600M e 900M para residências, fazendas e empresas do agro. Assine pelo WhatsApp.",
       intro:
-        "Em Luís Eduardo Magalhães, o maior polo do agronegócio do Oeste baiano, a Provider Mais Fibra entrega internet 100% fibra óptica para residências, escritórios, lojas e propriedades rurais próximas da malha urbana. Planos com Wi-Fi 6, IPTV e upload simétrico para quem precisa de estabilidade real para home office, ERP, monitoramento e streaming.",
+        "Em Luís Eduardo Magalhães, o maior polo do agronegócio do Oeste baiano, a Provider Mais Fibra entrega internet 100% fibra óptica para residências, escritórios, lojas e propriedades rurais próximas da malha urbana. Planos com Wi-Fi 6, IPTV e estabilidade real para home office, ERP, monitoramento e streaming.",
       keywords: [
         "internet fibra Luís Eduardo Magalhães",
         "internet LEM",
@@ -101,218 +105,298 @@ export const cities: City[] = [
         "Cobertura no maior polo agro do Oeste da Bahia",
         "Planos para residências, escritórios e empresas",
         "Wi-Fi 6 nos planos 600M e 900M",
-        "Upload simétrico ideal para home office",
+        "Ideal para home office e gestão agro",
         "Suporte humano via WhatsApp",
       ],
     },
   },
   {
-    slug: "angical",
-    name: "Angical",
-    description:
-      "Internet rápida e confiável para residências e empresas locais.",
+    slug: "barra",
+    name: "Barra",
+    description: "Internet fibra óptica no encontro do Rio Grande com o São Francisco.",
     highlight: false,
     badge: null,
     planos: "100M • 300M • 600M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Angical"),
-    region: "Oeste da Bahia",
-    microregion: "Barreiras",
+    maps: maps("Barra"),
+    region: "Médio São Francisco",
+    microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title: "Internet Fibra Óptica em Angical BA — Planos 100M, 300M e 600M",
+      title: "Internet Fibra Óptica em Barra BA — Planos 100M a 600M",
       description:
-        "Internet fibra óptica em Angical, Bahia. Planos residenciais a partir de 100 Mega com instalação rápida, IPTV opcional e suporte local pelo WhatsApp. Veja a cobertura.",
+        "Internet 100% fibra óptica em Barra, Bahia. Planos residenciais e comerciais de 100, 300 e 600 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
       intro:
-        "Em Angical, a Provider Mais Fibra leva internet de fibra óptica para residências, comércios e pequenas empresas com a mesma qualidade do nosso backbone regional. Planos de 100M, 300M e 600M, com roteador moderno, atendimento humano e visita técnica rápida quando você precisa.",
+        "Em Barra, no encontro do Rio Grande com o São Francisco, a Provider Mais Fibra entrega internet 100% fibra óptica para famílias, comércios e pousadas. Planos de 100M, 300M e 600M com instalação rápida e atendimento próximo.",
       keywords: [
-        "internet fibra Angical",
-        "internet fibra Angical BA",
-        "provedor de internet Angical",
-        "plano de internet Angical Bahia",
+        "internet fibra Barra",
+        "internet fibra Barra BA",
+        "provedor de internet Barra Bahia",
+        "plano de internet Barra",
       ],
       highlights: [
-        "Cobertura ativa em Angical",
+        "Cobertura ativa em Barra",
         "Planos de 100M, 300M e 600M",
-        "Roteador moderno incluso",
-        "Atendimento local pelo WhatsApp",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
   {
-    slug: "baianopolis",
-    name: "Baianópolis",
-    description:
-      "Fibra óptica chegou até você com velocidade e estabilidade.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Baianopolis"),
-    region: "Oeste da Bahia",
-    microregion: "Barreiras",
-    state: "Bahia",
-    stateCode: "BA",
-    seo: {
-      title:
-        "Internet Fibra em Baianópolis BA — Planos a partir de 100 Mega",
-      description:
-        "Internet fibra óptica em Baianópolis, Bahia. Planos residenciais e comerciais de 100M, 300M e 600M com instalação grátis e suporte humano via WhatsApp.",
-      intro:
-        "A Provider Mais Fibra trouxe a fibra óptica para Baianópolis com planos pensados para o dia a dia da família e do pequeno comércio. Velocidade real, estabilidade no streaming e atendimento próximo, sem call center robotizado.",
-      keywords: [
-        "internet fibra Baianópolis",
-        "internet Baianópolis BA",
-        "provedor de internet Baianópolis",
-      ],
-      highlights: [
-        "Fibra óptica disponível em Baianópolis",
-        "Planos de 100M, 300M e 600M",
-        "Instalação grátis nos planos elegíveis",
-        "Atendimento humano via WhatsApp",
-      ],
-    },
-  },
-  {
-    slug: "cristopolis",
-    name: "Cristópolis",
-    description:
-      "Conectividade de alta qualidade para o interior do Oeste baiano.",
+    slug: "buritirama",
+    name: "Buritirama",
+    description: "Conexão estável de fibra óptica para residências e comércio local.",
     highlight: false,
     badge: null,
     planos: "100M • 300M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Cristopolis"),
-    region: "Oeste da Bahia",
-    microregion: "Barreiras",
+    maps: maps("Buritirama"),
+    region: "Norte da Bahia",
+    microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title: "Internet Fibra Óptica em Cristópolis BA — 100M e 300M",
+      title: "Internet Fibra Óptica em Buritirama BA — Planos 100M e 300M",
       description:
-        "Internet fibra em Cristópolis, Bahia. Planos de 100 e 300 Mega para residências, com Wi-Fi de qualidade e suporte local. Consulte a disponibilidade no WhatsApp.",
+        "Internet fibra óptica em Buritirama, Bahia. Planos residenciais e comerciais de 100M e 300M com Wi-Fi moderno, sem franquia e suporte local pelo WhatsApp.",
       intro:
-        "Em Cristópolis, a Provider Mais Fibra oferece planos residenciais de 100M e 300M em fibra óptica, ideais para quem quer estabilidade no streaming, jogos e chamadas de vídeo, sem limite de franquia e com atendimento de quem é da região.",
+        "Em Buritirama, a Provider Mais Fibra leva internet 100% fibra óptica para residências e pequenos comércios da cidade, com planos de 100M e 300M, instalação rápida e atendimento humano via WhatsApp.",
       keywords: [
-        "internet fibra Cristópolis",
-        "internet Cristópolis BA",
-        "provedor de internet Cristópolis",
+        "internet fibra Buritirama",
+        "internet Buritirama BA",
+        "provedor de internet Buritirama",
       ],
       highlights: [
-        "Cobertura ativa em Cristópolis",
+        "Cobertura ativa em Buritirama",
         "Planos de 100M e 300M",
-        "Sem limite de franquia",
-        "Atendimento via WhatsApp",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
   {
-    slug: "sao-desiderio",
-    name: "São Desidério",
-    description:
-      "Um dos maiores municípios em área do Brasil, totalmente conectado.",
+    slug: "correntina",
+    name: "Correntina",
+    description: "Conectando famílias e empresas às margens do Rio Corrente.",
     highlight: false,
     badge: null,
     planos: "100M • 300M • 600M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Sao Desiderio"),
+    maps: maps("Correntina"),
     region: "Oeste da Bahia",
-    microregion: "Barreiras",
+    microregion: "Santa Maria da Vitória",
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title:
-        "Internet Fibra em São Desidério BA — Planos de 100M, 300M e 600M",
+      title: "Internet Fibra Óptica em Correntina BA — Planos 100M, 300M e 600M",
       description:
-        "Internet fibra óptica em São Desidério, Bahia. Planos residenciais e empresariais com Wi-Fi moderno, IPTV opcional e suporte local pelo WhatsApp.",
+        "Internet fibra em Correntina, Bahia. Planos residenciais e comerciais às margens do Rio Corrente, com Wi-Fi moderno e suporte humano pelo WhatsApp.",
       intro:
-        "São Desidério é um dos maiores municípios em área do país, e a Provider Mais Fibra atende sua malha urbana com planos de fibra óptica de 100M a 600M. Oferecemos roteador moderno, instalação rápida e atendimento próximo de quem mora na região.",
+        "Em Correntina, às margens do Rio Corrente, a Provider Mais Fibra entrega internet fibra óptica com planos de 100M, 300M e 600M, ideais para residências, comércios e pequenas empresas próximas da cidade.",
       keywords: [
-        "internet fibra São Desidério",
-        "internet São Desidério BA",
-        "provedor de internet São Desidério",
+        "internet fibra Correntina",
+        "internet Correntina BA",
+        "provedor de internet Correntina",
+        "plano de internet Correntina",
       ],
       highlights: [
-        "Cobertura ativa em São Desidério",
+        "Cobertura ativa em Correntina",
         "Planos de 100M, 300M e 600M",
-        "IPTV opcional com mais de 100 canais",
-        "Suporte humano via WhatsApp",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
   {
-    slug: "jaborandi",
-    name: "Jaborandi",
-    description:
-      "Internet fibra para famílias e agronegócio da região.",
+    slug: "javi",
+    name: "Javi",
+    description: "Fibra óptica chegando ao distrito de Javi com qualidade urbana.",
     highlight: false,
     badge: null,
     planos: "100M • 300M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Jaborandi"),
+    maps: maps("Javi"),
     region: "Oeste da Bahia",
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title: "Internet Fibra Óptica em Jaborandi BA — Planos 100M e 300M",
+      title: "Internet Fibra Óptica em Javi BA — Planos 100M e 300M",
       description:
-        "Internet fibra em Jaborandi, Bahia. Planos residenciais e para o agronegócio próximo da malha urbana, com Wi-Fi moderno e suporte local pelo WhatsApp.",
+        "Internet 100% fibra óptica em Javi, Bahia. Planos residenciais a partir de 100 Mega com Wi-Fi moderno, sem franquia e atendimento humano pelo WhatsApp.",
       intro:
-        "Em Jaborandi, a Provider Mais Fibra entrega internet fibra óptica com estabilidade para famílias e para o agronegócio próximo da área urbana. Planos de 100M e 300M, sem franquia e com atendimento humano.",
+        "Em Javi, a Provider Mais Fibra leva a mesma qualidade da fibra óptica das grandes cidades para a comunidade local. Planos de 100M e 300M, sem limite de franquia e com suporte humano de quem é da região.",
       keywords: [
-        "internet fibra Jaborandi",
-        "internet Jaborandi BA",
-        "provedor de internet Jaborandi",
+        "internet fibra Javi",
+        "internet Javi BA",
+        "provedor de internet Javi",
       ],
       highlights: [
-        "Cobertura ativa em Jaborandi",
+        "Cobertura ativa em Javi",
         "Planos de 100M e 300M",
-        "Sem limite de franquia",
-        "Atendimento via WhatsApp",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
   {
-    slug: "cotegipe",
-    name: "Cotegipe",
-    description:
-      "Fibra óptica de qualidade no coração do Oeste baiano.",
+    slug: "mansidao",
+    name: "Mansidão",
+    description: "Internet fibra para o dia a dia das famílias e do comércio local.",
     highlight: false,
     badge: null,
-    planos: "100M • 300M • 600M",
+    planos: "100M • 300M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Cotegipe"),
+    maps: maps("Mansidao"),
+    region: "Norte da Bahia",
+    microregion: "Barra",
+    state: "Bahia",
+    stateCode: "BA",
+    seo: {
+      title: "Internet Fibra Óptica em Mansidão BA — Planos 100M e 300M",
+      description:
+        "Internet fibra em Mansidão, Bahia. Planos residenciais e comerciais a partir de 100 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
+      intro:
+        "Em Mansidão, a Provider Mais Fibra atende famílias e pequenos comércios com internet 100% fibra óptica. Planos de 100M e 300M, instalação rápida e atendimento próximo de quem mora na região.",
+      keywords: [
+        "internet fibra Mansidão",
+        "internet Mansidão BA",
+        "provedor de internet Mansidão",
+      ],
+      highlights: [
+        "Cobertura ativa em Mansidão",
+        "Planos de 100M e 300M",
+        ...COMMON_HIGHLIGHTS,
+      ],
+    },
+  },
+  {
+    slug: "muquem",
+    name: "Muquém",
+    description: "Fibra óptica para a comunidade de Muquém e região.",
+    highlight: false,
+    badge: null,
+    planos: "100M • 300M",
+    whatsapp: DEFAULT_WHATSAPP,
+    maps: maps("Muquem"),
+    region: "Médio São Francisco",
+    microregion: "Bom Jesus da Lapa",
+    state: "Bahia",
+    stateCode: "BA",
+    seo: {
+      title: "Internet Fibra Óptica em Muquém BA — Planos 100M e 300M",
+      description:
+        "Internet 100% fibra óptica em Muquém, Bahia. Planos residenciais a partir de 100 Mega com Wi-Fi moderno, sem franquia e suporte humano pelo WhatsApp.",
+      intro:
+        "Em Muquém, a Provider Mais Fibra entrega internet fibra óptica de qualidade urbana para residências e pequenos comércios. Planos de 100M e 300M, com atendimento próximo e visita técnica rápida.",
+      keywords: [
+        "internet fibra Muquém",
+        "internet Muquém BA",
+        "provedor de internet Muquém",
+      ],
+      highlights: [
+        "Cobertura ativa em Muquém",
+        "Planos de 100M e 300M",
+        ...COMMON_HIGHLIGHTS,
+      ],
+    },
+  },
+  {
+    slug: "posto-rosario",
+    name: "Posto Rosário",
+    description: "Conexão de fibra óptica no entroncamento de Posto Rosário.",
+    highlight: false,
+    badge: null,
+    planos: "100M • 300M",
+    whatsapp: DEFAULT_WHATSAPP,
+    maps: maps("Posto Rosario"),
     region: "Oeste da Bahia",
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
     seo: {
-      title:
-        "Internet Fibra em Cotegipe BA — Planos de 100M, 300M e 600M",
+      title: "Internet Fibra Óptica em Posto Rosário BA — 100M e 300M",
       description:
-        "Internet fibra óptica em Cotegipe, Bahia. Planos residenciais e comerciais a partir de 100 Mega, com instalação rápida e suporte humano via WhatsApp.",
+        "Internet fibra em Posto Rosário, Bahia. Planos residenciais e comerciais a partir de 100 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
       intro:
-        "A Provider Mais Fibra atende Cotegipe com planos de fibra óptica de 100M, 300M e 600M para residências e pequenos comércios. Roteador moderno, atendimento próximo e visita técnica quando você precisar.",
+        "Em Posto Rosário, ponto de passagem importante do Oeste da Bahia, a Provider Mais Fibra leva internet 100% fibra óptica para residências, comércios e postos de serviço com planos de 100M e 300M.",
       keywords: [
-        "internet fibra Cotegipe",
-        "internet Cotegipe BA",
-        "provedor de internet Cotegipe",
+        "internet fibra Posto Rosário",
+        "internet Posto Rosário BA",
+        "provedor de internet Posto Rosário",
       ],
       highlights: [
-        "Cobertura ativa em Cotegipe",
+        "Cobertura ativa em Posto Rosário",
+        "Planos de 100M e 300M",
+        ...COMMON_HIGHLIGHTS,
+      ],
+    },
+  },
+  {
+    slug: "roda-velha",
+    name: "Roda Velha",
+    description: "Internet fibra óptica para o distrito de Roda Velha, em São Desidério.",
+    highlight: false,
+    badge: null,
+    planos: "100M • 300M • 600M",
+    whatsapp: DEFAULT_WHATSAPP,
+    maps: maps("Roda Velha Sao Desiderio"),
+    region: "Oeste da Bahia",
+    microregion: "Barreiras",
+    state: "Bahia",
+    stateCode: "BA",
+    seo: {
+      title: "Internet Fibra Óptica em Roda Velha BA — 100M, 300M e 600M",
+      description:
+        "Internet 100% fibra óptica em Roda Velha (São Desidério), Bahia. Planos residenciais e do agro de 100, 300 e 600 Mega com Wi-Fi moderno e suporte pelo WhatsApp.",
+      intro:
+        "Em Roda Velha, distrito de São Desidério no coração agrícola do Oeste baiano, a Provider Mais Fibra entrega internet fibra óptica para residências, comércios e estruturas de apoio do agro. Planos de 100M, 300M e 600M com estabilidade real.",
+      keywords: [
+        "internet fibra Roda Velha",
+        "internet Roda Velha São Desidério",
+        "internet fibra agro Oeste da Bahia",
+        "provedor de internet Roda Velha",
+      ],
+      highlights: [
+        "Cobertura ativa em Roda Velha",
         "Planos de 100M, 300M e 600M",
-        "Roteador moderno incluso",
-        "Atendimento via WhatsApp",
+        "Estabilidade ideal para apoio do agro",
+        ...COMMON_HIGHLIGHTS,
+      ],
+    },
+  },
+  {
+    slug: "santa-rita",
+    name: "Santa Rita",
+    description: "Fibra óptica para residências e comércios de Santa Rita.",
+    highlight: false,
+    badge: null,
+    planos: "100M • 300M • 600M",
+    whatsapp: DEFAULT_WHATSAPP,
+    maps: maps("Santa Rita de Cassia"),
+    region: "Norte da Bahia",
+    microregion: "Barra",
+    state: "Bahia",
+    stateCode: "BA",
+    seo: {
+      title: "Internet Fibra Óptica em Santa Rita BA — Planos 100M a 600M",
+      description:
+        "Internet fibra em Santa Rita, Bahia. Planos residenciais e comerciais de 100, 300 e 600 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
+      intro:
+        "Em Santa Rita, a Provider Mais Fibra entrega internet 100% fibra óptica para famílias, comércios e pequenas empresas, com planos de 100M, 300M e 600M, instalação rápida e atendimento próximo.",
+      keywords: [
+        "internet fibra Santa Rita",
+        "internet Santa Rita BA",
+        "provedor de internet Santa Rita",
+      ],
+      highlights: [
+        "Cobertura ativa em Santa Rita",
+        "Planos de 100M, 300M e 600M",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
   {
     slug: "wanderley",
     name: "Wanderley",
-    description:
-      "Conexão estável e veloz para residências e comércios locais.",
+    description: "Conexão estável e veloz para residências e comércios locais.",
     highlight: false,
     badge: null,
     planos: "100M • 300M",
@@ -336,110 +420,7 @@ export const cities: City[] = [
       highlights: [
         "Cobertura ativa em Wanderley",
         "Planos de 100M e 300M",
-        "Sem limite de franquia",
-        "Suporte via WhatsApp",
-      ],
-    },
-  },
-  {
-    slug: "bom-jesus-da-lapa",
-    name: "Bom Jesus da Lapa",
-    description:
-      "Internet de qualidade para a cidade santuário do Oeste baiano.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Bom Jesus da Lapa"),
-    region: "Médio São Francisco",
-    microregion: "Bom Jesus da Lapa",
-    state: "Bahia",
-    stateCode: "BA",
-    seo: {
-      title:
-        "Internet Fibra em Bom Jesus da Lapa BA — Planos 100M a 600M",
-      description:
-        "Internet fibra óptica em Bom Jesus da Lapa, Bahia. Planos residenciais e comerciais com Wi-Fi moderno, IPTV opcional e suporte local pelo WhatsApp.",
-      intro:
-        "Bom Jesus da Lapa, conhecida pelo seu santuário às margens do Rio São Francisco, agora conta com internet 100% fibra óptica da Provider Mais Fibra. Planos de 100M, 300M e 600M para residências, comércios, pousadas e pequenos hotéis.",
-      keywords: [
-        "internet fibra Bom Jesus da Lapa",
-        "internet Bom Jesus da Lapa BA",
-        "provedor de internet Bom Jesus da Lapa",
-      ],
-      highlights: [
-        "Cobertura ativa em Bom Jesus da Lapa",
-        "Planos de 100M, 300M e 600M",
-        "Ideal para pousadas e comércios",
-        "Atendimento humano via WhatsApp",
-      ],
-    },
-  },
-  {
-    slug: "santa-maria-da-vitoria",
-    name: "Santa Maria da Vitória",
-    description:
-      "Cobertura em fibra óptica para toda a cidade e região.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Santa Maria da Vitoria"),
-    region: "Médio São Francisco",
-    microregion: "Santa Maria da Vitória",
-    state: "Bahia",
-    stateCode: "BA",
-    seo: {
-      title:
-        "Internet Fibra em Santa Maria da Vitória BA — 100M, 300M e 600M",
-      description:
-        "Internet fibra óptica em Santa Maria da Vitória, Bahia. Planos residenciais e empresariais com Wi-Fi moderno e suporte humano pelo WhatsApp.",
-      intro:
-        "A Provider Mais Fibra cobre toda a malha urbana de Santa Maria da Vitória, no Vale do Rio Corrente, com planos de fibra óptica de 100M, 300M e 600M para famílias, comércios e pequenas empresas.",
-      keywords: [
-        "internet fibra Santa Maria da Vitória",
-        "internet Santa Maria da Vitória BA",
-        "provedor de internet Santa Maria da Vitória",
-      ],
-      highlights: [
-        "Cobertura ativa em Santa Maria da Vitória",
-        "Planos de 100M, 300M e 600M",
-        "Vale do Rio Corrente",
-        "Atendimento via WhatsApp",
-      ],
-    },
-  },
-  {
-    slug: "correntina",
-    name: "Correntina",
-    description:
-      "Conectando famílias e empresas às margens do Rio Corrente.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Correntina"),
-    region: "Médio São Francisco",
-    microregion: "Santa Maria da Vitória",
-    state: "Bahia",
-    stateCode: "BA",
-    seo: {
-      title:
-        "Internet Fibra Óptica em Correntina BA — Planos 100M, 300M e 600M",
-      description:
-        "Internet fibra em Correntina, Bahia. Planos residenciais e comerciais às margens do Rio Corrente, com Wi-Fi moderno e suporte humano pelo WhatsApp.",
-      intro:
-        "Em Correntina, às margens do Rio Corrente, a Provider Mais Fibra entrega internet fibra óptica com planos de 100M, 300M e 600M, ideais para residências, comércios e pequenas empresas do agronegócio próximo da cidade.",
-      keywords: [
-        "internet fibra Correntina",
-        "internet Correntina BA",
-        "provedor de internet Correntina",
-      ],
-      highlights: [
-        "Cobertura ativa em Correntina",
-        "Planos de 100M, 300M e 600M",
-        "Atende residências e comércios",
-        "Suporte humano via WhatsApp",
+        ...COMMON_HIGHLIGHTS,
       ],
     },
   },
