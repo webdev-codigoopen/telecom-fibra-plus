@@ -146,7 +146,7 @@ export default function DemandaCidades() {
       <main className="flex-1 pt-16">
         <section
           className="py-16"
-          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
@@ -156,17 +156,17 @@ export default function DemandaCidades() {
             >
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(255,214,0,0.15)", border: "1px solid rgba(255,214,0,0.3)" }}
+                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
               >
-                <MapPin size={12} style={{ color: "#FFD600" }} />
-                <span className="text-[#FFD600]">Mapa de Demanda</span>
+                <MapPin size={12} style={{ color: "#95EB1D" }} />
+                <span className="text-[#95EB1D]">Mapa de Demanda</span>
               </div>
               <h1
                 className="text-4xl sm:text-5xl font-black text-white mb-4"
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a procura está
-                <span style={{ color: "#FFD600" }}> mais quente</span>
+                <span style={{ color: "#95EB1D" }}> mais quente</span>
               </h1>
               <p className="text-white/70 text-base max-w-2xl mx-auto mb-8">
                 Bolhas maiores indicam mais cliques de interesse no Oeste da Bahia. Atualizado em tempo real.
@@ -175,7 +175,7 @@ export default function DemandaCidades() {
                 type="button"
                 onClick={openForm}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-transform hover:scale-[1.02] active:scale-[0.99]"
-                style={{ background: "#FFD600", color: "#001A6E", boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}
+                style={{ background: "#95EB1D", color: "#0A1995", boxShadow: "0 6px 20px rgba(0,0,0,0.18)" }}
                 data-testid="open-interest-form"
               >
                 <MapPin size={16} />
@@ -203,8 +203,8 @@ export default function DemandaCidades() {
               <button
                 type="button"
                 onClick={openForm}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border-2 transition-colors hover:bg-[#0040FF] hover:text-white"
-                style={{ borderColor: "#0040FF", color: "#0040FF", background: "white" }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm border-2 transition-colors hover:bg-[#122AD5] hover:text-white"
+                style={{ borderColor: "#122AD5", color: "#122AD5", background: "white" }}
                 data-testid="open-interest-form-secondary"
               >
                 <MapPin size={14} />
@@ -252,7 +252,7 @@ export default function DemandaCidades() {
                 <div className="text-center py-4">
                   <div
                     className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3"
-                    style={{ background: "rgba(0,192,64,0.12)" }}
+                    style={{ background: "rgba(149,235,29,0.12)" }}
                   >
                     <CheckCircle2 size={28} style={{ color: "#00863A" }} />
                   </div>
@@ -277,7 +277,7 @@ export default function DemandaCidades() {
                       type="button"
                       onClick={closeForm}
                       className="px-4 py-2 rounded-full text-sm font-bold text-white"
-                      style={{ background: "#0040FF" }}
+                      style={{ background: "#122AD5" }}
                       data-testid="close-after-success"
                     >
                       Ver no mapa
@@ -390,7 +390,7 @@ export default function DemandaCidades() {
                       type="submit"
                       disabled={submitting}
                       className="w-full py-2.5 rounded-lg font-bold text-sm text-white transition-opacity disabled:opacity-60"
-                      style={{ background: "#0040FF" }}
+                      style={{ background: "#122AD5" }}
                       data-testid="submit-interest"
                     >
                       {submitting ? "Enviando..." : "Quero fibra na minha região"}

@@ -43,7 +43,7 @@ export default function Cidade() {
         {/* Hero */}
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
             <motion.div
@@ -63,10 +63,10 @@ export default function Cidade() {
 
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(255,214,0,0.15)", border: "1px solid rgba(255,214,0,0.3)" }}
+                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
               >
-                <MapPin size={12} style={{ color: "#FFD600" }} />
-                <span className="text-[#FFD600]">{city.badge ?? "Cobertura Ativa"}</span>
+                <MapPin size={12} style={{ color: "#95EB1D" }} />
+                <span className="text-[#95EB1D]">{city.badge ?? "Cobertura Ativa"}</span>
               </div>
 
               <h1
@@ -74,7 +74,7 @@ export default function Cidade() {
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Internet Fibra em
-                <span style={{ color: "#FFD600" }}> {city.name}</span>
+                <span style={{ color: "#95EB1D" }}> {city.name}</span>
               </h1>
               <p className="text-white/80 text-lg max-w-2xl mx-auto mb-8">
                 {city.description}
@@ -85,14 +85,14 @@ export default function Cidade() {
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <Wifi size={16} style={{ color: "#FFD600" }} />
+                  <Wifi size={16} style={{ color: "#95EB1D" }} />
                   100% Fibra Óptica
                 </div>
                 <div
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <Clock size={16} style={{ color: "#FFD600" }} />
+                  <Clock size={16} style={{ color: "#95EB1D" }} />
                   Suporte 24h
                 </div>
                 <a
@@ -100,8 +100,8 @@ export default function Cidade() {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="cta-hero-whatsapp"
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-105"
-                  style={{ background: "#00C040" }}
+                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[#0D0E14] transition-all hover:scale-105"
+                  style={{ background: "#95EB1D" }}
                 >
                   <MessageCircle size={16} />
                   Falar no WhatsApp
@@ -159,7 +159,7 @@ export default function Cidade() {
               viewport={{ once: true }}
               className="text-center mb-10"
             >
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#0040FF] mb-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#122AD5] mb-2">
                 Atendimento em {city.name}
               </h2>
               <p className="text-[#4A4F61] text-sm">
@@ -178,11 +178,11 @@ export default function Cidade() {
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-                  style={{ background: "#00C040" }}
+                  style={{ background: "#95EB1D" }}
                 >
-                  <MessageCircle size={20} color="white" />
+                  <MessageCircle size={20} color="#0D0E14" />
                 </div>
-                <h3 className="font-bold text-[#0040FF] mb-1">Assinar plano</h3>
+                <h3 className="font-bold text-[#122AD5] mb-1">Assinar plano</h3>
                 <p className="text-xs text-[#4A4F61]">
                   Fale agora pelo WhatsApp e contrate seu plano em {city.name}.
                 </p>
@@ -198,11 +198,11 @@ export default function Cidade() {
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-                  style={{ background: "#0040FF" }}
+                  style={{ background: "#122AD5" }}
                 >
                   <Phone size={20} color="white" />
                 </div>
-                <h3 className="font-bold text-[#0040FF] mb-1">Tirar dúvidas</h3>
+                <h3 className="font-bold text-[#122AD5] mb-1">Tirar dúvidas</h3>
                 <p className="text-xs text-[#4A4F61]">
                   Verifique cobertura e tire dúvidas sobre planos disponíveis.
                 </p>
@@ -218,11 +218,11 @@ export default function Cidade() {
               >
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
-                  style={{ background: "#FFD600" }}
+                  style={{ background: "#95EB1D" }}
                 >
                   <MapPin size={20} color="#0D0E14" />
                 </div>
-                <h3 className="font-bold text-[#0040FF] mb-1">Ver no mapa</h3>
+                <h3 className="font-bold text-[#122AD5] mb-1">Ver no mapa</h3>
                 <p className="text-xs text-[#4A4F61]">
                   Confira a localização de {city.name} - BA no Google Maps.
                 </p>

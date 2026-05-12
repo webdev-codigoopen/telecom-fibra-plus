@@ -63,7 +63,7 @@ export default function Contato() {
       <main className="flex-1 pt-16">
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
+          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
@@ -73,10 +73,10 @@ export default function Contato() {
             >
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(255,214,0,0.15)", border: "1px solid rgba(255,214,0,0.3)" }}
+                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
               >
-                <span className="w-2 h-2 rounded-full bg-[#FFD600]" />
-                <span className="text-[#FFD600]">Fale Conosco</span>
+                <span className="w-2 h-2 rounded-full bg-[#95EB1D]" />
+                <span className="text-[#95EB1D]">Fale Conosco</span>
               </div>
               <h1
                 className="text-4xl sm:text-5xl font-black text-white mb-4"
@@ -105,7 +105,7 @@ export default function Contato() {
                   className="p-8 rounded-2xl"
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
                 >
-                  <h2 className="text-2xl font-bold text-[#0040FF] mb-6">Envie sua mensagem</h2>
+                  <h2 className="text-2xl font-bold text-[#122AD5] mb-6">Envie sua mensagem</h2>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
@@ -202,10 +202,10 @@ export default function Contato() {
 
                     <button
                       type="submit"
-                      className="w-full flex items-center justify-center gap-3 py-4 rounded-lg font-bold text-base text-white transition-all duration-200 hover:scale-[1.02] active:scale-95"
+                      className="w-full flex items-center justify-center gap-3 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-[1.02] active:scale-95"
                       style={{
-                        background: "#00C040",
-                        boxShadow: "0 4px 12px rgba(0,192,64,0.35)",
+                        background: "#95EB1D",
+                        boxShadow: "0 4px 12px rgba(149,235,29,0.35)",
                       }}
                     >
                       <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
@@ -232,7 +232,7 @@ export default function Contato() {
                   className="p-6 rounded-xl"
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
-                  <h3 className="text-base font-bold text-[#0040FF] mb-4">Contato Direto</h3>
+                  <h3 className="text-base font-bold text-[#122AD5] mb-4">Contato Direto</h3>
                   <div className="space-y-4">
                     <a
                       href="https://wa.me/5577998444757"
@@ -281,8 +281,8 @@ export default function Contato() {
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <Clock size={16} style={{ color: "#0040FF" }} />
-                    <h3 className="text-base font-bold text-[#0040FF]">Horário de Atendimento</h3>
+                    <Clock size={16} style={{ color: "#122AD5" }} />
+                    <h3 className="text-base font-bold text-[#122AD5]">Horário de Atendimento</h3>
                   </div>
                   <div className="space-y-2">
                     {[
@@ -298,9 +298,9 @@ export default function Contato() {
                   </div>
                   <div
                     className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold"
-                    style={{ background: "#F0FFF6", color: "#00C040" }}
+                    style={{ background: "#F0FFF6", color: "#95EB1D" }}
                   >
-                    <span className="w-2 h-2 rounded-full bg-[#00C040] animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[#95EB1D] animate-pulse" />
                     Suporte 24h disponível agora
                   </div>
                 </div>
@@ -310,15 +310,15 @@ export default function Contato() {
                   style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
                 >
                   <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={16} style={{ color: "#0040FF" }} />
-                    <h3 className="text-base font-bold text-[#0040FF]">Cobertura</h3>
+                    <MapPin size={16} style={{ color: "#122AD5" }} />
+                    <h3 className="text-base font-bold text-[#122AD5]">Cobertura</h3>
                   </div>
                   <p className="text-sm text-[#4A4F61] mb-3">
                     Atendemos 11 cidades no Oeste da Bahia.
                   </p>
                   <a
                     href="/onde-estamos"
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#0040FF] hover:underline"
+                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#122AD5] hover:underline"
                   >
                     Ver todas as cidades →
                   </a>
