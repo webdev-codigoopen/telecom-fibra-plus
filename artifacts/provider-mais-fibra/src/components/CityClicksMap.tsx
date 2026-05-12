@@ -236,8 +236,24 @@ export default function CityClicksMap(props: Props) {
     return { x, y };
   }
 
-  const maxClicks = Math.max(1, ...CITY_COORDS.map((c) => clickMap.get(c.name) ?? 0));
-  const totalClicks = CITY_COORDS.reduce((sum, c) => sum + (clickMap.get(c.name) ?? 0), 0);
+  const knownCityNames = useMemo(() => new Set(CITY_COORDS.map((c) => c.name)), []);
+  const extraEntries = useMemo(() => {
+    return effectiveEntries
+      .filter((e) => e.total > 0 && !knownCityNames.has(e.name))
+      .sort((a, b) => {
+        if (b.total !== a.total) return b.total - a.total;
+        return a.name.localeCompare(b.name, "pt-BR");
+      });
+  }, [effectiveEntries, knownCityNames]);
+
+  const maxClicks = Math.max(
+    1,
+    ...CITY_COORDS.map((c) => clickMap.get(c.name) ?? 0),
+    ...extraEntries.map((e) => e.total),
+  );
+  const knownTotal = CITY_COORDS.reduce((sum, c) => sum + (clickMap.get(c.name) ?? 0), 0);
+  const extraTotal = extraEntries.reduce((sum, e) => sum + e.total, 0);
+  const totalClicks = knownTotal + extraTotal;
 
   function bubbleRadius(total: number) {
     if (total <= 0) return 5;
@@ -553,8 +569,33 @@ export default function CityClicksMap(props: Props) {
           )}
         </svg>
       </div>
+      {extraEntries.length > 0 && (
+        <div
+          className="mt-3 rounded-lg border border-[#FFD600]/50 bg-[#FFFBE6] px-3 py-2"
+          data-testid="extra-cities-callout"
+        >
+          <p className="text-[11px] font-bold text-[#7A5C00] mb-1">
+            Novas regiões cadastradas pelos visitantes
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {extraEntries.map((e) => (
+              <span
+                key={e.name}
+                className="inline-flex items-center gap-1 rounded-full bg-white border border-[#E8D778] px-2 py-0.5 text-[11px] font-semibold text-[#5C4500]"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FFD600]" />
+                {e.name}
+                <span className="text-[10px] font-bold text-[#7A5C00]">· {e.total}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       <TopCitiesList
-        entries={CITY_COORDS.map((c) => ({ name: c.name, total: clickMap.get(c.name) ?? 0 }))}
+        entries={[
+          ...CITY_COORDS.map((c) => ({ name: c.name, total: clickMap.get(c.name) ?? 0 })),
+          ...extraEntries,
+        ]}
         totalClicks={totalClicks}
         deltas={
           hasComparison
