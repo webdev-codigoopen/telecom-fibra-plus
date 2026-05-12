@@ -201,7 +201,7 @@ export default function Header() {
           <button
             onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="header-section__cta cursor-pointer ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 hover:scale-[1.03] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] whitespace-nowrap"
+            className="header-section__cta cursor-pointer ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-colors duration-200 hover:brightness-110 active:brightness-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] whitespace-nowrap"
             style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
           >
             Assine Já
