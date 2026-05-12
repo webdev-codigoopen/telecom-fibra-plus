@@ -16,7 +16,6 @@ type NavLink = {
 };
 
 const navLinks: NavLink[] = [
-  { label: "Home", href: "/", page: "/" },
   { label: "Planos", href: "#planos" },
   { label: "IPTV", href: "#combo" },
   { label: "Sobre Nós", href: "/quem-somos", page: "/quem-somos" },

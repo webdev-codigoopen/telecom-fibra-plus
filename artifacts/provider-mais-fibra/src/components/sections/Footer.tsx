@@ -2,7 +2,6 @@ import { useLocation } from "wouter";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const links = [
-  { label: "Home", href: "/", page: true },
   { label: "Planos", href: "#planos", page: false },
   { label: "IPTV", href: "#iptv", page: false },
   { label: "Sobre N\u00F3s", href: "/quem-somos", page: true },
