@@ -78,7 +78,7 @@ export default function ComboPowerTop() {
       </div>
 
       {/* 3. Channel logos carousel — pill on desktop, two opposite rows on mobile */}
-      <div className="w-full" style={{ maxWidth: 1240 }}>
+      <div className="w-full">
         {/* Desktop: single infinite row, transparent background */}
         <div
           className="hidden md:block"
