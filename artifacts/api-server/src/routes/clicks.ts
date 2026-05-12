@@ -95,6 +95,46 @@ router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
   }
 });
 
+router.get("/clicks/export/raw", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        clickedAt: planClicksTable.clickedAt,
+        planSpeed: planClicksTable.planSpeed,
+        planPrice: planClicksTable.planPrice,
+        source: planClicksTable.source,
+      })
+      .from(planClicksTable)
+      .orderBy(desc(planClicksTable.clickedAt));
+
+    const escape = (val: string | number | Date | null | undefined): string => {
+      let s = val == null ? "" : val instanceof Date ? val.toISOString() : String(val);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) {
+        s = `'${s}`;
+      }
+      if (/[",\n\r]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const header = "clicked_at,plan_speed,plan_price,source";
+    const body = rows
+      .map((r) =>
+        [escape(r.clickedAt), escape(r.planSpeed), escape(r.planPrice), escape(r.source)].join(","),
+      )
+      .join("\n");
+    const csv = `${header}\n${body}${body ? "\n" : ""}`;
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="clicks-raw-${stamp}.csv"`);
+    res.send(csv);
+  } catch {
+    res.status(500).json({ error: "Failed to export raw clicks" });
+  }
+});
+
 router.get("/clicks/export", requireAdminKey, async (_req, res) => {
   try {
     const rows = await db
