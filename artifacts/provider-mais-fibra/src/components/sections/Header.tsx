@@ -32,8 +32,7 @@ const COLORS = {
   divider: "rgba(255,255,255,0.6)",
 };
 
-const HEADER_BG =
-  "linear-gradient(19.475deg, rgb(18, 42, 213) 29.23%, rgb(33, 56, 205) 56.94%, rgb(42, 65, 219) 86.07%)";
+const HEADER_BG = "#1A38D5";
 
 const FONT_NUNITO = "'Nunito', 'Montserrat', system-ui, sans-serif";
 
