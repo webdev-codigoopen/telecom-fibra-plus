@@ -140,7 +140,8 @@ function Track({ logoHeight, gap, durationSec, reverse, logos, pausedRef }: Requ
               objectFit: "contain",
               display: "block",
             }}
-            loading="lazy"
+            loading="eager"
+            decoding="async"
             draggable={false}
           />
         </div>
