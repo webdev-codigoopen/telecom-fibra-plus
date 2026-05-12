@@ -2,6 +2,31 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
+/* ──────────────────────────────────────────────────────────
+   Custom display fonts — local files served from /fonts
+   - Amino Black: used for the big speed numbers (300/400/600/900)
+   - Nexa Black:  used for the price numbers (R$ 69,90 etc.)
+   - Montserrat:  global body font (loaded from Google Fonts in index.html)
+   ────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: "Amino";
+  src: url("/fonts/Amino-Black.woff2") format("woff2"),
+       url("/fonts/Amino-Black.woff")  format("woff"),
+       url("/fonts/Amino-Black.ttf")   format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Nexa";
+  src: url("/fonts/Nexa-Black.woff2") format("woff2"),
+       url("/fonts/Nexa-Black.woff")  format("woff"),
+       url("/fonts/Nexa-Black.ttf")   format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -101,7 +126,9 @@
   --input: 220 14% 92%;
   --ring: 225 100% 50%;
 
-  --app-font-sans: 'Inter', 'Nunito Sans', sans-serif;
+  --app-font-sans: 'Montserrat', 'Inter', 'Nunito Sans', system-ui, sans-serif;
+  --app-font-display-speed: 'Amino', 'Montserrat', sans-serif;
+  --app-font-display-price: 'Nexa', 'Montserrat', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
   --radius: .75rem;
@@ -145,10 +172,28 @@
   * {
     @apply border-border;
   }
+  html, body {
+    font-family: var(--app-font-sans);
+  }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply antialiased bg-background text-foreground;
     font-feature-settings: "cv11", "ss01";
   }
+  button, input, select, textarea {
+    font-family: inherit;
+  }
+}
+
+/* Display font helper classes */
+.font-amino {
+  font-family: var(--app-font-display-speed);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+.font-nexa {
+  font-family: var(--app-font-display-price);
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 html {

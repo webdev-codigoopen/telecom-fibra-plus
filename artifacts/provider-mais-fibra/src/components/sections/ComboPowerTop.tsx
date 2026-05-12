@@ -70,8 +70,8 @@ export default function ComboPowerTop() {
           <div className="flex items-center justify-center gap-3 sm:gap-5 my-10 flex-wrap">
             <div className="flex items-baseline gap-2 leading-none">
               <span
-                className="font-black leading-none"
-                style={{ fontSize: "clamp(80px, 11vw, 144px)", color: "#FFFFFF", letterSpacing: "-0.05em" }}
+                className="font-amino leading-none text-white"
+                style={{ fontSize: "clamp(90px, 12vw, 160px)" }}
               >
                 900
               </span>
@@ -108,14 +108,14 @@ export default function ComboPowerTop() {
 
           <div className="mb-2 text-white/70 text-xs font-bold uppercase tracking-[0.2em]">Por apenas</div>
           <div className="flex items-baseline justify-center gap-1 mb-8">
-            <span className="text-white text-2xl font-bold">R$</span>
+            <span className="font-nexa text-white text-2xl">R$</span>
             <span
-              className="font-black text-white leading-none"
-              style={{ fontSize: "clamp(56px, 8vw, 88px)", letterSpacing: "-0.04em" }}
+              className="font-nexa text-white leading-none"
+              style={{ fontSize: "clamp(64px, 9vw, 96px)" }}
             >
               139
             </span>
-            <span className="text-white text-3xl sm:text-4xl font-black leading-none">,90</span>
+            <span className="font-nexa text-white text-3xl sm:text-4xl leading-none">,90</span>
             <span className="text-white/70 text-base font-medium">/mês</span>
           </div>
 

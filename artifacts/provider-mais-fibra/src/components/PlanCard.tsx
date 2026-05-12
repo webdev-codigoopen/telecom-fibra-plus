@@ -68,8 +68,8 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         <div className="mb-1">
           <div className="flex items-baseline gap-1.5 leading-none">
             <span
-              className="font-black text-[#0040FF]"
-              style={{ fontSize: 56, letterSpacing: "-0.04em" }}
+              className="font-amino text-[#0040FF]"
+              style={{ fontSize: 64, lineHeight: 1 }}
             >
               {plan.speed}
             </span>
@@ -107,14 +107,14 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
 
         <div className="mb-4">
           <div className="flex items-start gap-1">
-            <span className="text-xs font-semibold text-[#666666] mt-2">R$</span>
+            <span className="text-xs font-bold text-[#666666] mt-2 font-nexa" style={{ letterSpacing: 0 }}>R$</span>
             <span
-              className="font-black text-[#0D0D0D] leading-none"
-              style={{ fontSize: 36, letterSpacing: "-0.02em" }}
+              className="font-nexa text-[#0D0D0D] leading-none"
+              style={{ fontSize: 40 }}
             >
               {reais}
             </span>
-            <span className="font-black text-[#0D0D0D] text-base leading-none mt-1">
+            <span className="font-nexa text-[#0D0D0D] text-lg leading-none mt-1">
               ,{centavos ?? "00"}
             </span>
             <span className="text-xs text-[#666666] font-medium self-end mb-1">/mês</span>
