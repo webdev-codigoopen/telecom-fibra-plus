@@ -214,6 +214,7 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
 router.get("/clicks/export", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     let sinceDate: Date | undefined;
     if (sinceParam) {
       const parsed = new Date(sinceParam);
@@ -223,6 +224,19 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
       }
       sinceDate = parsed;
     }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
 
     const baseSelect = db
       .select({
@@ -234,8 +248,8 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
       })
       .from(planClicksTable);
 
-    const filtered = sinceDate
-      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
       : baseSelect;
 
     const rows = await filtered
@@ -261,9 +275,26 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
       .join("\n");
     const csv = `${header}\n${body}${body ? "\n" : ""}`;
 
-    const stamp = new Date().toISOString().slice(0, 10);
+    let filename: string;
+    if (sinceDate && untilDate) {
+      const fromStamp = sinceDate.toISOString().slice(0, 10);
+      const toDate = new Date(untilDate.getTime() - 1);
+      const toStamp = toDate.toISOString().slice(0, 10);
+      filename = `clicks-${fromStamp}_to_${toStamp}.csv`;
+    } else if (sinceDate) {
+      const fromStamp = sinceDate.toISOString().slice(0, 10);
+      const toStamp = new Date().toISOString().slice(0, 10);
+      filename = `clicks-${fromStamp}_to_${toStamp}.csv`;
+    } else if (untilDate) {
+      const toDate = new Date(untilDate.getTime() - 1);
+      const toStamp = toDate.toISOString().slice(0, 10);
+      filename = `clicks-until-${toStamp}.csv`;
+    } else {
+      const stamp = new Date().toISOString().slice(0, 10);
+      filename = `clicks-${stamp}.csv`;
+    }
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="clicks-${stamp}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch {
     res.status(500).json({ error: "Failed to export clicks" });

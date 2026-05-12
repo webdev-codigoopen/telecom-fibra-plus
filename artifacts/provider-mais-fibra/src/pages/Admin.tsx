@@ -98,7 +98,9 @@ export default function Admin() {
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
   const [previousStats, setPreviousStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
-  const [statsRange, setStatsRange] = useState<"today" | "week" | "all">("all");
+  const [statsRange, setStatsRange] = useState<"today" | "week" | "all" | "custom">("all");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
@@ -148,15 +150,36 @@ export default function Admin() {
 
   const fetchClickStats = useCallback(async (
     key: string,
-    range: "today" | "week" | "all" = "all",
+    range: "today" | "week" | "all" | "custom" = "all",
     source: string = "",
+    customFromStr: string = "",
+    customToStr: string = "",
   ) => {
     setClickStatsLoading(true);
     try {
       const params = new URLSearchParams();
       const prevParams = new URLSearchParams();
       let hasPrevious = false;
-      if (range !== "all") {
+      if (range === "custom") {
+        if (!customFromStr || !customToStr) {
+          setClickStatsLoading(false);
+          return;
+        }
+        const since = new Date(`${customFromStr}T00:00:00`);
+        const until = new Date(`${customToStr}T00:00:00`);
+        until.setDate(until.getDate() + 1);
+        if (Number.isNaN(since.getTime()) || Number.isNaN(until.getTime()) || until <= since) {
+          setClickStatsLoading(false);
+          return;
+        }
+        params.set("since", since.toISOString());
+        params.set("until", until.toISOString());
+        const spanMs = until.getTime() - since.getTime();
+        const prevSince = new Date(since.getTime() - spanMs);
+        prevParams.set("since", prevSince.toISOString());
+        prevParams.set("until", since.toISOString());
+        hasPrevious = true;
+      } else if (range !== "all") {
         const now = new Date();
         const since = new Date(now);
         const prevSince = new Date(now);
@@ -459,6 +482,7 @@ export default function Admin() {
                       { id: "today", label: "Hoje" },
                       { id: "week", label: "Esta semana" },
                       { id: "all", label: "Tudo" },
+                      { id: "custom", label: "Personalizado" },
                     ] as const).map((opt) => {
                       const active = statsRange === opt.id;
                       return (
@@ -467,7 +491,11 @@ export default function Admin() {
                           type="button"
                           onClick={() => {
                             setStatsRange(opt.id);
-                            void fetchClickStats(adminKey, opt.id, sourceFilter);
+                            if (opt.id === "custom") {
+                              void fetchClickStats(adminKey, opt.id, sourceFilter, customFrom, customTo);
+                            } else {
+                              void fetchClickStats(adminKey, opt.id, sourceFilter);
+                            }
                           }}
                           disabled={clickStatsLoading && active}
                           className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
@@ -482,12 +510,50 @@ export default function Admin() {
                       );
                     })}
                   </div>
+                  {statsRange === "custom" && (
+                    <div className="inline-flex items-center gap-2 text-xs text-[#2A2D38]">
+                      <label className="flex items-center gap-1">
+                        <span className="text-[#7A7F8C]">De</span>
+                        <input
+                          type="date"
+                          value={customFrom}
+                          max={customTo || undefined}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCustomFrom(v);
+                            if (v && customTo) {
+                              void fetchClickStats(adminKey, "custom", sourceFilter, v, customTo);
+                            }
+                          }}
+                          className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                          aria-label="Data inicial"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1">
+                        <span className="text-[#7A7F8C]">até</span>
+                        <input
+                          type="date"
+                          value={customTo}
+                          min={customFrom || undefined}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCustomTo(v);
+                            if (customFrom && v) {
+                              void fetchClickStats(adminKey, "custom", sourceFilter, customFrom, v);
+                            }
+                          }}
+                          className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                          aria-label="Data final"
+                        />
+                      </label>
+                    </div>
+                  )}
                   <select
                     value={sourceFilter}
                     onChange={(e) => {
                       const v = e.target.value;
                       setSourceFilter(v);
-                      void fetchClickStats(adminKey, statsRange, v);
+                      void fetchClickStats(adminKey, statsRange, v, customFrom, customTo);
                     }}
                     className="text-xs font-semibold border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#2A2D38] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
                     aria-label="Filtrar por origem"
@@ -500,7 +566,7 @@ export default function Admin() {
                     ))}
                   </select>
                   <button
-                    onClick={() => fetchClickStats(adminKey, statsRange, sourceFilter)}
+                    onClick={() => fetchClickStats(adminKey, statsRange, sourceFilter, customFrom, customTo)}
                     disabled={clickStatsLoading}
                     className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
                   >
@@ -510,7 +576,24 @@ export default function Admin() {
                     onClick={async () => {
                       try {
                         const params = new URLSearchParams();
-                        if (statsRange !== "all") {
+                        let filename: string;
+                        const stamp = new Date().toISOString().slice(0, 10);
+                        if (statsRange === "custom") {
+                          if (!customFrom || !customTo) {
+                            setSaveError("Selecione as datas inicial e final.");
+                            return;
+                          }
+                          const since = new Date(`${customFrom}T00:00:00`);
+                          const until = new Date(`${customTo}T00:00:00`);
+                          until.setDate(until.getDate() + 1);
+                          if (Number.isNaN(since.getTime()) || Number.isNaN(until.getTime()) || until <= since) {
+                            setSaveError("Intervalo de datas inválido.");
+                            return;
+                          }
+                          params.set("since", since.toISOString());
+                          params.set("until", until.toISOString());
+                          filename = `clicks-${customFrom}_to_${customTo}.csv`;
+                        } else if (statsRange !== "all") {
                           const since = new Date();
                           if (statsRange === "today") {
                             since.setHours(0, 0, 0, 0);
@@ -518,6 +601,10 @@ export default function Admin() {
                             since.setDate(since.getDate() - 7);
                           }
                           params.set("since", since.toISOString());
+                          const rangeSlug = statsRange === "today" ? "today" : "week";
+                          filename = `clicks-${rangeSlug}-${stamp}.csv`;
+                        } else {
+                          filename = `clicks-all-${stamp}.csv`;
                         }
                         const qs = params.toString();
                         const res = await fetch(
@@ -529,10 +616,7 @@ export default function Admin() {
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
-                        const stamp = new Date().toISOString().slice(0, 10);
-                        const rangeSlug =
-                          statsRange === "today" ? "today" : statsRange === "week" ? "week" : "all";
-                        a.download = `clicks-${rangeSlug}-${stamp}.csv`;
+                        a.download = filename;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
