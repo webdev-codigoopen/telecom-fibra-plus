@@ -98,6 +98,37 @@ function colorForSource(source: string): string {
 }
 
 const STORAGE_KEY = "pmf_admin_key";
+const FILTERS_STORAGE_KEY = "pmf_admin_stats_filters";
+
+type StatsRange = "today" | "week" | "all" | "custom";
+
+type StoredFilters = {
+  range: StatsRange;
+  source: string;
+  customFrom: string;
+  customTo: string;
+};
+
+function loadStoredFilters(): StoredFilters {
+  const fallback: StoredFilters = { range: "all", source: "", customFrom: "", customTo: "" };
+  try {
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as Partial<StoredFilters>;
+    const range: StatsRange =
+      parsed.range === "today" || parsed.range === "week" || parsed.range === "all" || parsed.range === "custom"
+        ? parsed.range
+        : "all";
+    return {
+      range,
+      source: typeof parsed.source === "string" ? parsed.source : "",
+      customFrom: typeof parsed.customFrom === "string" ? parsed.customFrom : "",
+      customTo: typeof parsed.customTo === "string" ? parsed.customTo : "",
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 const ALL_INCLUSIONS = [
   "Instalação Grátis",
@@ -141,11 +172,11 @@ export default function Admin() {
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
   const [previousStats, setPreviousStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
-  const [statsRange, setStatsRange] = useState<"today" | "week" | "all" | "custom">("all");
-  const [customFrom, setCustomFrom] = useState<string>("");
-  const [customTo, setCustomTo] = useState<string>("");
+  const [statsRange, setStatsRange] = useState<StatsRange>(() => loadStoredFilters().range);
+  const [customFrom, setCustomFrom] = useState<string>(() => loadStoredFilters().customFrom);
+  const [customTo, setCustomTo] = useState<string>(() => loadStoredFilters().customTo);
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
-  const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [sourceFilter, setSourceFilter] = useState<string>(() => loadStoredFilters().source);
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [chartView, setChartView] = useState<"total" | "source">("total");
   const [dragId, setDragId] = useState<number | null>(null);
@@ -353,9 +384,10 @@ export default function Admin() {
       }
       if (!verify.ok) throw new Error(`HTTP ${verify.status}`);
 
+      const stored = loadStoredFilters();
       const [plansRes] = await Promise.all([
         fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
-        fetchClickStats(key),
+        fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo),
       ]);
       if (!plansRes.ok) throw new Error(`HTTP ${plansRes.status}`);
       const data: ApiPlan[] = await plansRes.json();
@@ -379,6 +411,17 @@ export default function Admin() {
     if (adminKey) fetchPlans(adminKey);
     else setLoading(false);
   }, [adminKey, fetchPlans]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({ range: statsRange, source: sourceFilter, customFrom, customTo }),
+      );
+    } catch {
+      // ignore quota errors
+    }
+  }, [statsRange, sourceFilter, customFrom, customTo]);
 
   async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
     setSaving(true);
