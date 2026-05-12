@@ -229,15 +229,15 @@ export default function PlanCard({
       {/* Streaming bonus — driven by inclusions (Watch / Watch + Power Top) */}
       {streamingLogos && <StreamingBox logos={streamingLogos} />}
       {/*
-        Layout split:
-        - WITH streaming: price+cta+footer share one mt-auto block (gap 5) — compact
-        - WITHOUT streaming (Figma 6310:414): price gets marginTop 44, cta block gets marginTop 45
+        Price block as a DIRECT child of the card root (sibling of the CTA wrapper).
+        - WITHOUT streaming: marginTop 44 (Figma 6310:414 gap header→price)
+        - WITH streaming: mt-auto pushes the price+cta group to the bottom; gap to streaming box
+          comes from the root flex gap (11)
       */}
       <div
-        className={hasStreaming ? "flex flex-col mt-auto" : "flex flex-col"}
-        style={{ gap: hasStreaming ? 5 : 0, marginTop: hasStreaming ? undefined : 44 }}
+        className={hasStreaming ? "mt-auto" : ""}
+        style={{ marginTop: hasStreaming ? undefined : 44 }}
       >
-        {/* Price block — 3-col grid keeps the big numeral optically centered */}
         <div
           className="grid items-end justify-center"
           style={{ gridTemplateColumns: "1fr auto 1fr", columnGap: 6 }}
@@ -324,8 +324,21 @@ export default function PlanCard({
             </span>
           </div>
         </div>
+      </div>
 
-        {/* CTA */}
+      {/*
+        CTA + footer wrapper (sibling of price block).
+        - WITHOUT streaming: marginTop 45 (Figma 6310:414 gap price→cta)
+        - WITH streaming: gap 5 between price block and CTA via marginTop on this wrapper,
+          overriding the root flex gap of 11 for tighter compact look
+      */}
+      <div
+        className="flex flex-col"
+        style={{
+          gap: hasStreaming ? 5 : 0,
+          marginTop: hasStreaming ? -6 : 45,
+        }}
+      >
         <a
           href={whatsappUrl}
           target="_blank"
@@ -337,7 +350,6 @@ export default function PlanCard({
             gap: 8,
             width: "100%",
             height: 40,
-            marginTop: hasStreaming ? undefined : 45,
             borderRadius: 8,
             border: `1.5px solid ${COLORS.white}`,
             color: COLORS.white,
