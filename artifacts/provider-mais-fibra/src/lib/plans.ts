@@ -1,4 +1,5 @@
 export type Plan = {
+  id?: number;
   speed: string;
   wifi: string;
   price: string;
@@ -45,9 +46,16 @@ export const plans: Plan[] = [
   },
 ];
 
-export function buildWhatsAppUrl(plan: Plan): string {
-  const message = `Olá! Quero contratar o plano ${plan.speed} MEGA por R$${plan.price}/mês`;
+export function buildWhatsAppUrl(plan: Plan, shareUrl?: string): string {
+  const base = `Olá! Quero contratar o plano ${plan.speed} MEGA por R$${plan.price}/mês`;
+  const message = shareUrl && plan.imageUrl ? `${base}\n${shareUrl}` : base;
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildPlanShareUrl(planId: number): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const baseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
+  return `${window.location.origin}${baseUrl}/api/plans/${planId}/share`;
 }
 
 export const ALL_INCLUSIONS = [

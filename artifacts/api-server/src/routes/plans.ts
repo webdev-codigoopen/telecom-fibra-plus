@@ -23,6 +23,79 @@ router.get("/plans/admin/verify", requireAdminKey, (_req, res) => {
   res.json({ ok: true });
 });
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+router.get("/plans/:id/share", async (req, res) => {
+  const id = Number(req.params["id"]);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).send("Invalid plan ID");
+    return;
+  }
+  try {
+    const [plan] = await db
+      .select()
+      .from(plansTable)
+      .where(eq(plansTable.id, id))
+      .limit(1);
+    if (!plan) {
+      res.status(404).send("Plan not found");
+      return;
+    }
+    const proto =
+      (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0] ??
+      req.protocol;
+    const host = req.get("host") ?? "";
+    const origin = `${proto}://${host}`;
+    const apiIdx = req.originalUrl.indexOf("/api/");
+    const basePath = apiIdx >= 0 ? req.originalUrl.slice(0, apiIdx) : "";
+    const homeUrl = `${basePath}/` || "/";
+    if (!plan.imageUrl) {
+      res.redirect(302, homeUrl);
+      return;
+    }
+    const absoluteImage = /^https?:\/\//i.test(plan.imageUrl)
+      ? plan.imageUrl
+      : `${origin}${plan.imageUrl.startsWith("/") ? "" : "/"}${plan.imageUrl}`;
+    const shareUrl = `${origin}${req.originalUrl.split("?")[0]}`;
+    const title = `Plano ${plan.speed} MEGA — Provider Mais Fibra`;
+    const description = `Internet 100% Fibra ${plan.speed} MEGA por R$${plan.price}/mês.`;
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${escapeHtml(title)}</title>
+<meta property="og:type" content="website" />
+<meta property="og:url" content="${escapeHtml(shareUrl)}" />
+<meta property="og:title" content="${escapeHtml(title)}" />
+<meta property="og:description" content="${escapeHtml(description)}" />
+<meta property="og:image" content="${escapeHtml(absoluteImage)}" />
+<meta property="og:image:secure_url" content="${escapeHtml(absoluteImage)}" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${escapeHtml(title)}" />
+<meta name="twitter:description" content="${escapeHtml(description)}" />
+<meta name="twitter:image" content="${escapeHtml(absoluteImage)}" />
+<meta http-equiv="refresh" content="0; url=${escapeHtml(homeUrl)}" />
+</head>
+<body>
+<p><a href="${escapeHtml(homeUrl)}">${escapeHtml(title)}</a></p>
+</body>
+</html>`;
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.send(html);
+  } catch (err) {
+    res.status(500).send("Failed to load plan");
+  }
+});
+
 router.get("/plans", async (_req, res) => {
   try {
     const rows = await db

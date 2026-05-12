@@ -16,6 +16,7 @@ export type ApiPlan = {
 
 function apiPlanToPlan(p: ApiPlan): Plan {
   return {
+    id: p.id,
     speed: p.speed,
     wifi: p.wifi,
     price: p.price,

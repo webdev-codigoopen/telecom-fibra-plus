@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { type Plan, buildWhatsAppUrl } from "../lib/plans";
+import { type Plan, buildWhatsAppUrl, buildPlanShareUrl } from "../lib/plans";
 
 const BASE = import.meta.env.BASE_URL;
 const ICON_INSTALACAO = `${BASE}images/icons/instalacao-planos-20.svg`;
@@ -56,7 +56,8 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
 }
 
 export default function PlanCard({ plan, index = 0, idSuffix = "", source = "hero" }: Props) {
-  const whatsappUrl = buildWhatsAppUrl(plan);
+  const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id) : undefined;
+  const whatsappUrl = buildWhatsAppUrl(plan, shareUrl);
   const [reais, centavos] = plan.price.split(",");
 
   const has600Streaming = plan.speed === "600";
