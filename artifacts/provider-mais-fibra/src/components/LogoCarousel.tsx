@@ -103,11 +103,12 @@ function Track({ logoHeight, gap, durationSec, reverse, logos }: Required<Props>
   const items = [...logos, ...logos];
   return (
     <div
-      className="flex w-max items-center"
+      className="pmf-logo-track flex w-max items-center"
       style={{
         gap,
         animation: `pmf-logo-scroll ${durationSec}s linear infinite`,
         animationDirection: reverse ? "reverse" : "normal",
+        willChange: "transform",
       }}
     >
       {items.map((logo, i) => (
@@ -170,24 +171,27 @@ export default function LogoCarousel({
     <>
       <style>{`
         @keyframes pmf-logo-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+          from { transform: translate3d(0, 0, 0); }
+          to   { transform: translate3d(-50%, 0, 0); }
         }
         .pmf-logo-mask {
           -webkit-mask-image: linear-gradient(
             to right,
             transparent 0,
-            black 8%,
-            black 92%,
+            black 6%,
+            black 94%,
             transparent 100%
           );
                   mask-image: linear-gradient(
             to right,
             transparent 0,
-            black 8%,
-            black 92%,
+            black 6%,
+            black 94%,
             transparent 100%
           );
+        }
+        .pmf-logo-mask:hover .pmf-logo-track {
+          animation-play-state: paused;
         }
         @media (prefers-reduced-motion: reduce) {
           .pmf-logo-track { animation: none !important; }
