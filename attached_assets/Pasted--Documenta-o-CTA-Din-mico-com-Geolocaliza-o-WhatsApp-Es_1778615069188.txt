@@ -1,0 +1,88 @@
+# Documentação: CTA Dinâmico com Geolocalização (WhatsApp)
+
+Este documento explica como funciona a lógica de Call to Action (CTA) dos planos, que utiliza geolocalização para personalizar a experiência do usuário e aumentar a conversão.
+
+## 1. Visão Geral
+O CTA não é um link estático. Ele é um fluxo que:
+1. Detecta a localização do usuário.
+2. Verifica se a cidade está na lista de cobertura.
+3. Gera uma mensagem personalizada para o WhatsApp.
+4. Abre o link do WhatsApp (`wa.me`) com o texto pronto.
+
+---
+
+## 2. Lógica de Geolocalização
+
+A localização é obtida através de duas camadas de redundância:
+
+### Camada 1: IP Geolocation (Rápido)
+Utiliza a API `https://ipapi.co/json/`. É a primeira tentativa por ser silenciosa e não exigir permissão explícita do usuário imediatamente.
+
+### Camada 2: Browser Geolocation (Preciso)
+Se a detecção por IP falhar, utiliza `navigator.geolocation`. Esta camada solicita permissão ao usuário e utiliza a API `bigdatacloud.net` para converter coordenadas em nomes de cidades (Reverse Geocoding).
+
+### Cache
+Para economizar recursos e melhorar a performance, a localização é salva no `localStorage` sob a chave `telecom_fibra_user_location` com um tempo de vida (TTL) de **24 horas**.
+
+---
+
+## 3. Fluxo de Mensagem Dinâmica
+
+O sistema utiliza uma lista de cidades atendidas (`COVERED_CITIES`).
+
+### Caso A: Cidade Atendida
+Se o usuário estiver em uma cidade da lista, a mensagem gerada é:
+> *"Quero assinar o plano **[Velocidade]** mega da Telecom + Fibra na cidade de **[Cidade/UF]**"*
+
+### Caso B: Cidade Não Atendida / Desconhecida
+Se a cidade não estiver na lista ou não puder ser detectada, a mensagem foca em captação de leads (lead generation):
+> *"Queria saber quando a Telecom + Fibra vai estar disponivel na minha cidade, **[Cidade/UF]**"*
+
+---
+
+## 4. Implementação Técnica (Snippets)
+
+### Estrutura do Link (wa.me)
+```typescript
+const WHATSAPP_PHONE = "5577998444757";
+
+function buildPlanWhatsappHref(speed: string, location: UserLocation) {
+  const message = buildPlanWhatsappMessage(speed, location);
+  return `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+}
+```
+
+### Otimização do Clique
+O clique no botão é interceptado para garantir que a localização seja carregada antes de abrir a aba do WhatsApp:
+
+```typescript
+async function handlePlanWhatsappClick(event, speed, currentLocation) {
+  event.preventDefault();
+  
+  // Abre aba em branco imediatamente (para evitar bloqueio de popup)
+  const whatsappWindow = window.open("about:blank", "_blank");
+  
+  // Carrega localização (do cache ou API)
+  const location = currentLocation || await loadCachedUserLocation();
+  const whatsappHref = buildPlanWhatsappHref(speed, location);
+
+  // Redireciona a aba aberta
+  if (whatsappWindow) {
+    whatsappWindow.location.href = whatsappHref;
+  }
+}
+```
+
+---
+
+## 5. Dependências de APIs Externas
+Se você for implementar em outro projeto, precisará destas APIs ou similares:
+1. **ipapi.co**: Para detecção inicial por IP.
+2. **bigdatacloud.net**: Para transformar latitude/longitude em nome de cidade.
+
+---
+
+## 6. Dicas para Reuso
+1. **Lista de Cidades**: Mantenha o array `COVERED_CITIES` atualizado com nomes normalizados (sem acentos e em minúsculas) para garantir que a comparação funcione corretamente.
+2. **Mensagem de Fallback**: Sempre tenha uma mensagem padrão caso a detecção de localização falhe totalmente.
+3. **UX**: O uso de `window.open("about:blank")` é crucial se a detecção de localização for assíncrona, caso contrário, o navegador pode bloquear a nova aba como um "popup indesejado".
