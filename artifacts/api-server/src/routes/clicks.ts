@@ -139,6 +139,7 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
         bucket: bucketExpr,
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
+        source: planClicksTable.source,
         total: sql<number>`cast(count(*) as int)`,
       })
       .from(planClicksTable);
@@ -148,7 +149,7 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
       : baseSelect;
 
     const rows = await filtered
-      .groupBy(bucketExpr, planClicksTable.planSpeed, planClicksTable.planPrice)
+      .groupBy(bucketExpr, planClicksTable.planSpeed, planClicksTable.planPrice, planClicksTable.source)
       .orderBy(bucketExpr);
     res.json(rows);
   } catch {

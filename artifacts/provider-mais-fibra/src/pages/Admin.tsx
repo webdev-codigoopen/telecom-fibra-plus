@@ -13,6 +13,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
 } from "recharts";
 
 function apiPlanToPlan(p: ApiPlan): Plan {
@@ -49,6 +50,7 @@ type TimeseriesRow = {
   bucket: string;
   planSpeed: string;
   planPrice: string;
+  source: string;
   total: number;
 };
 
@@ -57,7 +59,43 @@ type ChartPoint = {
   label: string;
   total: number;
   byPlan: { planSpeed: string; planPrice: string; total: number }[];
+  bySource: Record<string, number>;
 };
+
+const SOURCE_COLORS = [
+  "#0040FF",
+  "#00C040",
+  "#FF8A00",
+  "#9333EA",
+  "#E11D48",
+  "#0EA5E9",
+  "#F59E0B",
+  "#14B8A6",
+  "#7C3AED",
+  "#DB2777",
+];
+
+const KNOWN_SOURCE_COLORS: Record<string, string> = {
+  hero: "#0040FF",
+  sticky: "#00C040",
+  whatsapp: "#25D366",
+  share: "#9333EA",
+  city: "#FF8A00",
+  cta: "#E11D48",
+  footer: "#0EA5E9",
+  unknown: "#7A7F8C",
+};
+
+function colorForSource(source: string): string {
+  const known = KNOWN_SOURCE_COLORS[source];
+  if (known) return known;
+  let hash = 0;
+  for (let i = 0; i < source.length; i++) {
+    hash = (hash * 31 + source.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % SOURCE_COLORS.length;
+  return SOURCE_COLORS[idx] ?? "#7A7F8C";
+}
 
 const STORAGE_KEY = "pmf_admin_key";
 
@@ -105,6 +143,7 @@ export default function Admin() {
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
+  const [chartView, setChartView] = useState<"total" | "source">("total");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -122,23 +161,59 @@ export default function Admin() {
       const label = useHour
         ? date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
         : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      const existing = map.get(row.bucket);
-      if (existing) {
-        existing.total += row.total;
-        existing.byPlan.push({ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total });
-      } else {
-        map.set(row.bucket, {
+      let entry = map.get(row.bucket);
+      if (!entry) {
+        entry = {
           bucket: row.bucket,
           label,
-          total: row.total,
-          byPlan: [{ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total }],
-        });
+          total: 0,
+          byPlan: [],
+          bySource: {},
+        };
+        map.set(row.bucket, entry);
       }
+      entry.total += row.total;
+      const existingPlan = entry.byPlan.find(
+        (p) => p.planSpeed === row.planSpeed && p.planPrice === row.planPrice,
+      );
+      if (existingPlan) {
+        existingPlan.total += row.total;
+      } else {
+        entry.byPlan.push({ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total });
+      }
+      entry.bySource[row.source] = (entry.bySource[row.source] ?? 0) + row.total;
     }
     return Array.from(map.values()).sort(
       (a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime(),
     );
   }, [timeseries, statsRange]);
+
+  const chartSources = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const point of chartData) {
+      for (const [src, count] of Object.entries(point.bySource)) {
+        totals.set(src, (totals.get(src) ?? 0) + count);
+      }
+    }
+    return Array.from(totals.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([source]) => ({ source, color: colorForSource(source) }));
+  }, [chartData]);
+
+  const stackedChartData = useMemo(() => {
+    if (chartView !== "source") return [];
+    return chartData.map((point) => {
+      const row: Record<string, string | number> = {
+        bucket: point.bucket,
+        label: point.label,
+        total: point.total,
+      };
+      for (const { source } of chartSources) {
+        row[source] = point.bySource[source] ?? 0;
+      }
+      return row;
+    });
+  }, [chartData, chartSources, chartView]);
 
   const fetchClickStats = useCallback(async (
     key: string,
@@ -651,58 +726,143 @@ export default function Admin() {
               </div>
               {chartData.length > 0 && (
                 <div className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 mb-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                     <h3 className="text-sm font-semibold text-[#2A2D38]">
                       Cliques {statsRange === "today" ? "por hora" : "por dia"}
+                      {chartView === "source" ? " — por origem" : ""}
                     </h3>
-                    <span className="text-xs text-[#7A7F8C]">
-                      Total: {chartData.reduce((acc, p) => acc + p.total, 0)}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Modo do gráfico">
+                        {([
+                          { id: "total", label: "Total" },
+                          { id: "source", label: "Por origem" },
+                        ] as const).map((opt) => {
+                          const active = chartView === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setChartView(opt.id)}
+                              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                                active
+                                  ? "bg-[#0040FF] text-white"
+                                  : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                              }`}
+                              aria-pressed={active}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <span className="text-xs text-[#7A7F8C]">
+                        Total: {chartData.reduce((acc, p) => acc + p.total, 0)}
+                      </span>
+                    </div>
                   </div>
-                  <div style={{ width: "100%", height: 180 }}>
+                  <div style={{ width: "100%", height: chartView === "source" ? 220 : 180 }}>
                     <ResponsiveContainer>
-                      <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#EEF0F5" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={{ stroke: "#E0E3EB" }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={false} />
-                        <Tooltip
-                          cursor={{ fill: "rgba(0,64,255,0.06)" }}
-                          contentStyle={{
-                            background: "#fff",
-                            border: "1px solid #E0E3EB",
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
-                          content={({ active, payload }) => {
-                            if (!active || !payload || payload.length === 0) return null;
-                            const point = payload[0]?.payload as ChartPoint | undefined;
-                            if (!point) return null;
-                            const sortedPlans = [...point.byPlan].sort((a, b) => b.total - a.total);
-                            return (
-                              <div className="bg-white border border-[#E0E3EB] rounded-lg px-3 py-2 shadow-sm text-xs">
-                                <div className="font-semibold text-[#0D0D0D] mb-1">{point.label}</div>
-                                <div className="text-[#0040FF] font-bold mb-1.5">
-                                  {point.total} {point.total === 1 ? "clique" : "cliques"}
-                                </div>
-                                <div className="space-y-0.5 max-h-40 overflow-y-auto">
-                                  {sortedPlans.map((p, i) => {
-                                    const isCity = p.planSpeed === "city";
-                                    return (
-                                      <div key={`${p.planSpeed}-${p.planPrice}-${i}`} className="flex items-center justify-between gap-3 text-[#2A2D38]">
-                                        <span className="truncate">
-                                          {isCity ? p.planPrice : `${p.planSpeed} Mega`}
+                      {chartView === "source" ? (
+                        <BarChart data={stackedChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#EEF0F5" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={{ stroke: "#E0E3EB" }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={false} />
+                          <Tooltip
+                            cursor={{ fill: "rgba(0,64,255,0.06)" }}
+                            content={({ active, payload, label }) => {
+                              if (!active || !payload || payload.length === 0) return null;
+                              const ordered = [...payload]
+                                .filter((p) => typeof p.value === "number" && (p.value as number) > 0)
+                                .sort((a, b) => (b.value as number) - (a.value as number));
+                              const totalForBucket = ordered.reduce(
+                                (acc, p) => acc + (p.value as number),
+                                0,
+                              );
+                              return (
+                                <div className="bg-white border border-[#E0E3EB] rounded-lg px-3 py-2 shadow-sm text-xs">
+                                  <div className="font-semibold text-[#0D0D0D] mb-1">{label}</div>
+                                  <div className="text-[#0040FF] font-bold mb-1.5">
+                                    {totalForBucket} {totalForBucket === 1 ? "clique" : "cliques"}
+                                  </div>
+                                  <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                    {ordered.map((p) => (
+                                      <div key={String(p.dataKey)} className="flex items-center justify-between gap-3 text-[#2A2D38]">
+                                        <span className="flex items-center gap-1.5 truncate">
+                                          <span
+                                            className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                                            style={{ background: p.color }}
+                                          />
+                                          <span className="truncate">{String(p.dataKey)}</span>
                                         </span>
-                                        <span className="font-semibold tabular-nums">{p.total}</span>
+                                        <span className="font-semibold tabular-nums">{p.value as number}</span>
                                       </div>
-                                    );
-                                  })}
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          }}
-                        />
-                        <Bar dataKey="total" fill="#0040FF" radius={[4, 4, 0, 0]} maxBarSize={48} />
-                      </BarChart>
+                              );
+                            }}
+                          />
+                          <Legend
+                            verticalAlign="bottom"
+                            height={28}
+                            iconSize={10}
+                            wrapperStyle={{ fontSize: 11, color: "#2A2D38" }}
+                          />
+                          {chartSources.map(({ source, color }, i) => (
+                            <Bar
+                              key={source}
+                              dataKey={source}
+                              stackId="src"
+                              fill={color}
+                              maxBarSize={48}
+                              radius={i === chartSources.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                            />
+                          ))}
+                        </BarChart>
+                      ) : (
+                        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#EEF0F5" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={{ stroke: "#E0E3EB" }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={false} />
+                          <Tooltip
+                            cursor={{ fill: "rgba(0,64,255,0.06)" }}
+                            contentStyle={{
+                              background: "#fff",
+                              border: "1px solid #E0E3EB",
+                              borderRadius: 8,
+                              fontSize: 12,
+                            }}
+                            content={({ active, payload }) => {
+                              if (!active || !payload || payload.length === 0) return null;
+                              const point = payload[0]?.payload as ChartPoint | undefined;
+                              if (!point) return null;
+                              const sortedPlans = [...point.byPlan].sort((a, b) => b.total - a.total);
+                              return (
+                                <div className="bg-white border border-[#E0E3EB] rounded-lg px-3 py-2 shadow-sm text-xs">
+                                  <div className="font-semibold text-[#0D0D0D] mb-1">{point.label}</div>
+                                  <div className="text-[#0040FF] font-bold mb-1.5">
+                                    {point.total} {point.total === 1 ? "clique" : "cliques"}
+                                  </div>
+                                  <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                    {sortedPlans.map((p, i) => {
+                                      const isCity = p.planSpeed === "city";
+                                      return (
+                                        <div key={`${p.planSpeed}-${p.planPrice}-${i}`} className="flex items-center justify-between gap-3 text-[#2A2D38]">
+                                          <span className="truncate">
+                                            {isCity ? p.planPrice : `${p.planSpeed} Mega`}
+                                          </span>
+                                          <span className="font-semibold tabular-nums">{p.total}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            }}
+                          />
+                          <Bar dataKey="total" fill="#0040FF" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                        </BarChart>
+                      )}
                     </ResponsiveContainer>
                   </div>
                 </div>
