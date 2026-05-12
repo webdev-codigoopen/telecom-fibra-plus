@@ -9,7 +9,7 @@ function trackCityAssinar(cityName: string) {
   fetch(`${baseUrl}/api/clicks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ planSpeed: "city", planPrice: cityName, source: "city-page" }),
+    body: JSON.stringify({ planSpeed: "city", planPrice: cityName, source: cityName }),
   }).catch((err) => {
     console.warn("[OndeEstamos] Failed to record city click event:", err);
   });

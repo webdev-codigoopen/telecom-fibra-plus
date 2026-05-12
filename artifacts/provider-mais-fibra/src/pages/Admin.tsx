@@ -4,8 +4,14 @@ import { type ApiPlan } from "../hooks/usePlans";
 type ClickStat = {
   planSpeed: string;
   planPrice: string;
+  source: string;
   total: number;
   lastClickedAt: string;
+};
+
+type SourceStat = {
+  source: string;
+  total: number;
 };
 
 const STORAGE_KEY = "pmf_admin_key";
@@ -48,16 +54,22 @@ export default function Admin() {
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
   const [statsRange, setStatsRange] = useState<"today" | "week" | "all">("all");
+  const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
+  const [sourceFilter, setSourceFilter] = useState<string>("");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
-  const fetchClickStats = useCallback(async (key: string, range: "today" | "week" | "all" = "all") => {
+  const fetchClickStats = useCallback(async (
+    key: string,
+    range: "today" | "week" | "all" = "all",
+    source: string = "",
+  ) => {
     setClickStatsLoading(true);
     try {
-      let url = `${baseUrl}/api/clicks/stats`;
+      const params = new URLSearchParams();
       if (range !== "all") {
         const since = new Date();
         if (range === "today") {
@@ -65,14 +77,22 @@ export default function Admin() {
         } else {
           since.setDate(since.getDate() - 7);
         }
-        url += `?since=${encodeURIComponent(since.toISOString())}`;
+        params.set("since", since.toISOString());
       }
-      const res = await fetch(url, {
-        headers: { "X-Admin-Key": key },
-      });
-      if (res.ok) {
-        const data: ClickStat[] = await res.json();
+      if (source) params.set("source", source);
+      const qs = params.toString();
+      const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
+      const [statsRes, sourcesRes] = await Promise.all([
+        fetch(url, { headers: { "X-Admin-Key": key } }),
+        fetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
+      ]);
+      if (statsRes.ok) {
+        const data: ClickStat[] = await statsRes.json();
         setClickStats(data);
+      }
+      if (sourcesRes.ok) {
+        const data: SourceStat[] = await sourcesRes.json();
+        setSourceStats(data);
       }
     } catch {
     } finally {
@@ -327,7 +347,7 @@ export default function Admin() {
                           type="button"
                           onClick={() => {
                             setStatsRange(opt.id);
-                            void fetchClickStats(adminKey, opt.id);
+                            void fetchClickStats(adminKey, opt.id, sourceFilter);
                           }}
                           disabled={clickStatsLoading && active}
                           className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
@@ -342,8 +362,25 @@ export default function Admin() {
                       );
                     })}
                   </div>
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSourceFilter(v);
+                      void fetchClickStats(adminKey, statsRange, v);
+                    }}
+                    className="text-xs font-semibold border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#2A2D38] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                    aria-label="Filtrar por origem"
+                  >
+                    <option value="">Todas as origens</option>
+                    {sourceStats.map((s) => (
+                      <option key={s.source} value={s.source}>
+                        {s.source} ({s.total})
+                      </option>
+                    ))}
+                  </select>
                   <button
-                    onClick={() => fetchClickStats(adminKey, statsRange)}
+                    onClick={() => fetchClickStats(adminKey, statsRange, sourceFilter)}
                     disabled={clickStatsLoading}
                     className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
                   >
@@ -389,18 +426,29 @@ export default function Admin() {
                   {clickStats.map((stat) => {
                     const maxClicks = Math.max(...clickStats.map((s) => s.total), 1);
                     const pct = Math.round((stat.total / maxClicks) * 100);
+                    const isCity = stat.planSpeed === "city";
                     return (
                       <div
-                        key={`${stat.planSpeed}-${stat.planPrice}`}
+                        key={`${stat.planSpeed}-${stat.planPrice}-${stat.source}`}
                         className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 flex flex-col gap-2"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-black text-2xl text-[#0040FF]">{stat.planSpeed}</span>
-                          <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#00C040" }}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-black text-2xl text-[#0040FF] truncate">
+                            {isCity ? stat.planPrice : stat.planSpeed}
+                          </span>
+                          <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#00C040" }}>
                             {stat.total} {stat.total === 1 ? "clique" : "cliques"}
                           </span>
                         </div>
-                        <p className="text-xs text-[#7A7F8C]">R$ {stat.planPrice}/mês</p>
+                        <p className="text-xs text-[#7A7F8C]">
+                          {isCity ? "CTA da cidade" : `R$ ${stat.planPrice}/mês`}
+                        </p>
+                        <span
+                          className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EEF0F5] text-[#2A2D38] truncate max-w-full"
+                          title={`Origem: ${stat.source}`}
+                        >
+                          Origem: {stat.source}
+                        </span>
                         <div className="h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
                           <div
                             className="h-full rounded-full"

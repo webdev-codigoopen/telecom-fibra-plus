@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, planClicksTable } from "@workspace/db";
-import { desc, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -39,6 +39,9 @@ router.post("/clicks", async (req, res) => {
 router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
+      ? req.query["source"]
+      : undefined;
     let sinceDate: Date | undefined;
     if (sinceParam) {
       const parsed = new Date(sinceParam);
@@ -49,25 +52,46 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
       sinceDate = parsed;
     }
 
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
+
     const baseSelect = db
       .select({
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
+        source: planClicksTable.source,
         total: sql<number>`cast(count(*) as int)`,
         lastClickedAt: sql<string>`max(${planClicksTable.clickedAt})`,
       })
       .from(planClicksTable);
 
-    const filtered = sinceDate
-      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
       : baseSelect;
 
     const stats = await filtered
-      .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice)
+      .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice, planClicksTable.source)
       .orderBy(desc(sql`count(*)`));
     res.json(stats);
   } catch {
     res.status(500).json({ error: "Failed to fetch click stats" });
+  }
+});
+
+router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        source: planClicksTable.source,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable)
+      .groupBy(planClicksTable.source)
+      .orderBy(desc(sql`count(*)`));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch click sources" });
   }
 });
 
@@ -77,11 +101,12 @@ router.get("/clicks/export", requireAdminKey, async (_req, res) => {
       .select({
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
+        source: planClicksTable.source,
         total: sql<number>`cast(count(*) as int)`,
         lastClickedAt: sql<string>`max(${planClicksTable.clickedAt})`,
       })
       .from(planClicksTable)
-      .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice)
+      .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice, planClicksTable.source)
       .orderBy(desc(sql`count(*)`));
 
     const escape = (val: string | number | null | undefined): string => {
@@ -95,10 +120,10 @@ router.get("/clicks/export", requireAdminKey, async (_req, res) => {
       return s;
     };
 
-    const header = "plan_speed,plan_price,total_clicks,last_click_date";
+    const header = "plan_speed,plan_price,source,total_clicks,last_click_date";
     const body = rows
       .map((r) =>
-        [escape(r.planSpeed), escape(r.planPrice), escape(r.total), escape(r.lastClickedAt)].join(","),
+        [escape(r.planSpeed), escape(r.planPrice), escape(r.source), escape(r.total), escape(r.lastClickedAt)].join(","),
       )
       .join("\n");
     const csv = `${header}\n${body}${body ? "\n" : ""}`;
