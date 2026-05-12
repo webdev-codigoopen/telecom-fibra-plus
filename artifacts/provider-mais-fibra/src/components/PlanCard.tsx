@@ -107,8 +107,8 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
       </div>
 
-      {/* Speed + MEGA tag */}
-      <div className="flex items-start justify-center gap-1 mb-5">
+      {/* Speed + MEGA tag (tag overlaps the last 0, centered vertically on it) */}
+      <div className="relative flex items-center justify-center mb-5" style={{ height: 88 * 0.85 }}>
         <span
           className="leading-none"
           style={{
@@ -126,7 +126,12 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           alt="Mega"
           width={47}
           height={16}
-          className="mt-3 flex-shrink-0"
+          className="absolute pointer-events-none"
+          style={{
+            left: "calc(50% + 1.05ch)",
+            top: "50%",
+            transform: "translateY(-50%)",
+          }}
         />
       </div>
 
