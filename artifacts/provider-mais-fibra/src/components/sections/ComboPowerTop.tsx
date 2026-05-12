@@ -1,8 +1,8 @@
 import bgIptv from "@assets/bg-sessao-iptv_1778611391057.png";
-import imgChannels from "@assets/iptv/channels-row.png";
 import img900 from "@assets/iptv/iptv-900.svg";
 import imgWatchPowerTop from "@assets/iptv/iptv-watch-powertop.svg";
 import imgPlus from "@assets/iptv/iptv-plus.svg";
+import LogoCarousel, { SplitLogoCarousel } from "../LogoCarousel";
 import { WHATSAPP_NUMBER } from "../../lib/plans";
 
 const BG_COLOR = "#061CD4";
@@ -77,17 +77,34 @@ export default function ComboPowerTop() {
         />
       </div>
 
-      {/* 3. Channel logos row */}
-      <img
-        src={imgChannels}
-        alt="Canais inclusos"
-        style={{
-          display: "block",
-          width: "100%",
-          maxWidth: 1240,
-          height: "auto",
-        }}
-      />
+      {/* 3. Channel logos carousel — pill on desktop, two opposite rows on mobile */}
+      <div className="w-full" style={{ maxWidth: 1240 }}>
+        {/* Desktop: single infinite row inside white pill */}
+        <div
+          className="hidden md:block"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: 24,
+            paddingTop: 18,
+            paddingBottom: 18,
+          }}
+        >
+          <LogoCarousel logoHeight={56} gap={56} durationSec={70} />
+        </div>
+
+        {/* Mobile: two rows (left and right) inside white pill */}
+        <div
+          className="md:hidden"
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: 20,
+            paddingTop: 14,
+            paddingBottom: 14,
+          }}
+        >
+          <SplitLogoCarousel logoHeight={36} gap={28} durationSec={45} />
+        </div>
+      </div>
 
       {/* 4. Price */}
       <div
