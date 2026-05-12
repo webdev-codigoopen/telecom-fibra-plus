@@ -160,7 +160,7 @@ export default function AppSection() {
                   src={card.icon}
                   alt=""
                   aria-hidden
-                  style={{ width: 16, height: 16, display: "block" }}
+                  style={{ width: 36, height: 36, display: "block" }}
                 />
               </div>
 
