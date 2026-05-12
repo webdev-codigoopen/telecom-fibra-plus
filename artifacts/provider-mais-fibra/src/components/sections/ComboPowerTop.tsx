@@ -12,8 +12,8 @@ export default function ComboPowerTop() {
         minHeight: 695,
         backgroundColor: BG_COLOR,
         backgroundImage: `url(${bgIptv})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundSize: "contain",
+        backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
       }}
     />
