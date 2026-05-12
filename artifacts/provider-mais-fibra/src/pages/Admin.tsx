@@ -47,16 +47,27 @@ export default function Admin() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
+  const [statsRange, setStatsRange] = useState<"today" | "week" | "all">("all");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
-  const fetchClickStats = useCallback(async (key: string) => {
+  const fetchClickStats = useCallback(async (key: string, range: "today" | "week" | "all" = "all") => {
     setClickStatsLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/api/clicks/stats`, {
+      let url = `${baseUrl}/api/clicks/stats`;
+      if (range !== "all") {
+        const since = new Date();
+        if (range === "today") {
+          since.setHours(0, 0, 0, 0);
+        } else {
+          since.setDate(since.getDate() - 7);
+        }
+        url += `?since=${encodeURIComponent(since.toISOString())}`;
+      }
+      const res = await fetch(url, {
         headers: { "X-Admin-Key": key },
       });
       if (res.ok) {
@@ -300,19 +311,53 @@ export default function Admin() {
           <>
             {/* Click stats */}
             <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
                 <h2 className="font-bold text-[#0D0D0D] text-base">Cliques por Plano</h2>
-                <button
-                  onClick={() => fetchClickStats(adminKey)}
-                  disabled={clickStatsLoading}
-                  className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
-                >
-                  {clickStatsLoading ? "Atualizando..." : "Atualizar"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Período">
+                    {([
+                      { id: "today", label: "Hoje" },
+                      { id: "week", label: "Esta semana" },
+                      { id: "all", label: "Tudo" },
+                    ] as const).map((opt) => {
+                      const active = statsRange === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setStatsRange(opt.id);
+                            void fetchClickStats(adminKey, opt.id);
+                          }}
+                          disabled={clickStatsLoading && active}
+                          className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                            active
+                              ? "bg-[#0040FF] text-white"
+                              : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                          }`}
+                          aria-pressed={active}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => fetchClickStats(adminKey, statsRange)}
+                    disabled={clickStatsLoading}
+                    className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
+                  >
+                    {clickStatsLoading ? "Atualizando..." : "Atualizar"}
+                  </button>
+                </div>
               </div>
               {clickStats.length === 0 && !clickStatsLoading ? (
                 <div className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-6 text-center text-sm text-[#7A7F8C]">
-                  Nenhum clique registrado ainda.
+                  {statsRange === "today"
+                    ? "Nenhum clique hoje."
+                    : statsRange === "week"
+                    ? "Nenhum clique nesta semana."
+                    : "Nenhum clique registrado ainda."}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

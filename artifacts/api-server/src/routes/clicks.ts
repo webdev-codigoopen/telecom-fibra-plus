@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, planClicksTable } from "@workspace/db";
-import { desc, sql } from "drizzle-orm";
+import { desc, gte, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -36,16 +36,33 @@ router.post("/clicks", async (req, res) => {
   }
 });
 
-router.get("/clicks/stats", requireAdminKey, async (_req, res) => {
+router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   try {
-    const stats = await db
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+
+    const baseSelect = db
       .select({
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
         total: sql<number>`cast(count(*) as int)`,
         lastClickedAt: sql<string>`max(${planClicksTable.clickedAt})`,
       })
-      .from(planClicksTable)
+      .from(planClicksTable);
+
+    const filtered = sinceDate
+      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+      : baseSelect;
+
+    const stats = await filtered
       .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice)
       .orderBy(desc(sql`count(*)`));
     res.json(stats);
