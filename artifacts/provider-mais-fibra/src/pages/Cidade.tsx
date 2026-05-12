@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useParams } from "wouter";
-import { MapPin, MessageCircle, Phone, ArrowLeft, Clock, Wifi, MapPinned } from "lucide-react";
+import { MapPin, MessageCircle, Phone, MapPinned } from "lucide-react";
 import SEO from "@/components/SEO";
 import { PHONE_E164, SITE_URL } from "@/lib/seoConfig";
 import { phoneToTel } from "@/lib/cities";
@@ -107,78 +107,6 @@ export default function Cidade() {
       <Header />
 
       <main className="flex-1 pt-16">
-        {/* Hero */}
-        <section
-          className="py-20"
-          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
-        >
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-center"
-            >
-              <Link
-                href="/onde-estamos"
-                className="inline-flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium mb-6 transition-colors"
-                data-testid="link-back-to-cities"
-              >
-                <ArrowLeft size={14} />
-                Ver todas as cidades
-              </Link>
-
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
-              >
-                <MapPin size={12} style={{ color: "#95EB1D" }} />
-                <span className="text-[#95EB1D]">{city.badge ?? "Cobertura Ativa"}</span>
-              </div>
-
-              <h1
-                className="text-4xl sm:text-5xl font-black text-white mb-4"
-                style={{ letterSpacing: "-0.02em" }}
-              >
-                Internet Fibra em
-                <span style={{ color: "#95EB1D" }}> {city.name}</span>
-              </h1>
-              <p className="text-white/80 text-lg max-w-2xl mx-auto mb-8">
-                {city.description}
-              </p>
-
-              <div className="flex flex-wrap justify-center gap-4">
-                <div
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
-                >
-                  <Wifi size={16} style={{ color: "#95EB1D" }} />
-                  100% Fibra Óptica
-                </div>
-                <div
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
-                >
-                  <Clock size={16} style={{ color: "#95EB1D" }} />
-                  Suporte 24h
-                </div>
-                <a
-                  href={assinarHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="cta-hero-whatsapp"
-                  onClick={() => trackCtaClick(`city-cta-hero:${city.name}`)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[#0D0E14] transition-all hover:scale-105"
-                  style={{ background: "#95EB1D" }}
-                >
-                  <MessageCircle size={16} />
-                  Falar no WhatsApp
-                </a>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
         {/* Plans */}
         <section
           id="planos"
