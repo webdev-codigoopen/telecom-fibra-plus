@@ -1,4 +1,5 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
+import { HelmetProvider } from "react-helmet-async";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import QuemSomos from "@/pages/QuemSomos";
@@ -25,9 +26,11 @@ function Router() {
 
 function App() {
   return (
-    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-      <Router />
-    </WouterRouter>
+    <HelmetProvider>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <Router />
+      </WouterRouter>
+    </HelmetProvider>
   );
 }
 

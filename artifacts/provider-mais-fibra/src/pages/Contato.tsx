@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { MessageCircle, Instagram, Clock, MapPin, ChevronDown } from "lucide-react";
+import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -58,6 +59,24 @@ export default function Contato() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Contato — Provider Mais Fibra"
+        description="Fale com a Provider Mais Fibra: WhatsApp (77) 99844-4757, Instagram @provider.fibra e atendimento de seg a sex 8h–18h. Tire dúvidas, contrate planos e peça suporte."
+        path="/contato"
+        keywords={[
+          "contato Provider Mais Fibra",
+          "telefone Provider Mais Fibra",
+          "WhatsApp Provider Mais Fibra",
+          "suporte internet Barreiras",
+        ]}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          name: "Contato — Provider Mais Fibra",
+          url: "https://www.providermaisfibra.com.br/contato",
+          inLanguage: "pt-BR",
+        }}
+      />
       <Header />
 
       <main className="flex-1 pt-16">

@@ -1,3 +1,5 @@
+import SEO from "@/components/SEO";
+import { ORGANIZATION_SCHEMA, WEBSITE_SCHEMA } from "@/lib/seoConfig";
 import Header from "@/components/sections/Header";
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
@@ -13,6 +15,20 @@ import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
+      <SEO
+        title="Internet Fibra Óptica no Oeste da Bahia — Provider Mais Fibra"
+        description="Provedor de internet 100% fibra óptica para o Oeste da Bahia. Planos residenciais e empresariais de 100M a 900M, Wi-Fi 6, IPTV inclusos e suporte humano. Assine pelo WhatsApp."
+        path="/"
+        keywords={[
+          "internet fibra óptica Oeste da Bahia",
+          "provedor de internet Barreiras",
+          "internet fibra Luís Eduardo Magalhães",
+          "IPTV Bahia",
+          "Wi-Fi 6",
+          "plano de internet residencial",
+        ]}
+        jsonLd={[ORGANIZATION_SCHEMA, WEBSITE_SCHEMA]}
+      />
       <Header />
       <main>
         <Hero />

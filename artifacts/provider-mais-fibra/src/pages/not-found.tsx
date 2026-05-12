@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { AlertCircle, Home } from "lucide-react";
+import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 
@@ -8,6 +9,12 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Página não encontrada — Provider Mais Fibra"
+        description="A página que você procura não existe ou foi movida. Volte para a Home da Provider Mais Fibra."
+        path="/404"
+        noindex
+      />
       <Header />
       <main
         className="flex-1 flex items-center justify-center pt-16"

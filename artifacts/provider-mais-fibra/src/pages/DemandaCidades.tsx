@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, X, CheckCircle2 } from "lucide-react";
+import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -142,6 +143,16 @@ export default function DemandaCidades() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Mapa de Demanda — Provider Mais Fibra"
+        description="Veja o mapa de demanda da Provider Mais Fibra e cadastre sua cidade ou bairro para ajudar a definir as próximas regiões com cobertura de internet fibra óptica."
+        path="/demanda"
+        keywords={[
+          "mapa de demanda Provider Mais Fibra",
+          "solicitar internet fibra Bahia",
+          "cidades em expansão Provider",
+        ]}
+      />
       <Header />
       <main className="flex-1 pt-16">
         <section

@@ -1,7 +1,8 @@
 import { motion } from "framer-motion";
-import { useEffect } from "react";
 import { Link, useParams } from "wouter";
 import { MapPin, MessageCircle, Phone, ArrowLeft, Clock, Wifi } from "lucide-react";
+import SEO from "@/components/SEO";
+import { PHONE_E164, SITE_URL } from "@/lib/seoConfig";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -29,15 +30,6 @@ export default function Cidade() {
   const city = params?.slug ? getCityBySlug(params.slug) : undefined;
   const { plans } = usePlans();
 
-  useEffect(() => {
-    if (city) {
-      document.title = `Internet Fibra em ${city.name} - Provider Mais Fibra`;
-    }
-    return () => {
-      document.title = "Provider Mais Fibra";
-    };
-  }, [city]);
-
   if (!city) {
     return <NotFound />;
   }
@@ -49,8 +41,68 @@ export default function Cidade() {
     `Olá! Tenho uma dúvida sobre cobertura em ${city.name} - BA.`,
   )}`;
 
+  const cityUrl = `${SITE_URL}/cidade/${city.slug}`;
+  const localBusinessSchema = {
+    "@context": "https://schema.org",
+    "@type": "TelecommunicationsProvider",
+    "@id": `${cityUrl}#business`,
+    name: `Provider Mais Fibra — ${city.name}`,
+    url: cityUrl,
+    telephone: PHONE_E164,
+    priceRange: "$$",
+    image: `${SITE_URL}/opengraph.jpg`,
+    areaServed: {
+      "@type": "City",
+      name: city.name,
+      containedInPlace: { "@type": "AdministrativeArea", name: city.region },
+    },
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: city.name,
+      addressRegion: city.stateCode,
+      addressCountry: "BR",
+    },
+    description: city.seo.description,
+    parentOrganization: {
+      "@type": "Organization",
+      name: "Provider Mais Fibra",
+      url: SITE_URL,
+    },
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${SITE_URL}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Onde Estamos",
+        item: `${SITE_URL}/onde-estamos`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: city.name,
+        item: cityUrl,
+      },
+    ],
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title={city.seo.title}
+        description={city.seo.description}
+        path={`/cidade/${city.slug}`}
+        keywords={city.seo.keywords}
+        jsonLd={[localBusinessSchema, breadcrumbSchema]}
+      />
       <Header />
 
       <main className="flex-1 pt-16">

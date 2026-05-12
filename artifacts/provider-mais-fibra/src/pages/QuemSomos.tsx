@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Shield, Wifi, Users, Headphones, Award, Zap } from "lucide-react";
+import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -56,6 +57,25 @@ const milestones = [
 export default function QuemSomos() {
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Quem Somos — Provider Mais Fibra"
+        description="Conheça a Provider Mais Fibra: provedor de internet 100% fibra óptica do Oeste da Bahia desde 2016, presente em 12 cidades com infraestrutura própria e atendimento humano."
+        path="/quem-somos"
+        keywords={[
+          "Provider Mais Fibra",
+          "história Provider Mais Fibra",
+          "provedor de internet Oeste da Bahia",
+          "empresa de internet Barreiras",
+        ]}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          name: "Quem Somos — Provider Mais Fibra",
+          url: "https://www.providermaisfibra.com.br/quem-somos",
+          inLanguage: "pt-BR",
+          about: { "@type": "Organization", name: "Provider Mais Fibra" },
+        }}
+      />
       <Header />
 
       <main className="flex-1 pt-16">

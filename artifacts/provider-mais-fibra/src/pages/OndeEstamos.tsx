@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { MapPin, MessageCircle, Phone, Clock, ArrowRight } from "lucide-react";
+import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -20,6 +21,34 @@ function trackCityAssinar(cityName: string) {
 export default function OndeEstamos() {
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Onde Estamos — Cidades atendidas pela Provider Mais Fibra"
+        description={`Veja as ${cities.length} cidades do Oeste da Bahia com cobertura de internet fibra óptica da Provider Mais Fibra: Barreiras, Luís Eduardo Magalhães, Bom Jesus da Lapa e mais.`}
+        path="/onde-estamos"
+        keywords={[
+          "cidades atendidas Provider Mais Fibra",
+          "cobertura internet fibra Oeste da Bahia",
+          "cidades com fibra óptica Bahia",
+        ]}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Cidades atendidas pela Provider Mais Fibra",
+          url: "https://www.providermaisfibra.com.br/onde-estamos",
+          inLanguage: "pt-BR",
+          hasPart: cities.map((c) => ({
+            "@type": "Place",
+            name: c.name,
+            url: `https://www.providermaisfibra.com.br/cidade/${c.slug}`,
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: c.name,
+              addressRegion: c.stateCode,
+              addressCountry: "BR",
+            },
+          })),
+        }}
+      />
       <Header />
 
       <main className="flex-1 pt-16">
