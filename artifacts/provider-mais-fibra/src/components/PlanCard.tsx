@@ -5,9 +5,21 @@ type Props = {
   plan: Plan;
   index?: number;
   idSuffix?: string;
+  source?: string;
 };
 
-export default function PlanCard({ plan, index = 0, idSuffix = "" }: Props) {
+function trackPlanClick(plan: Plan, source: string) {
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  fetch(`${baseUrl}/api/clicks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planSpeed: plan.speed, planPrice: plan.price, source }),
+  }).catch((err) => {
+    console.warn("[PlanCard] Failed to record click event:", err);
+  });
+}
+
+export default function PlanCard({ plan, index = 0, idSuffix = "", source = "hero" }: Props) {
   const whatsappUrl = buildWhatsAppUrl(plan);
   const isFeatured = plan.featured;
   const [reais, centavos] = plan.price.split(",");
@@ -114,6 +126,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "" }: Props) {
           target="_blank"
           rel="noopener noreferrer"
           data-testid={`plan-cta-${plan.speed}${idSuffix}`}
+          onClick={() => trackPlanClick(plan, source)}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all duration-200 hover:scale-[1.02] active:scale-95"
           style={{ background: "#00C040", boxShadow: "0 6px 16px rgba(0,192,64,0.35)" }}
         >

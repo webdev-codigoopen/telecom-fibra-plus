@@ -4,6 +4,17 @@ import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 
+function trackCityAssinar(cityName: string) {
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  fetch(`${baseUrl}/api/clicks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planSpeed: "city", planPrice: cityName, source: "city-page" }),
+  }).catch((err) => {
+    console.warn("[OndeEstamos] Failed to record city click event:", err);
+  });
+}
+
 const cities = [
   {
     name: "Barreiras",
@@ -262,6 +273,7 @@ export default function OndeEstamos() {
                         href={`https://wa.me/${city.whatsapp}?text=${encodeURIComponent(`Olá! Quero assinar um plano em ${city.name} - BA.`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackCityAssinar(city.name)}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white transition-all duration-200 hover:scale-105"
                         style={{ background: "#0040FF" }}
                       >

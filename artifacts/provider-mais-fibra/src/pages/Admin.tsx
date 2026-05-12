@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
 
+type ClickStat = {
+  planSpeed: string;
+  planPrice: string;
+  total: number;
+  lastClickedAt: string;
+};
+
 const STORAGE_KEY = "pmf_admin_key";
 
 const ALL_INCLUSIONS = [
@@ -37,8 +44,26 @@ export default function Admin() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [clickStats, setClickStats] = useState<ClickStat[]>([]);
+  const [clickStatsLoading, setClickStatsLoading] = useState(false);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const fetchClickStats = useCallback(async (key: string) => {
+    setClickStatsLoading(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/clicks/stats`, {
+        headers: { "X-Admin-Key": key },
+      });
+      if (res.ok) {
+        const data: ClickStat[] = await res.json();
+        setClickStats(data);
+      }
+    } catch {
+    } finally {
+      setClickStatsLoading(false);
+    }
+  }, [baseUrl]);
 
   const fetchPlans = useCallback(async (key: string) => {
     setLoading(true);
@@ -55,11 +80,12 @@ export default function Admin() {
       }
       if (!verify.ok) throw new Error(`HTTP ${verify.status}`);
 
-      const res = await fetch(`${baseUrl}/api/plans`, {
-        headers: { "X-Admin-Key": key },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: ApiPlan[] = await res.json();
+      const [plansRes] = await Promise.all([
+        fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
+        fetchClickStats(key),
+      ]);
+      if (!plansRes.ok) throw new Error(`HTTP ${plansRes.status}`);
+      const data: ApiPlan[] = await plansRes.json();
       setPlans(data);
       setAuthed(true);
     } catch (err) {
@@ -67,7 +93,7 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [baseUrl]);
+  }, [baseUrl, fetchClickStats]);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -226,6 +252,52 @@ export default function Admin() {
 
         {!loading && (
           <>
+            {/* Click stats */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-bold text-[#0D0D0D] text-base">Cliques por Plano</h2>
+                <button
+                  onClick={() => fetchClickStats(adminKey)}
+                  disabled={clickStatsLoading}
+                  className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
+                >
+                  {clickStatsLoading ? "Atualizando..." : "Atualizar"}
+                </button>
+              </div>
+              {clickStats.length === 0 && !clickStatsLoading ? (
+                <div className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-6 text-center text-sm text-[#7A7F8C]">
+                  Nenhum clique registrado ainda.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {clickStats.map((stat) => {
+                    const maxClicks = Math.max(...clickStats.map((s) => s.total), 1);
+                    const pct = Math.round((stat.total / maxClicks) * 100);
+                    return (
+                      <div
+                        key={`${stat.planSpeed}-${stat.planPrice}`}
+                        className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 flex flex-col gap-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-2xl text-[#0040FF]">{stat.planSpeed}</span>
+                          <span className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#00C040" }}>
+                            {stat.total} {stat.total === 1 ? "clique" : "cliques"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#7A7F8C]">R$ {stat.planPrice}/mês</p>
+                        <div className="h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${pct}%`, background: pct === 100 ? "#00C040" : "#0040FF" }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center justify-between mb-6">
               <p className="text-sm text-[#7A7F8C]">{plans.length} plano(s) cadastrado(s)</p>
               <button
