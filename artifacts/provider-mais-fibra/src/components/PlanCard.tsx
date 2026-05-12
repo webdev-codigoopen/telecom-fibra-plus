@@ -188,6 +188,19 @@ export default function PlanCard({
         className="flex flex-col items-center pt-[45px]"
         style={{ gap: 15, paddingTop: hasStreaming ? 0 : 60 }}
       >
+        {/* INTERNET 100% FIBRA */}
+        <div
+          className="text-center font-normal"
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: COLORS.white,
+          }}
+        >
+          INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
+        </div>
+
         {/* Speed + MEGA tag */}
         <div
           className="relative flex items-center justify-center"
