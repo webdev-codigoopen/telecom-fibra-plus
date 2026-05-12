@@ -311,6 +311,20 @@ export default function Admin() {
       .map(([source]) => ({ source, color: colorForSource(source) }));
   }, [chartData]);
 
+  const crawlerPreviews = useMemo(() => {
+    let bots = 0;
+    let humans = 0;
+    for (const s of clickStats) {
+      if (s.planSpeed === "city") continue;
+      if (s.source.startsWith("whatsapp-share-bot")) {
+        bots += s.total;
+      } else if (s.source === "whatsapp-share" || s.source.startsWith("whatsapp-share:")) {
+        humans += s.total;
+      }
+    }
+    return { bots, humans };
+  }, [clickStats]);
+
   const conversionByPlan = useMemo(() => {
     const byPlan = new Map<
       string,
@@ -1213,6 +1227,48 @@ export default function Admin() {
                         </BarChart>
                       )}
                     </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              {crawlerPreviews.bots > 0 && (
+                <div
+                  className="rounded-xl border px-4 py-3 mb-3 flex items-center gap-3 flex-wrap"
+                  style={{ background: "#F5F7FA", borderColor: "#E0E3EB", borderStyle: "dashed" }}
+                >
+                  <div
+                    className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
+                    style={{ background: "#A1A6B0" }}
+                    aria-hidden="true"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="8" width="18" height="12" rx="2" />
+                      <path d="M12 8V4" />
+                      <circle cx="12" cy="3" r="1" />
+                      <path d="M8 13h.01M16 13h.01" />
+                      <path d="M9 17h6" />
+                    </svg>
+                  </div>
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-2xl font-black tabular-nums text-[#2A2D38]">
+                        {crawlerPreviews.bots}
+                      </span>
+                      <span className="text-sm font-semibold text-[#2A2D38]">
+                        {crawlerPreviews.bots === 1
+                          ? "pré-visualização gerada para robôs"
+                          : "pré-visualizações geradas para robôs"}
+                      </span>
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: "#EEF0F5", color: "#7A7F8C" }}
+                      >
+                        WhatsApp / Facebook
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#7A7F8C] mt-0.5">
+                      Quantas vezes o WhatsApp/Facebook buscou a página de compartilhamento para montar a prévia rica no período.{" "}
+                      <span className="italic">Não conta como pré-visualização humana</span> e não entra na conversão.
+                    </p>
                   </div>
                 </div>
               )}
