@@ -44,6 +44,7 @@ const planBodySchema = z.object({
   badge: z.string().nullable().optional(),
   bonus: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
+  imageUrl: z.string().nullable().optional(),
 });
 
 router.post("/plans", requireAdminKey, async (req, res) => {
@@ -55,7 +56,12 @@ router.post("/plans", requireAdminKey, async (req, res) => {
   try {
     const [created] = await db
       .insert(plansTable)
-      .values({ ...parsed.data, badge: parsed.data.badge ?? null, bonus: parsed.data.bonus ?? null })
+      .values({
+        ...parsed.data,
+        badge: parsed.data.badge ?? null,
+        bonus: parsed.data.bonus ?? null,
+        imageUrl: parsed.data.imageUrl ?? null,
+      })
       .returning();
     res.status(201).json(created);
   } catch (err) {
@@ -77,7 +83,12 @@ router.put("/plans/:id", requireAdminKey, async (req, res) => {
   try {
     const [updated] = await db
       .update(plansTable)
-      .set({ ...parsed.data, badge: parsed.data.badge ?? null, bonus: parsed.data.bonus ?? null })
+      .set({
+        ...parsed.data,
+        badge: parsed.data.badge ?? null,
+        bonus: parsed.data.bonus ?? null,
+        imageUrl: parsed.data.imageUrl ?? null,
+      })
       .where(eq(plansTable.id, id))
       .returning();
     if (!updated) {

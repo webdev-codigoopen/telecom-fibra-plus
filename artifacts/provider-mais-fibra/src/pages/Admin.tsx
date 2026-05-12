@@ -29,6 +29,7 @@ function emptyPlan(): Omit<ApiPlan, "id"> {
     badge: null,
     bonus: null,
     sortOrder: 0,
+    imageUrl: null,
   };
 }
 
@@ -323,6 +324,7 @@ export default function Admin() {
                 plan={editingPlan}
                 isNew={isNew}
                 saving={saving}
+                adminKey={adminKey}
                 onSave={savePlan}
                 onCancel={cancelEdit}
               />
@@ -335,6 +337,13 @@ export default function Admin() {
                   className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-4 flex items-center gap-4"
                   style={plan.featured ? { borderColor: "#00C040" } : {}}
                 >
+                  {plan.imageUrl && (
+                    <img
+                      src={plan.imageUrl}
+                      alt=""
+                      className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-[#E0E3EB]"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-black text-2xl text-[#0040FF]">{plan.speed}</span>
@@ -413,12 +422,73 @@ type PlanFormProps = {
   plan: ApiPlan;
   isNew: boolean;
   saving: boolean;
+  adminKey: string;
   onSave: (plan: ApiPlan | Omit<ApiPlan, "id">) => void;
   onCancel: () => void;
 };
 
-function PlanForm({ plan, isNew, saving, onSave, onCancel }: PlanFormProps) {
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/svg+xml",
+]);
+
+function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormProps) {
   const [form, setForm] = useState<ApiPlan>({ ...plan });
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    if (!ALLOWED_IMAGE_TYPES.has((file.type || "").toLowerCase())) {
+      setUploadError("Formato não suportado. Use PNG, JPG, WEBP, GIF ou SVG.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError("Imagem muito grande. Tamanho máximo: 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const reqRes = await fetch(`${baseUrl}/api/storage/uploads/request-url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type,
+        }),
+      });
+      if (!reqRes.ok) throw new Error("Falha ao obter URL de upload.");
+      const { uploadURL, objectPath } = await reqRes.json();
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!putRes.ok) throw new Error("Falha ao enviar a imagem.");
+      const servingUrl = `${baseUrl}/api/storage${objectPath}`;
+      setForm((p) => ({ ...p, imageUrl: servingUrl }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  }
 
   function toggleInclusion(item: string) {
     setForm((prev) => ({
@@ -508,6 +578,60 @@ function PlanForm({ plan, isNew, saving, onSave, onCancel }: PlanFormProps) {
                 </button>
               );
             })}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">
+            Imagem do plano (opcional)
+          </label>
+          <div className="flex flex-col sm:flex-row gap-3 items-start">
+            {form.imageUrl && (
+              <div className="flex-shrink-0">
+                <img
+                  src={form.imageUrl}
+                  alt="Pré-visualização"
+                  className="w-24 h-24 object-cover rounded-lg border border-[#E0E3EB]"
+                />
+              </div>
+            )}
+            <div className="flex-1 w-full space-y-2">
+              <input
+                type="text"
+                value={form.imageUrl ?? ""}
+                onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value || null }))}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Cole uma URL de imagem ou envie um arquivo"
+              />
+              <div className="flex items-center gap-3 flex-wrap">
+                <label
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer border transition-colors ${
+                    uploading
+                      ? "opacity-60 cursor-not-allowed border-[#E0E3EB] text-[#7A7F8C]"
+                      : "border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5"
+                  }`}
+                >
+                  {uploading ? "Enviando..." : "Enviar imagem"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+                {form.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, imageUrl: null }))}
+                    className="text-sm text-red-500 hover:text-red-600 transition-colors"
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+              {uploadError && <p className="text-red-500 text-xs">{uploadError}</p>}
+            </div>
           </div>
         </div>
 

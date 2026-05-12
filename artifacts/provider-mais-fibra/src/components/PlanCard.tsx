@@ -48,6 +48,19 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         </div>
       )}
 
+      {plan.imageUrl && (
+        <div className="px-5 pt-5">
+          <div className="rounded-xl overflow-hidden bg-[#F5F7FA] aspect-[16/9]">
+            <img
+              src={plan.imageUrl}
+              alt={`Plano ${plan.speed} Mega`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="px-5 pt-5 pb-5 flex flex-col flex-1">
         <div className="flex items-start justify-between mb-3">
           <div

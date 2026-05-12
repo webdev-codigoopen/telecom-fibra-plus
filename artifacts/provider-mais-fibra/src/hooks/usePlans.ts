@@ -11,6 +11,7 @@ export type ApiPlan = {
   badge: string | null;
   bonus: string | null;
   sortOrder: number;
+  imageUrl: string | null;
 };
 
 function apiPlanToPlan(p: ApiPlan): Plan {
@@ -22,6 +23,7 @@ function apiPlanToPlan(p: ApiPlan): Plan {
     featured: p.featured,
     badge: p.badge ?? undefined,
     bonus: p.bonus ?? undefined,
+    imageUrl: p.imageUrl ?? undefined,
   };
 }
 

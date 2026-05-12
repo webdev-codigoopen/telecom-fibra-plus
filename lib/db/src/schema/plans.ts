@@ -12,6 +12,7 @@ export const plansTable = pgTable("plans", {
   badge: text("badge"),
   bonus: text("bonus"),
   sortOrder: integer("sort_order").notNull().default(0),
+  imageUrl: text("image_url"),
 });
 
 export const insertPlanSchema = createInsertSchema(plansTable).omit({ id: true });

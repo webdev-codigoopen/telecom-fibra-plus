@@ -6,6 +6,7 @@ export type Plan = {
   featured: boolean;
   badge?: string;
   bonus?: string;
+  imageUrl?: string;
 };
 
 export const WHATSAPP_NUMBER = "5577998444757";
