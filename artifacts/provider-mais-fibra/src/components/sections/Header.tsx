@@ -122,7 +122,7 @@ export default function Header() {
                 key={link.label}
                 onClick={() => handleNav(link)}
                 data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                className="header-section__nav-link text-[16px] leading-[20px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] rounded whitespace-nowrap px-2 hover:text-[#95EB1D] font-normal text-[#ffffffe6]"
+                className="header-section__nav-link text-[16px] leading-[20px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] rounded whitespace-nowrap px-2 hover:text-[#95EB1D] text-[#ffffffe6] font-normal"
                 style={{
                   color: active ? COLORS.active : COLORS.inactive,
                   fontFamily: FONT_NUNITO,
