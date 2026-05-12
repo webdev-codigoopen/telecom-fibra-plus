@@ -49,7 +49,9 @@ function trackPlanClick(plan: Plan, source: string) {
 
 function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
   const src = logos === "watch+powertop" ? LOGO_WATCH_POWERTOP : LOGO_WATCH;
-  const intrinsicH = logos === "watch+powertop" ? 80 : 76;
+  // Scaled from intrinsic 223 width → 200; height kept proportional
+  const width = 200;
+  const intrinsicH = logos === "watch+powertop" ? 72 : 68;
   const alt =
     logos === "watch+powertop"
       ? "+ Assinatura inclusa Watch + Power Top"
@@ -59,9 +61,9 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
       <img
         src={src}
         alt={alt}
-        width={223}
+        width={width}
         height={intrinsicH}
-        style={{ width: 223, height: intrinsicH }}
+        style={{ width, height: intrinsicH }}
         className="max-w-full"
       />
     </div>
