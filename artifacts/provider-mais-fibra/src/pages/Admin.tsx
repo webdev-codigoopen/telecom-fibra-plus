@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
+import ImageCropper from "../components/ImageCropper";
+
+const PLAN_IMAGE_ASPECT = 16 / 9;
+const PLAN_IMAGE_MAX_WIDTH = 1200;
 
 type ClickStat = {
   planSpeed: string;
@@ -642,23 +646,19 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
   const [form, setForm] = useState<ApiPlan>({ ...plan });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropFileName, setCropFileName] = useState<string>("");
+  const [cropFileType, setCropFileType] = useState<string>("");
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError(null);
-    if (!ALLOWED_IMAGE_TYPES.has((file.type || "").toLowerCase())) {
-      setUploadError("Formato não suportado. Use PNG, JPG, WEBP, GIF ou SVG.");
-      e.target.value = "";
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setUploadError("Imagem muito grande. Tamanho máximo: 5 MB.");
-      e.target.value = "";
-      return;
-    }
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
+
+  async function uploadBlob(blob: Blob, name: string, contentType: string) {
     setUploading(true);
     try {
       const reqRes = await fetch(`${baseUrl}/api/storage/uploads/request-url`, {
@@ -668,17 +668,17 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
           "X-Admin-Key": adminKey,
         },
         body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          contentType: file.type,
+          name,
+          size: blob.size,
+          contentType,
         }),
       });
       if (!reqRes.ok) throw new Error("Falha ao obter URL de upload.");
       const { uploadURL, objectPath } = await reqRes.json();
       const putRes = await fetch(uploadURL, {
         method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: blob,
+        headers: { "Content-Type": contentType || "application/octet-stream" },
       });
       if (!putRes.ok) throw new Error("Falha ao enviar a imagem.");
       const servingUrl = `${baseUrl}/api/storage${objectPath}`;
@@ -687,8 +687,47 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
       setUploadError(err instanceof Error ? err.message : String(err));
     } finally {
       setUploading(false);
-      e.target.value = "";
     }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    const fileType = (file.type || "").toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(fileType)) {
+      setUploadError("Formato não suportado. Use PNG, JPG, WEBP, GIF ou SVG.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploadError("Imagem muito grande. Tamanho máximo: 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    // SVGs are vector and shouldn't be rasterized; upload directly without cropping.
+    if (fileType === "image/svg+xml") {
+      void uploadBlob(file, file.name, file.type);
+      e.target.value = "";
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    setCropFileName(file.name);
+    setCropFileType(fileType === "image/png" ? "image/png" : "image/jpeg");
+    e.target.value = "";
+  }
+
+  function closeCropper() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    const ext = cropFileType === "image/png" ? "png" : "jpg";
+    const baseName = cropFileName.replace(/\.[^.]+$/, "") || "plano";
+    closeCropper();
+    await uploadBlob(blob, `${baseName}-cropped.${ext}`, cropFileType);
   }
 
   function toggleInclusion(item: string) {
@@ -789,11 +828,17 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
           <div className="flex flex-col sm:flex-row gap-3 items-start">
             {form.imageUrl && (
               <div className="flex-shrink-0">
-                <img
-                  src={form.imageUrl}
-                  alt="Pré-visualização"
-                  className="w-24 h-24 object-cover rounded-lg border border-[#E0E3EB]"
-                />
+                <div
+                  className="w-48 rounded-lg overflow-hidden border border-[#E0E3EB] bg-[#EEF0F5]"
+                  style={{ aspectRatio: "16 / 9" }}
+                  title="Pré-visualização (16:9, igual ao card da home)"
+                >
+                  <img
+                    src={form.imageUrl}
+                    alt="Pré-visualização"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
               </div>
             )}
             <div className="flex-1 w-full space-y-2">
@@ -889,6 +934,16 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
           </button>
         </div>
       </form>
+      {cropSrc && (
+        <ImageCropper
+          src={cropSrc}
+          aspect={PLAN_IMAGE_ASPECT}
+          maxOutputWidth={PLAN_IMAGE_MAX_WIDTH}
+          outputType={cropFileType || "image/jpeg"}
+          onCancel={closeCropper}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }
