@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { type Plan, buildWhatsAppUrl, buildPlanShareUrl } from "../lib/plans";
+import { useStreamingBrands, type StreamingBrand } from "../hooks/useStreamingBrands";
 
 const BASE = import.meta.env.BASE_URL;
 const ICON_INSTALACAO = `${BASE}images/icons/instalacao-planos-20.svg`;
@@ -7,8 +8,15 @@ const ICON_ROTEADOR = `${BASE}images/icons/roteador-planos-29x20.svg`;
 const ICON_CANAIS = `${BASE}images/icons/canais-planos-64x20.svg`;
 const ICON_WHATSAPP = `${BASE}images/icons/whatsapp-planos-16.svg`;
 const TAG_MEGA = `${BASE}images/icons/mega-tag-planos-47x16.svg`;
-const LOGO_WATCH = `${BASE}images/icons/watch-planos-193x42.svg`;
-const LOGO_WATCH_POWERTOP = `${BASE}images/icons/watch-powertop-planos-193x42.svg`;
+
+function resolveLogoUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = BASE.replace(/\/$/, "");
+  if (!base) return url;
+  if (url === base || url.startsWith(`${base}/`)) return url;
+  if (url.startsWith("/")) return `${base}${url}`;
+  return `${base}/${url}`;
+}
 
 const FONT_BODY = "'Montserrat', system-ui, sans-serif";
 const FONT_SPEED = "'Amino', 'Montserrat', sans-serif";
@@ -49,25 +57,42 @@ function trackPlanClick(plan: Plan, source: string, cityName?: string) {
   });
 }
 
-function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
-  const src = logos === "watch+powertop" ? LOGO_WATCH_POWERTOP : LOGO_WATCH;
-  // Scaled from intrinsic 223 width → 200; height kept proportional
-  const width = 200;
-  const intrinsicH = logos === "watch+powertop" ? 72 : 68;
-  const alt =
-    logos === "watch+powertop"
-      ? "+ Assinatura inclusa Watch + Power Top"
-      : "+ Assinatura inclusa Watch";
+function StreamingBox({ brands }: { brands: StreamingBrand[] }) {
+  const altNames = brands.map((b) => b.name).join(" + ");
   return (
-    <div className="plans-section__streaming flex justify-center">
-      <img
-        src={src}
-        alt={alt}
-        width={width}
-        height={intrinsicH}
-        style={{ width, height: intrinsicH }}
-        className="max-w-full pb-[10px]"
-      />
+    <div
+      className="plans-section__streaming flex flex-wrap items-center justify-center pb-[10px]"
+      style={{ gap: 12, columnGap: 12, rowGap: 6 }}
+      aria-label={`+ Assinatura inclusa ${altNames}`}
+    >
+      {brands.map((brand) =>
+        brand.logoUrl ? (
+          <img
+            key={brand.id}
+            src={resolveLogoUrl(brand.logoUrl)}
+            alt={brand.name}
+            style={{ height: 42, width: "auto", maxWidth: 200, objectFit: "contain" }}
+          />
+        ) : (
+          <span
+            key={brand.id}
+            style={{
+              fontFamily: FONT_BODY,
+              fontWeight: 700,
+              fontSize: 14,
+              color: "#FFFFFF",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              lineHeight: 1.1,
+              padding: "6px 10px",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: 6,
+            }}
+          >
+            {brand.name}
+          </span>
+        ),
+      )}
     </div>
   );
 }
@@ -83,11 +108,10 @@ export default function PlanCard({
   const whatsappUrl = buildWhatsAppUrl(plan, shareUrl);
   const [reais, centavos] = plan.price.split(",");
 
-  const hasWatch = plan.inclusions.includes("Watch");
-  const hasPowerTop = plan.inclusions.includes("Power Top");
-  const streamingLogos: "watch" | "watch+powertop" | null =
-    hasWatch && hasPowerTop ? "watch+powertop" : hasWatch ? "watch" : null;
-  const hasStreaming = streamingLogos !== null;
+  const allBrands = useStreamingBrands();
+  const inclusionsSet = new Set(plan.inclusions);
+  const activeBrands = allBrands.filter((b) => inclusionsSet.has(b.name));
+  const hasStreaming = activeBrands.length > 0;
 
   // Figma:
   // - cards WITH streaming (node 6486:330): pt 21 / explicit gaps 27 (header→stream), 10 (stream→price), 27 (price→cta), 8 (cta→footer)
@@ -234,10 +258,10 @@ export default function PlanCard({
           );
         })()}
       </div>
-      {/* Streaming bonus — driven by inclusions (Watch / Watch + Power Top) */}
-      {streamingLogos && (
+      {/* Streaming bonus — driven by configured streaming brands matching plan inclusions */}
+      {hasStreaming && (
         <div style={{ marginTop: 27 }}>
-          <StreamingBox logos={streamingLogos} />
+          <StreamingBox brands={activeBrands} />
         </div>
       )}
       {/*

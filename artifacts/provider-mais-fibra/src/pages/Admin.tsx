@@ -6,6 +6,10 @@ import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap from "../components/CityClicksMap";
 import {
+  type StreamingBrand,
+  refreshStreamingBrands,
+} from "../hooks/useStreamingBrands";
+import {
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -132,13 +136,11 @@ function loadStoredFilters(): StoredFilters {
   }
 }
 
-const ALL_INCLUSIONS = [
+const BASE_INCLUSIONS = [
   "Instalação Grátis",
   "Roteador Wi-Fi",
   "Roteador Wi-Fi 6",
   "100 Canais",
-  "Watch",
-  "Power Top",
 ];
 
 function emptyPlan(): Omit<ApiPlan, "id"> {
@@ -186,8 +188,26 @@ export default function Admin() {
   const [reordering, setReordering] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const fetchStreamingBrands = useCallback(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/streaming-brands`);
+      if (!res.ok) return;
+      const data: StreamingBrand[] = await res.json();
+      setStreamingBrands(data);
+      await refreshStreamingBrands();
+    } catch {
+      // ignore
+    }
+  }, [baseUrl]);
+
+  const allInclusions = useMemo(
+    () => [...BASE_INCLUSIONS, ...streamingBrands.map((b) => b.name)],
+    [streamingBrands],
+  );
 
   const chartData: ChartPoint[] = useMemo(() => {
     if (timeseries.length === 0) return [];
@@ -391,6 +411,7 @@ export default function Admin() {
       const [plansRes] = await Promise.all([
         fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
         fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo),
+        fetchStreamingBrands(),
       ]);
       if (!plansRes.ok) throw new Error(`HTTP ${plansRes.status}`);
       const data: ApiPlan[] = await plansRes.json();
@@ -401,7 +422,7 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [baseUrl, fetchClickStats]);
+  }, [baseUrl, fetchClickStats, fetchStreamingBrands]);
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -1201,10 +1222,18 @@ export default function Admin() {
                 isNew={isNew}
                 saving={saving}
                 adminKey={adminKey}
+                allInclusions={allInclusions}
                 onSave={savePlan}
                 onCancel={cancelEdit}
               />
             )}
+
+            <StreamingBrandsManager
+              brands={streamingBrands}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchStreamingBrands}
+            />
 
             {plans.length > 0 && (
               <div className="mb-6 bg-white rounded-xl border border-[#E0E3EB] overflow-hidden">
@@ -1446,6 +1475,7 @@ type PlanFormProps = {
   isNew: boolean;
   saving: boolean;
   adminKey: string;
+  allInclusions: string[];
   onSave: (plan: ApiPlan | Omit<ApiPlan, "id">) => void;
   onCancel: () => void;
 };
@@ -1460,7 +1490,8 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/svg+xml",
 ]);
 
-function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormProps) {
+function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCancel }: PlanFormProps) {
+  const ALL_INCLUSIONS = allInclusions;
   const [form, setForm] = useState<ApiPlan>({ ...plan });
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -1889,6 +1920,322 @@ function PlanForm({ plan, isNew, saving, adminKey, onSave, onCancel }: PlanFormP
           onCancel={closeCropper}
           onConfirm={handleCropConfirm}
         />
+      )}
+    </div>
+  );
+}
+
+type StreamingBrandsManagerProps = {
+  brands: StreamingBrand[];
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => Promise<void> | void;
+};
+
+function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: StreamingBrandsManagerProps) {
+  const [editing, setEditing] = useState<StreamingBrand | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [confirmDel, setConfirmDel] = useState<number | null>(null);
+
+  function startCreate() {
+    setCreating(true);
+    setEditing(null);
+    setName("");
+    setLogoUrl("");
+    setErr(null);
+  }
+
+  function startEdit(b: StreamingBrand) {
+    setEditing(b);
+    setCreating(false);
+    setName(b.name);
+    setLogoUrl(b.logoUrl ?? "");
+    setErr(null);
+  }
+
+  function cancel() {
+    setEditing(null);
+    setCreating(false);
+    setName("");
+    setLogoUrl("");
+    setErr(null);
+  }
+
+  async function handleLogoUpload(file: File) {
+    if (!file) return;
+    setErr(null);
+    const fileType = (file.type || "").toLowerCase();
+    if (!ALLOWED_IMAGE_TYPES.has(fileType)) {
+      setErr("Formato não suportado. Use PNG, JPG, WEBP, GIF ou SVG.");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setErr("Imagem muito grande. Tamanho máximo: 5 MB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const reqRes = await fetch(`${baseUrl}/api/storage/uploads/request-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!reqRes.ok) throw new Error("Falha ao obter URL de upload.");
+      const { uploadURL, objectPath } = await reqRes.json();
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!putRes.ok) throw new Error("Falha ao enviar a imagem.");
+      setLogoUrl(`${baseUrl}/api/storage${objectPath}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function save() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const body = JSON.stringify({
+        name: name.trim(),
+        logoUrl: logoUrl.trim() || null,
+      });
+      const url = editing
+        ? `${baseUrl}/api/streaming-brands/${editing.id}`
+        : `${baseUrl}/api/streaming-brands`;
+      const method = editing ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await onChange();
+      cancel();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(id: number) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/streaming-brands/${id}`, {
+        method: "DELETE",
+        headers: { "X-Admin-Key": adminKey },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await onChange();
+      setConfirmDel(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isEditingForm = creating || editing !== null;
+
+  return (
+    <div className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-5 mb-6">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <h2 className="font-bold text-[#0D0D0D] text-base">Marcas de streaming</h2>
+          <p className="text-xs text-[#7A7F8C] mt-0.5">
+            Adicione, renomeie ou remova marcas (ex.: Watch, Power Top, Disney+). O nome aparece como item incluso ao editar um plano e o logo aparece no card.
+          </p>
+        </div>
+        {!isEditingForm && (
+          <button
+            type="button"
+            onClick={startCreate}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90"
+            style={{ background: "#0040FF" }}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nova marca
+          </button>
+        )}
+      </div>
+
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 mb-3 text-sm">
+          {err}
+        </div>
+      )}
+
+      {isEditingForm && (
+        <div className="border border-[#0040FF]/30 rounded-lg p-4 mb-4 space-y-3 bg-[#F8FAFF]">
+          <h3 className="text-sm font-bold text-[#0D0D0D]">
+            {editing ? `Editar marca: ${editing.name}` : "Nova marca de streaming"}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Nome</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Ex: Disney+"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">URL do logo</label>
+              <input
+                type="text"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Cole a URL ou envie um arquivo abaixo"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <label
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer border transition-colors ${
+                uploading
+                  ? "opacity-60 cursor-not-allowed border-[#E0E3EB] text-[#7A7F8C]"
+                  : "border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5"
+              }`}
+            >
+              {uploading ? "Enviando..." : "Enviar logo"}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void handleLogoUpload(f);
+                  e.target.value = "";
+                }}
+                className="hidden"
+              />
+            </label>
+            {logoUrl && (
+              <div className="flex items-center gap-2">
+                <div className="h-10 px-2 rounded-md bg-[#0040FF] flex items-center">
+                  <img src={logoUrl} alt="" className="h-7 w-auto max-w-[160px] object-contain" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLogoUrl("")}
+                  className="text-sm text-red-500 hover:text-red-600"
+                >
+                  Remover
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={save}
+              disabled={busy || !name.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+              style={{ background: "#0040FF" }}
+            >
+              {busy ? "Salvando..." : editing ? "Salvar alterações" : "Criar marca"}
+            </button>
+            <button
+              type="button"
+              onClick={cancel}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-[#7A7F8C] hover:text-[#0D0D0D]"
+            >
+              Cancelar
+            </button>
+          </div>
+          {editing && (
+            <p className="text-[11px] text-[#7A7F8C]">
+              Atenção: ao renomear uma marca, planos que usavam o nome antigo deixarão de mostrar este logo. Edite os planos para apontar para o novo nome.
+            </p>
+          )}
+        </div>
+      )}
+
+      {brands.length === 0 ? (
+        <div className="text-center text-sm text-[#7A7F8C] py-6">
+          Nenhuma marca cadastrada ainda.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {brands.map((b) => (
+            <div
+              key={b.id}
+              className="flex items-center gap-3 border border-[#E0E3EB] rounded-lg px-3 py-3"
+            >
+              <div className="w-20 h-12 rounded bg-[#0040FF] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                {b.logoUrl ? (
+                  <img src={b.logoUrl} alt={b.name} className="max-h-10 max-w-[72px] object-contain" />
+                ) : (
+                  <span className="text-[10px] text-white font-bold">SEM LOGO</span>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm text-[#0D0D0D] truncate">{b.name}</div>
+                {!b.logoUrl && (
+                  <div className="text-[11px] text-[#A06B00]">Logo não definido</div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => startEdit(b)}
+                  className="px-2.5 py-1 rounded-md text-xs font-medium text-[#0040FF] border border-[#0040FF]/20 hover:bg-[#0040FF]/5"
+                >
+                  Editar
+                </button>
+                {confirmDel === b.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => remove(b.id)}
+                      disabled={busy}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium text-white bg-red-500 hover:bg-red-600"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDel(null)}
+                      className="px-2.5 py-1 rounded-md text-xs font-medium text-[#7A7F8C] hover:text-[#0D0D0D]"
+                    >
+                      Cancelar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDel(b.id)}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50"
+                  >
+                    Excluir
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
