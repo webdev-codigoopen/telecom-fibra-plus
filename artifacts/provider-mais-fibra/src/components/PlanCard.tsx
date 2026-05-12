@@ -85,10 +85,10 @@ export default function PlanCard({
   const hasStreaming = streamingLogos !== null;
 
   // Figma:
-  // - cards WITH streaming: pt 30 / inner gap 11 (price kept in compact bottom block, mt-auto)
-  // - cards WITHOUT streaming (node 6310:414): pt 51 / explicit gaps 44 (header→price) and 45 (price→cta)
-  const paddingTop = hasStreaming ? 30 : 51;
-  const innerGap = hasStreaming ? 11 : 0;
+  // - cards WITH streaming (node 6486:330): pt 21 / explicit gaps 27 (header→stream), 10 (stream→price), 27 (price→cta), 8 (cta→footer)
+  // - cards WITHOUT streaming (node 6310:414): pt 51 / explicit gaps 44 (header→price), 45 (price→cta), 8 (cta→footer)
+  const paddingTop = hasStreaming ? 21 : 51;
+  const innerGap = 0;
 
   return (
     <motion.div
@@ -227,17 +227,17 @@ export default function PlanCard({
         })()}
       </div>
       {/* Streaming bonus — driven by inclusions (Watch / Watch + Power Top) */}
-      {streamingLogos && <StreamingBox logos={streamingLogos} />}
+      {streamingLogos && (
+        <div style={{ marginTop: 27 }}>
+          <StreamingBox logos={streamingLogos} />
+        </div>
+      )}
       {/*
         Price block as a DIRECT child of the card root (sibling of the CTA wrapper).
-        - WITHOUT streaming: marginTop 44 (Figma 6310:414 gap header→price)
-        - WITH streaming: mt-auto pushes the price+cta group to the bottom; gap to streaming box
-          comes from the root flex gap (11)
+        - WITHOUT streaming (6310:414): marginTop 44 (gap header→price)
+        - WITH streaming (6486:330): marginTop 10 (gap stream→price)
       */}
-      <div
-        className={hasStreaming ? "mt-auto" : ""}
-        style={{ marginTop: hasStreaming ? undefined : 44 }}
-      >
+      <div style={{ marginTop: hasStreaming ? 10 : 44 }}>
         <div
           className="grid items-end justify-center"
           style={{ gridTemplateColumns: "1fr auto 1fr", columnGap: 6 }}
@@ -328,15 +328,15 @@ export default function PlanCard({
 
       {/*
         CTA + footer wrapper (sibling of price block).
-        - WITHOUT streaming: marginTop 45 (Figma 6310:414 gap price→cta)
-        - WITH streaming: gap 5 between price block and CTA via marginTop on this wrapper,
-          overriding the root flex gap of 11 for tighter compact look
+        - WITHOUT streaming (6310:414): marginTop 45 (gap price→cta)
+        - WITH streaming (6486:330): marginTop 27 (gap price→cta)
+        - Inner gap 8 between CTA and footer for both variants.
       */}
       <div
         className="flex flex-col"
         style={{
-          gap: hasStreaming ? 5 : 0,
-          marginTop: hasStreaming ? -6 : 45,
+          gap: 8,
+          marginTop: hasStreaming ? 27 : 45,
         }}
       >
         <a
@@ -372,7 +372,6 @@ export default function PlanCard({
             fontWeight: 400,
             lineHeight: "14.4px",
             color: COLORS.whiteFaint,
-            paddingTop: hasStreaming ? undefined : 8,
           }}
         >
           *Consultar a disponibilidade
