@@ -183,16 +183,6 @@ export default function OndeEstamos() {
                       {city.description}
                     </p>
 
-                    <Link
-                      href={`/cidade/${city.slug}`}
-                      data-testid={`link-city-page-${city.slug}`}
-                      className="flex items-center justify-center gap-1.5 mb-2 py-2 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-[#E8EFFF]"
-                      style={{ color: "#122AD5" }}
-                    >
-                      Ver página de {city.name}
-                      <ArrowRight size={13} />
-                    </Link>
-
                     <div className="flex gap-2">
                       <a
                         href={`https://wa.me/${city.whatsapp}?text=${encodeURIComponent(`Olá! Quero assinar um plano em ${city.name} - BA.`)}`}
