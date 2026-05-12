@@ -47,7 +47,7 @@ export default function WhatsAppSection() {
           <img
             src={logoHorizontalWhite}
             alt="Provider Mais Fibra"
-            style={{ width: 317, height: 55, display: "block", objectFit: "contain" }}
+            style={{ width: 317, height: 55, display: "block", objectFit: "contain", alignSelf: "flex-start" }}
           />
 
           <h2

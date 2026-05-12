@@ -54,7 +54,7 @@ export default function About() {
             <img
               src={LOGO}
               alt="Provider + FIBRA"
-              className="block w-auto"
+              className="block w-auto self-start"
               style={{ height: 56 }}
               width={326}
               height={56}
