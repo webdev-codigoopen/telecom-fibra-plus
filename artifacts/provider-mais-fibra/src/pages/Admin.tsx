@@ -349,6 +349,31 @@ export default function Admin() {
                   >
                     {clickStatsLoading ? "Atualizando..." : "Atualizar"}
                   </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`${baseUrl}/api/clicks/export`, {
+                          headers: { "X-Admin-Key": adminKey },
+                        });
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        const stamp = new Date().toISOString().slice(0, 10);
+                        a.download = `clicks-${stamp}.csv`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch {
+                        setSaveError("Não foi possível exportar o CSV.");
+                      }
+                    }}
+                    className="text-xs font-semibold px-3 py-1 rounded-md border border-[#0040FF]/20 text-[#0040FF] hover:bg-[#0040FF]/5 transition-colors"
+                  >
+                    Exportar CSV
+                  </button>
                 </div>
               </div>
               {clickStats.length === 0 && !clickStatsLoading ? (

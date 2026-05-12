@@ -71,4 +71,45 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/export", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        planSpeed: planClicksTable.planSpeed,
+        planPrice: planClicksTable.planPrice,
+        total: sql<number>`cast(count(*) as int)`,
+        lastClickedAt: sql<string>`max(${planClicksTable.clickedAt})`,
+      })
+      .from(planClicksTable)
+      .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice)
+      .orderBy(desc(sql`count(*)`));
+
+    const escape = (val: string | number | null | undefined): string => {
+      let s = val == null ? "" : String(val);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) {
+        s = `'${s}`;
+      }
+      if (/[",\n\r]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const header = "plan_speed,plan_price,total_clicks,last_click_date";
+    const body = rows
+      .map((r) =>
+        [escape(r.planSpeed), escape(r.planPrice), escape(r.total), escape(r.lastClickedAt)].join(","),
+      )
+      .join("\n");
+    const csv = `${header}\n${body}${body ? "\n" : ""}`;
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="clicks-${stamp}.csv"`);
+    res.send(csv);
+  } catch {
+    res.status(500).json({ error: "Failed to export clicks" });
+  }
+});
+
 export default router;
