@@ -39,7 +39,7 @@ export default function Hero() {
       style={{
         background:
           "linear-gradient(180deg, #122AD5 0%, #1A38D5 60%, #2138CD 100%)",
-        fontFamily: "'Nunito', 'Montserrat', system-ui, sans-serif",
+        fontFamily: "'Montserrat', system-ui, sans-serif",
       }}
     >
       <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">

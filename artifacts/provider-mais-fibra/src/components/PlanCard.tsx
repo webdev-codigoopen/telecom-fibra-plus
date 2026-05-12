@@ -8,7 +8,9 @@ const ICON_CANAIS = `${BASE}images/icons/canais-planos-64x20.svg`;
 const ICON_WHATSAPP = `${BASE}images/icons/whatsapp-planos-16.svg`;
 const TAG_MEGA = `${BASE}images/icons/mega-tag-planos-47x16.svg`;
 
-const FONT_NUNITO = "'Nunito', 'Montserrat', system-ui, sans-serif";
+const FONT_BODY = "'Montserrat', system-ui, sans-serif";
+const FONT_SPEED = "'Amino', 'Montserrat', sans-serif";
+const FONT_PRICE = "'Nexa', 'Montserrat', sans-serif";
 
 const COLORS = {
   cardBg: "#1A38D5",
@@ -46,7 +48,7 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
     >
       <div
         className="text-[11px] tracking-[0.04em] flex items-center gap-1"
-        style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 700 }}
+        style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 700 }}
       >
         <span style={{ color: COLORS.green }}>+</span>
         <span>ASSINATURA INCLUSA</span>
@@ -54,16 +56,16 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
       <div className="flex items-center gap-2">
         <span
           className="text-[20px] italic tracking-tight"
-          style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 800, fontStyle: "italic" }}
+          style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 800, fontStyle: "italic" }}
         >
           watch
         </span>
         {logos === "watch+powertop" && (
           <>
-            <span style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 700 }}>+</span>
+            <span style={{ color: COLORS.white, fontFamily: FONT_BODY, fontWeight: 700 }}>+</span>
             <span
               className="text-[14px] tracking-tight leading-none text-left"
-              style={{ color: COLORS.green, fontFamily: FONT_NUNITO, fontWeight: 900 }}
+              style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 900 }}
             >
               POWER<br />TOP
             </span>
@@ -93,7 +95,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         background: COLORS.cardBg,
         border: `1px solid ${COLORS.cardBorder}`,
         boxShadow: COLORS.cardShadow,
-        fontFamily: FONT_NUNITO,
+        fontFamily: FONT_BODY,
         color: COLORS.white,
       }}
     >
@@ -111,9 +113,9 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           className="leading-none"
           style={{
             fontSize: 88,
-            fontWeight: 900,
+            fontFamily: FONT_SPEED,
             color: COLORS.white,
-            letterSpacing: "-0.04em",
+            letterSpacing: "-0.02em",
             lineHeight: 0.85,
           }}
         >
@@ -132,19 +134,19 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       <div className="flex items-start justify-center gap-5 mb-5">
         <div className="flex flex-col items-center gap-1.5">
           <img src={ICON_INSTALACAO} alt="" width={20} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
             INSTALAÇÃO
           </span>
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <img src={ICON_ROTEADOR} alt="" width={29} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
             ROTEADOR
           </span>
         </div>
         <div className="flex flex-col items-center gap-1.5">
           <img src={ICON_CANAIS} alt="" width={64} height={20} />
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
             CANAIS
           </span>
         </div>
@@ -157,13 +159,13 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       {/* Price block */}
       <div className="flex items-end justify-center gap-2 mb-6 mt-auto">
         <div className="flex flex-col items-end leading-none pb-2">
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontWeight: 700 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 700 }}>
             POR
           </span>
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontWeight: 700 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontFamily: FONT_BODY, fontWeight: 700 }}>
             APENAS
           </span>
-          <span className="text-[18px] mt-1" style={{ color: COLORS.green, fontWeight: 900 }}>
+          <span className="text-[20px] mt-1" style={{ color: COLORS.green, fontFamily: FONT_PRICE }}>
             R$
           </span>
         </div>
@@ -171,19 +173,19 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           className="leading-none"
           style={{
             fontSize: 56,
-            fontWeight: 900,
+            fontFamily: FONT_PRICE,
             color: COLORS.white,
-            letterSpacing: "-0.04em",
+            letterSpacing: "-0.02em",
             lineHeight: 0.85,
           }}
         >
           {reais}
         </span>
         <div className="flex flex-col items-start leading-none pb-1">
-          <span className="text-[14px]" style={{ color: COLORS.white, fontWeight: 700 }}>
+          <span className="text-[14px]" style={{ color: COLORS.white, fontFamily: FONT_PRICE }}>
             ,{centavos ?? "00"}
           </span>
-          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontFamily: FONT_BODY, fontWeight: 600 }}>
             /MÊS
           </span>
         </div>
