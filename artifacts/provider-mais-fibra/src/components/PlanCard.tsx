@@ -87,7 +87,7 @@ export default function PlanCard({
   // Figma:
   // - cards WITH streaming (node 6486:330): pt 21 / explicit gaps 27 (header→stream), 10 (stream→price), 27 (price→cta), 8 (cta→footer)
   // - cards WITHOUT streaming (node 6310:414): pt 51 / explicit gaps 44 (header→price), 45 (price→cta), 8 (cta→footer)
-  const paddingTop = hasStreaming ? 21 : 51;
+  const paddingTop = 20;
   const innerGap = 0;
 
   return (
