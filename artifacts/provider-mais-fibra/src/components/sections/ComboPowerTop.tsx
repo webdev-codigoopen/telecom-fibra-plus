@@ -1,13 +1,13 @@
 import bgIptv from "@assets/bg-sessao-iptv_1778611391057.png";
 import imgChannels from "@assets/iptv/channels-row.png";
-import imgWatchPowerTop from "@assets/iptv/watch-powertop.png";
-import imgPlus from "@assets/iptv/plus.png";
+import img900 from "@assets/iptv/iptv-900.svg";
+import imgWatchPowerTop from "@assets/iptv/iptv-watch-powertop.svg";
+import imgPlus from "@assets/iptv/iptv-plus.svg";
 import { WHATSAPP_NUMBER } from "../../lib/plans";
 
 const BG_COLOR = "#061CD4";
 const GREEN = "#95EB1D";
 const FONT_BODY = "'Montserrat', system-ui, sans-serif";
-const FONT_SPEED = "'Amino', 'Montserrat', sans-serif";
 const FONT_PRICE = "'Nexa', 'Montserrat', sans-serif";
 
 export default function ComboPowerTop() {
@@ -64,42 +64,15 @@ export default function ComboPowerTop() {
       {/* 2. 900 mega + plus + WATCH/POWERTOP */}
       <div
         className="flex items-center justify-center"
-        style={{ gap: 17, height: 125 }}
+        style={{ gap: 17 }}
       >
-        {/* 900 mega */}
-        <div className="flex flex-col items-center" style={{ gap: 8 }}>
-          <span
-            className="leading-none"
-            style={{
-              fontFamily: FONT_SPEED,
-              fontSize: 111,
-              lineHeight: 0.85,
-            }}
-          >
-            900
-          </span>
-          <span
-            style={{
-              fontFamily: FONT_BODY,
-              fontWeight: 700,
-              fontSize: 14,
-              letterSpacing: "-1px",
-              lineHeight: 1,
-            }}
-          >
-            mega
-          </span>
-        </div>
-
-        {/* + */}
-        <img src={imgPlus} alt="+" width={35} height={35} />
-
-        {/* WATCH + POWER TOP block */}
+        <img src={img900} alt="900 mega" width={232} height={85} style={{ display: "block" }} />
+        <img src={imgPlus} alt="+" width={36} height={35} style={{ display: "block" }} />
         <img
           src={imgWatchPowerTop}
           alt="Mais pacotes de canais exclusivos — Watch + Power Top"
-          width={284}
-          height={82}
+          width={223}
+          height={80}
           style={{ display: "block" }}
         />
       </div>
