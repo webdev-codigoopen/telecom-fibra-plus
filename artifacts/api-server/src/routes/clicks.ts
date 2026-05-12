@@ -90,6 +90,55 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
+  try {
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
+      ? req.query["source"]
+      : undefined;
+    const bucketParam = typeof req.query["bucket"] === "string" ? req.query["bucket"] : "day";
+    const bucket = bucketParam === "hour" ? "hour" : "day";
+
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
+
+    const bucketExpr = bucket === "hour"
+      ? sql<string>`date_trunc('hour', ${planClicksTable.clickedAt})`
+      : sql<string>`date_trunc('day', ${planClicksTable.clickedAt})`;
+
+    const baseSelect = db
+      .select({
+        bucket: bucketExpr,
+        planSpeed: planClicksTable.planSpeed,
+        planPrice: planClicksTable.planPrice,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable);
+
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+
+    const rows = await filtered
+      .groupBy(bucketExpr, planClicksTable.planSpeed, planClicksTable.planPrice)
+      .orderBy(bucketExpr);
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch click timeseries" });
+  }
+});
+
 router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
   try {
     const rows = await db

@@ -4,6 +4,15 @@ import ImageCropper from "../components/ImageCropper";
 import PlanCard from "../components/PlanCard";
 import { type Plan } from "../lib/plans";
 import CityClicksMap, { type CityClickEntry } from "../components/CityClicksMap";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 
 function apiPlanToPlan(p: ApiPlan): Plan {
   return {
@@ -33,6 +42,20 @@ type ClickStat = {
 type SourceStat = {
   source: string;
   total: number;
+};
+
+type TimeseriesRow = {
+  bucket: string;
+  planSpeed: string;
+  planPrice: string;
+  total: number;
+};
+
+type ChartPoint = {
+  bucket: string;
+  label: string;
+  total: number;
+  byPlan: { planSpeed: string; planPrice: string; total: number }[];
 };
 
 const STORAGE_KEY = "pmf_admin_key";
@@ -78,6 +101,7 @@ export default function Admin() {
   const [statsRange, setStatsRange] = useState<"today" | "week" | "all">("all");
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -94,6 +118,33 @@ export default function Admin() {
     }
     return Array.from(totals.entries()).map(([name, total]) => ({ name, total }));
   }, [clickStats]);
+
+  const chartData: ChartPoint[] = useMemo(() => {
+    if (timeseries.length === 0) return [];
+    const map = new Map<string, ChartPoint>();
+    const useHour = statsRange === "today";
+    for (const row of timeseries) {
+      const date = new Date(row.bucket);
+      const label = useHour
+        ? date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+        : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const existing = map.get(row.bucket);
+      if (existing) {
+        existing.total += row.total;
+        existing.byPlan.push({ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total });
+      } else {
+        map.set(row.bucket, {
+          bucket: row.bucket,
+          label,
+          total: row.total,
+          byPlan: [{ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total }],
+        });
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime(),
+    );
+  }, [timeseries, statsRange]);
 
   const fetchClickStats = useCallback(async (
     key: string,
@@ -132,12 +183,18 @@ export default function Admin() {
       const qs = params.toString();
       const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
       const prevUrl = `${baseUrl}/api/clicks/stats?${prevParams.toString()}`;
-      const [statsRes, sourcesRes, prevRes] = await Promise.all([
+
+      const tsParams = new URLSearchParams(params);
+      tsParams.set("bucket", range === "today" ? "hour" : "day");
+      const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
+
+      const [statsRes, sourcesRes, prevRes, tsRes] = await Promise.all([
         fetch(url, { headers: { "X-Admin-Key": key } }),
         fetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
         hasPrevious
           ? fetch(prevUrl, { headers: { "X-Admin-Key": key } })
           : Promise.resolve(null),
+        fetch(tsUrl, { headers: { "X-Admin-Key": key } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -152,6 +209,10 @@ export default function Admin() {
         setPreviousStats(data);
       } else {
         setPreviousStats([]);
+      }
+      if (tsRes.ok) {
+        const data: TimeseriesRow[] = await tsRes.json();
+        setTimeseries(data);
       }
     } catch {
     } finally {
@@ -512,6 +573,64 @@ export default function Admin() {
                   </button>
                 </div>
               </div>
+              {chartData.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-[#2A2D38]">
+                      Cliques {statsRange === "today" ? "por hora" : "por dia"}
+                    </h3>
+                    <span className="text-xs text-[#7A7F8C]">
+                      Total: {chartData.reduce((acc, p) => acc + p.total, 0)}
+                    </span>
+                  </div>
+                  <div style={{ width: "100%", height: 180 }}>
+                    <ResponsiveContainer>
+                      <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#EEF0F5" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={{ stroke: "#E0E3EB" }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          cursor={{ fill: "rgba(0,64,255,0.06)" }}
+                          contentStyle={{
+                            background: "#fff",
+                            border: "1px solid #E0E3EB",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                          content={({ active, payload }) => {
+                            if (!active || !payload || payload.length === 0) return null;
+                            const point = payload[0]?.payload as ChartPoint | undefined;
+                            if (!point) return null;
+                            const sortedPlans = [...point.byPlan].sort((a, b) => b.total - a.total);
+                            return (
+                              <div className="bg-white border border-[#E0E3EB] rounded-lg px-3 py-2 shadow-sm text-xs">
+                                <div className="font-semibold text-[#0D0D0D] mb-1">{point.label}</div>
+                                <div className="text-[#0040FF] font-bold mb-1.5">
+                                  {point.total} {point.total === 1 ? "clique" : "cliques"}
+                                </div>
+                                <div className="space-y-0.5 max-h-40 overflow-y-auto">
+                                  {sortedPlans.map((p, i) => {
+                                    const isCity = p.planSpeed === "city";
+                                    return (
+                                      <div key={`${p.planSpeed}-${p.planPrice}-${i}`} className="flex items-center justify-between gap-3 text-[#2A2D38]">
+                                        <span className="truncate">
+                                          {isCity ? p.planPrice : `${p.planSpeed} Mega`}
+                                        </span>
+                                        <span className="font-semibold tabular-nums">{p.total}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }}
+                        />
+                        <Bar dataKey="total" fill="#0040FF" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
               {clickStats.length === 0 && !clickStatsLoading ? (
                 <div className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-6 text-center text-sm text-[#7A7F8C]">
                   {statsRange === "today"
