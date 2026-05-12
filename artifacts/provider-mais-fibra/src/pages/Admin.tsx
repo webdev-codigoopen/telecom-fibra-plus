@@ -72,6 +72,7 @@ export default function Admin() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [clickStats, setClickStats] = useState<ClickStat[]>([]);
+  const [previousStats, setPreviousStats] = useState<ClickStat[]>([]);
   const [clickStatsLoading, setClickStatsLoading] = useState(false);
   const [statsRange, setStatsRange] = useState<"today" | "week" | "all">("all");
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
@@ -91,21 +92,41 @@ export default function Admin() {
     setClickStatsLoading(true);
     try {
       const params = new URLSearchParams();
+      const prevParams = new URLSearchParams();
+      let hasPrevious = false;
       if (range !== "all") {
-        const since = new Date();
+        const now = new Date();
+        const since = new Date(now);
+        const prevSince = new Date(now);
+        const prevUntil = new Date(now);
         if (range === "today") {
           since.setHours(0, 0, 0, 0);
+          prevUntil.setHours(0, 0, 0, 0);
+          prevSince.setHours(0, 0, 0, 0);
+          prevSince.setDate(prevSince.getDate() - 1);
         } else {
           since.setDate(since.getDate() - 7);
+          prevUntil.setDate(prevUntil.getDate() - 7);
+          prevSince.setDate(prevSince.getDate() - 14);
         }
         params.set("since", since.toISOString());
+        prevParams.set("since", prevSince.toISOString());
+        prevParams.set("until", prevUntil.toISOString());
+        hasPrevious = true;
       }
-      if (source) params.set("source", source);
+      if (source) {
+        params.set("source", source);
+        prevParams.set("source", source);
+      }
       const qs = params.toString();
       const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
-      const [statsRes, sourcesRes] = await Promise.all([
+      const prevUrl = `${baseUrl}/api/clicks/stats?${prevParams.toString()}`;
+      const [statsRes, sourcesRes, prevRes] = await Promise.all([
         fetch(url, { headers: { "X-Admin-Key": key } }),
         fetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
+        hasPrevious
+          ? fetch(prevUrl, { headers: { "X-Admin-Key": key } })
+          : Promise.resolve(null),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -114,6 +135,12 @@ export default function Admin() {
       if (sourcesRes.ok) {
         const data: SourceStat[] = await sourcesRes.json();
         setSourceStats(data);
+      }
+      if (prevRes && prevRes.ok) {
+        const data: ClickStat[] = await prevRes.json();
+        setPreviousStats(data);
+      } else {
+        setPreviousStats([]);
       }
     } catch {
     } finally {
@@ -474,6 +501,37 @@ export default function Admin() {
                     const maxClicks = Math.max(...clickStats.map((s) => s.total), 1);
                     const pct = Math.round((stat.total / maxClicks) * 100);
                     const isCity = stat.planSpeed === "city";
+                    const prev = previousStats.find(
+                      (p) =>
+                        p.planSpeed === stat.planSpeed &&
+                        p.planPrice === stat.planPrice &&
+                        p.source === stat.source,
+                    );
+                    const prevTotal = prev?.total ?? 0;
+                    const showDelta = statsRange !== "all";
+                    let deltaLabel: string | null = null;
+                    let deltaTone: "up" | "down" | "flat" = "flat";
+                    if (showDelta) {
+                      const diff = stat.total - prevTotal;
+                      if (prevTotal === 0 && stat.total === 0) {
+                        deltaLabel = "0% vs período anterior";
+                        deltaTone = "flat";
+                      } else if (prevTotal === 0) {
+                        deltaLabel = `+${stat.total} vs período anterior`;
+                        deltaTone = "up";
+                      } else {
+                        const pctChange = Math.round((diff / prevTotal) * 100);
+                        const sign = pctChange > 0 ? "+" : "";
+                        deltaLabel = `${sign}${pctChange}% vs período anterior`;
+                        deltaTone = pctChange > 0 ? "up" : pctChange < 0 ? "down" : "flat";
+                      }
+                    }
+                    const deltaColor =
+                      deltaTone === "up"
+                        ? { color: "#00A030", background: "#E6F8EC" }
+                        : deltaTone === "down"
+                        ? { color: "#C42B2B", background: "#FBE7E7" }
+                        : { color: "#7A7F8C", background: "#EEF0F5" };
                     return (
                       <div
                         key={`${stat.planSpeed}-${stat.planPrice}-${stat.source}`}
@@ -490,6 +548,15 @@ export default function Admin() {
                         <p className="text-xs text-[#7A7F8C]">
                           {isCity ? "CTA da cidade" : `R$ ${stat.planPrice}/mês`}
                         </p>
+                        {deltaLabel && (
+                          <span
+                            className="self-start inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={deltaColor}
+                            title={`Período anterior: ${prevTotal} ${prevTotal === 1 ? "clique" : "cliques"}`}
+                          >
+                            {deltaTone === "up" ? "▲" : deltaTone === "down" ? "▼" : "■"} {deltaLabel}
+                          </span>
+                        )}
                         <span
                           className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#EEF0F5] text-[#2A2D38] truncate max-w-full"
                           title={`Origem: ${stat.source}`}

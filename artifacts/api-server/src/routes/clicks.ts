@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, planClicksTable } from "@workspace/db";
-import { and, desc, eq, gte, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -39,6 +39,7 @@ router.post("/clicks", async (req, res) => {
 router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
       ? req.query["source"]
       : undefined;
@@ -51,9 +52,19 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
       }
       sinceDate = parsed;
     }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
 
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
     if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
 
     const baseSelect = db
