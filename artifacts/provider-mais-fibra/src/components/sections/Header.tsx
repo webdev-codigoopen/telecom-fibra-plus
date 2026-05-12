@@ -149,7 +149,7 @@ export default function Header() {
                 handleNav({ label: "Aplicativo", href: "#app" });
               }}
               data-testid="header-app-link"
-              className="text-[16px] leading-[20px] transition-colors hover:text-[#95EB1D] font-normal text-[#ffffffe6] mr-[8px]"
+              className="text-[16px] leading-[20px] transition-colors hover:text-[#95EB1D] text-[#ffffffe6] mr-[8px] font-normal"
               style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
             >
               Aplicativo
