@@ -5,13 +5,64 @@ const logoModules = import.meta.glob<string>(
   { eager: true, import: "default", query: "?url" },
 );
 
-const ALL_LOGOS: { src: string; name: string }[] = Object.entries(logoModules)
-  .map(([path, src]) => {
-    const file = path.split("/").pop() ?? "";
-    const name = file.replace(/\.(png|svg)$/i, "").replace(/[-_]/g, " ");
-    return { src, name };
-  })
-  .sort((a, b) => a.name.localeCompare(b.name));
+type Logo = { src: string; name: string; family: string };
+
+function familyOf(file: string): string {
+  const base = file.replace(/\.(png|svg)$/i, "").toLowerCase();
+  // Strip trailing region tag (-br, -us, -lam, -ae)
+  const noRegion = base.replace(/-(br|us|lam|ae)$/i, "");
+  // Group families: take leading word stem, drop trailing numbers / variant words
+  const stem = noRegion
+    .replace(/[-_](\d+|plus|premiere|reality|news|cult|fun|pipoca|premium|touch|action|2|3)$/i, "")
+    .replace(/[-_](channel|tv|brasil|nova)$/i, "");
+  // Special collapses
+  if (/^espn/.test(stem)) return "espn";
+  if (/^tele[-_]?cine/.test(stem)) return "telecine";
+  if (/^universal/.test(stem)) return "universal";
+  if (/^sportv/.test(stem)) return "sportv";
+  if (/^band/.test(stem)) return "band";
+  if (/^record/.test(stem)) return "record";
+  if (/^globo|^gloob/.test(stem)) return "globo";
+  if (/^canal/.test(stem)) return "canal";
+  if (/^rede/.test(stem)) return "rede";
+  if (/^tv[-_]/.test(stem)) return "tv-net";
+  return stem;
+}
+
+const RAW_LOGOS: Logo[] = Object.entries(logoModules).map(([path, src]) => {
+  const file = path.split("/").pop() ?? "";
+  const name = file.replace(/\.(png|svg)$/i, "").replace(/[-_]/g, " ");
+  return { src, name, family: familyOf(file) };
+});
+
+// Interleave by family using round-robin so same-family logos are spread apart
+function interleaveByFamily(logos: Logo[]): Logo[] {
+  const groups = new Map<string, Logo[]>();
+  for (const l of logos) {
+    if (!groups.has(l.family)) groups.set(l.family, []);
+    groups.get(l.family)!.push(l);
+  }
+  // Sort families by descending size so big families get spread first
+  const buckets = Array.from(groups.values())
+    .map((g) => g.slice().sort((a, b) => a.name.localeCompare(b.name)))
+    .sort((a, b) => b.length - a.length);
+  const out: Logo[] = [];
+  let added = true;
+  let i = 0;
+  while (added) {
+    added = false;
+    for (const b of buckets) {
+      if (i < b.length) {
+        out.push(b[i]);
+        added = true;
+      }
+    }
+    i++;
+  }
+  return out;
+}
+
+const ALL_LOGOS: Logo[] = interleaveByFamily(RAW_LOGOS);
 
 type Props = {
   logoHeight?: number;
