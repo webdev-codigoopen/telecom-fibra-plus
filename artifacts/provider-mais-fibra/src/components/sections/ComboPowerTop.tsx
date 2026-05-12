@@ -1,4 +1,4 @@
-import bgIptv from "@assets/bg-sessao-iptv_1778611391057.png";
+import bgIptv from "@assets/image_1778611956972.png";
 
 const BG_COLOR = "#061CD4";
 
@@ -12,7 +12,7 @@ export default function ComboPowerTop() {
         minHeight: 695,
         backgroundColor: BG_COLOR,
         backgroundImage: `url(${bgIptv})`,
-        backgroundSize: "contain",
+        backgroundSize: "auto 100%",
         backgroundPosition: "center center",
         backgroundRepeat: "no-repeat",
       }}
