@@ -110,6 +110,7 @@ export default function Header() {
             className="h-8 md:h-[47px] w-auto"
             width={264}
             height={47}
+            style={{ transform: "translateY(4px)" }}
           />
         </button>
 
