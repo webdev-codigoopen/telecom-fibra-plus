@@ -64,14 +64,35 @@ router.get("/plans/:id/share", async (req, res) => {
       ? plan.imageUrl
       : `${origin}${plan.imageUrl.startsWith("/") ? "" : "/"}${plan.imageUrl}`;
     const shareUrl = `${origin}${req.originalUrl.split("?")[0]}`;
-    const title = `Plano ${plan.speed} MEGA — Provider Mais Fibra`;
-    const description = `Internet 100% Fibra ${plan.speed} MEGA por R$${plan.price}/mês.`;
+    const logoUrl = `${origin}${basePath}/images/logos/logo-header-264x47.svg`;
+    const bonusLine = plan.bonus ? ` + ${plan.bonus}` : "";
+    const title = `Plano ${plan.speed} MEGA por R$${plan.price}/mês — Provider Mais Fibra`;
+    const description = `Internet 100% Fibra ${plan.speed} MEGA${plan.wifi ? ` com Wi-Fi ${plan.wifi}` : ""} por apenas R$${plan.price}/mês${bonusLine}. Assine agora pelo WhatsApp.`;
+    const whatsappNumber = "5577998444757";
+    const whatsappText = encodeURIComponent(
+      `Olá! Quero assinar o plano de ${plan.speed} MEGA (R$${plan.price}/mês) da Provider Mais Fibra.`,
+    );
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
+    const inclusions = (plan.inclusions ?? []).slice(0, 6);
+    const inclusionsHtml = inclusions
+      .map(
+        (i) =>
+          `<li><span class="check">✓</span>${escapeHtml(i)}</li>`,
+      )
+      .join("");
+    const badgeHtml = plan.badge
+      ? `<span class="badge">${escapeHtml(plan.badge)}</span>`
+      : "";
+    const bonusHtml = plan.bonus
+      ? `<div class="bonus"><strong>Bônus:</strong> ${escapeHtml(plan.bonus)}</div>`
+      : "";
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(description)}" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="${escapeHtml(shareUrl)}" />
 <meta property="og:title" content="${escapeHtml(title)}" />
@@ -82,10 +103,54 @@ router.get("/plans/:id/share", async (req, res) => {
 <meta name="twitter:title" content="${escapeHtml(title)}" />
 <meta name="twitter:description" content="${escapeHtml(description)}" />
 <meta name="twitter:image" content="${escapeHtml(absoluteImage)}" />
-<meta http-equiv="refresh" content="0; url=${escapeHtml(homeUrl)}" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(135deg,#001A6E 0%,#0040FF 100%);color:#0D0D0D;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px}
+header{width:100%;max-width:520px;display:flex;justify-content:center;margin-bottom:20px}
+header img{height:40px;width:auto}
+.card{width:100%;max-width:520px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,16,80,.35)}
+.image-wrap{width:100%;background:#F4F4F4;aspect-ratio:1/1;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.image-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.content{padding:24px 22px 26px}
+.badge{display:inline-block;background:#FFD700;color:#0D0D0D;font-weight:700;font-size:12px;letter-spacing:.5px;text-transform:uppercase;padding:6px 12px;border-radius:999px;margin-bottom:12px}
+h1{font-size:34px;line-height:1.05;font-weight:800;color:#001050}
+h1 small{display:block;font-size:14px;font-weight:600;color:#666;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.wifi{margin-top:8px;font-size:14px;color:#666}
+.price{margin-top:18px;display:flex;align-items:baseline;gap:6px;color:#00C040}
+.price .currency{font-size:20px;font-weight:700}
+.price .value{font-size:48px;font-weight:800;line-height:1}
+.price .period{font-size:16px;color:#666;font-weight:600}
+.bonus{margin-top:14px;background:#D4F7E3;color:#00701F;padding:10px 14px;border-radius:10px;font-size:14px}
+ul{list-style:none;margin-top:18px;display:grid;gap:8px}
+li{display:flex;align-items:center;gap:10px;font-size:15px;color:#0D0D0D}
+.check{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#00C040;color:#fff;font-size:12px;font-weight:700;flex-shrink:0}
+.cta{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 18px;border-radius:12px;font-weight:700;font-size:16px;text-decoration:none;transition:transform .1s ease}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:#00C040;color:#fff}
+.btn-secondary{background:#F4F4F4;color:#001050}
+footer{margin-top:18px;color:rgba(255,255,255,.85);font-size:12px;text-align:center}
+@media (min-width:560px){h1{font-size:38px}.price .value{font-size:54px}}
+</style>
 </head>
 <body>
-<p><a href="${escapeHtml(homeUrl)}">${escapeHtml(title)}</a></p>
+<header><img src="${escapeHtml(logoUrl)}" alt="Provider Mais Fibra" /></header>
+<main class="card">
+<div class="image-wrap"><img src="${escapeHtml(absoluteImage)}" alt="Plano ${escapeHtml(plan.speed)} MEGA" /></div>
+<div class="content">
+${badgeHtml}
+<h1><small>Internet 100% Fibra</small>${escapeHtml(plan.speed)} MEGA</h1>
+${plan.wifi ? `<div class="wifi">Wi-Fi ${escapeHtml(plan.wifi)}</div>` : ""}
+<div class="price"><span class="currency">R$</span><span class="value">${escapeHtml(plan.price)}</span><span class="period">/mês</span></div>
+${bonusHtml}
+${inclusionsHtml ? `<ul>${inclusionsHtml}</ul>` : ""}
+<div class="cta">
+<a class="btn btn-primary" href="${escapeHtml(whatsappUrl)}">Assinar pelo WhatsApp</a>
+<a class="btn btn-secondary" href="${escapeHtml(homeUrl)}">Ver todos os planos</a>
+</div>
+</div>
+</main>
+<footer>Provider Mais Fibra • Internet 100% Fibra Óptica</footer>
 </body>
 </html>`;
     res.setHeader("Content-Type", "text/html; charset=utf-8");
