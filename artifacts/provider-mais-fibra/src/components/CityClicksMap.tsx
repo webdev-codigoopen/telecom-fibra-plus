@@ -327,6 +327,67 @@ export default function CityClicksMap(props: Props) {
     return since ?? until ?? "periodo";
   }, [isAdminMode, range, customFrom, customTo]);
 
+  const allCityNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of effectiveEntries) if (e.name) set.add(e.name);
+    if (prevEntries) for (const e of prevEntries) if (e.name) set.add(e.name);
+    return Array.from(set);
+  }, [effectiveEntries, prevEntries]);
+
+  const canExportComparison =
+    isAdminMode &&
+    hasComparison &&
+    exportRangeLabel != null &&
+    allCityNames.some(
+      (name) => (clickMap.get(name) ?? 0) > 0 || (prevClickMap.get(name) ?? 0) > 0,
+    );
+
+  function handleExportComparisonCsv() {
+    if (!canExportComparison) return;
+    const escape = (val: string) => {
+      if (/[",\n;]/.test(val)) return `"${val.replace(/"/g, '""')}"`;
+      return val;
+    };
+    const header = ["city", "current_total", "previous_total", "change_abs", "change_pct"];
+    const rows = allCityNames
+      .map((name) => {
+        const current = clickMap.get(name) ?? 0;
+        const prev = hasComparison ? prevClickMap.get(name) ?? 0 : null;
+        return { name, current, prev };
+      })
+      .filter((r) => r.current > 0 || (r.prev ?? 0) > 0)
+      .sort((a, b) => {
+        if (b.current !== a.current) return b.current - a.current;
+        return a.name.localeCompare(b.name, "pt-BR");
+      })
+      .map((r) => {
+        let prevStr = "";
+        let absStr = "";
+        let pctStr = "";
+        if (r.prev !== null) {
+          prevStr = String(r.prev);
+          const abs = r.current - r.prev;
+          absStr = String(abs);
+          if (r.prev === 0) {
+            pctStr = r.current === 0 ? "0.0" : "";
+          } else {
+            pctStr = ((abs / r.prev) * 100).toFixed(1);
+          }
+        }
+        return [escape(r.name), String(r.current), prevStr, absStr, pctStr].join(",");
+      });
+    const csv = "\uFEFF" + [header.join(","), ...rows].join("\n") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `comparativo-cidades_${exportRangeLabel}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   const hoveredCity = hovered
     ? CITY_COORDS.find((c) => c.name === hovered) ?? null
     : null;
@@ -442,6 +503,26 @@ export default function CityClicksMap(props: Props) {
             </label>
           </div>
         )}
+        <button
+          type="button"
+          onClick={handleExportComparisonCsv}
+          disabled={!canExportComparison}
+          data-testid="export-city-comparison-csv"
+          className={`text-[11px] font-semibold rounded-md px-2.5 py-1 border transition-colors ${
+            canExportComparison
+              ? "border-[#0040FF] text-[#0040FF] hover:bg-[#0040FF] hover:text-white"
+              : "border-[#E0E3EB] text-[#C5C9D3] cursor-not-allowed"
+          }`}
+          title={
+            canExportComparison
+              ? "Baixar comparativo de cidades (atual vs. anterior) em CSV"
+              : !hasComparison
+                ? "Selecione um período com janela anterior comparável (ex.: 7, 30 ou 90 dias)"
+                : "Sem dados para exportar no período selecionado"
+          }
+        >
+          Exportar CSV
+        </button>
         <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Cor das bolhas">
           {(["volume", "growth"] as ColorMode[]).map((mode) => {
             const active = effectiveColorMode === mode;
