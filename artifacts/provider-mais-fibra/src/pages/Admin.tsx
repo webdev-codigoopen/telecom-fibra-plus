@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
 import PlanCard from "../components/PlanCard";
+import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap, { type CityClickEntry } from "../components/CityClicksMap";
 import {
@@ -108,6 +109,7 @@ export default function Admin() {
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -872,19 +874,59 @@ export default function Admin() {
                 {previewOpen && (
                   <div
                     id="admin-home-preview"
-                    className="px-5 py-6 border-t border-[#E0E3EB]"
-                    style={{ background: "#0A1F8C" }}
+                    className="border-t border-[#E0E3EB]"
                   >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {plans.map((plan, i) => (
-                        <PlanCard
-                          key={plan.id}
-                          plan={apiPlanToPlan(plan)}
-                          index={i}
-                          idSuffix={`-preview-${plan.id}`}
+                    <div className="px-5 pt-4 pb-3 flex items-center justify-center bg-white border-b border-[#E0E3EB]">
+                      <div
+                        className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5"
+                        role="group"
+                        aria-label="Modo de pré-visualização"
+                      >
+                        {([
+                          { id: "desktop", label: "Desktop" },
+                          { id: "mobile", label: "Mobile" },
+                        ] as const).map((opt) => {
+                          const active = previewMode === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setPreviewMode(opt.id)}
+                              aria-pressed={active}
+                              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                                active
+                                  ? "bg-[#0040FF] text-white"
+                                  : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div
+                      className="px-5 py-6"
+                      style={{ background: previewMode === "desktop" ? "#0A1F8C" : "#F5F7FA" }}
+                    >
+                      {previewMode === "desktop" ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          {plans.map((plan, i) => (
+                            <PlanCard
+                              key={plan.id}
+                              plan={apiPlanToPlan(plan)}
+                              index={i}
+                              idSuffix={`-preview-${plan.id}`}
+                              source="admin-preview"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <MobilePlansPreview
+                          plans={plans.map((p) => ({ id: p.id, plan: apiPlanToPlan(p) }))}
                           source="admin-preview"
                         />
-                      ))}
+                      )}
                     </div>
                   </div>
                 )}
