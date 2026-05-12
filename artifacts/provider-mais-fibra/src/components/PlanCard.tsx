@@ -115,7 +115,10 @@ export default function PlanCard({
       }}
     >
       {/* Top block: header + speed + icons */}
-      <div className="flex flex-col items-center" style={{ gap: 15 }}>
+      <div
+        className="flex flex-col items-center"
+        style={{ gap: 15, paddingTop: hasStreaming ? 0 : 60 }}
+      >
         {/* INTERNET 100% FIBRA */}
         <div
           className="text-center font-normal"
