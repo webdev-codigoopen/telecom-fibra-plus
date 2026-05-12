@@ -21,6 +21,8 @@ export type City = {
   microregion: string;
   state: string;
   stateCode: string;
+  phones: string[];
+  address: string;
   seo: CitySEO;
 };
 
@@ -28,6 +30,11 @@ const DEFAULT_WHATSAPP = WHATSAPP_NUMBER;
 
 function maps(query: string): string {
   return `https://maps.google.com/?q=${encodeURIComponent(`${query},BA`)}`;
+}
+
+export function phoneToTel(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 10 || digits.length === 11 ? `+55${digits}` : `+${digits}`;
 }
 
 const COMMON_HIGHLIGHTS = [
@@ -51,6 +58,14 @@ export const cities: City[] = [
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: [
+      "(77) 3614-0950",
+      "(77) 99844-4757",
+      "(77) 99176-0033",
+      "(77) 3612-8647",
+    ],
+    address:
+      "Edifício São Matheus, térreo nº 49 — Rua José Rocha, Centro, Barreiras/BA, 47800-184",
     seo: {
       title: "Internet Fibra Óptica em Barreiras BA — Planos a partir de 100M",
       description:
@@ -88,6 +103,8 @@ export const cities: City[] = [
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99101-0334", "(77) 99851-2002"],
+    address: "Rua Pará, 471 — Loja 1, Centro, Luís Eduardo Magalhães/BA",
     seo: {
       title: "Internet Fibra em Luís Eduardo Magalhães BA — 100M a 900M",
       description:
@@ -123,6 +140,9 @@ export const cities: City[] = [
     microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99977-9868", "(77) 99128-0488"],
+    address:
+      "Rua Engenheiro Alfredo Halfeld, 13, Centro, Barra/BA, 47100-000",
     seo: {
       title: "Internet Fibra Óptica em Barra BA — Planos 100M a 600M",
       description:
@@ -155,6 +175,8 @@ export const cities: City[] = [
     microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99827-0368", "(77) 99163-8631"],
+    address: "Avenida Buriti, S/N, Centro, Buritirama/BA, 47120-000",
     seo: {
       title: "Internet Fibra Óptica em Buritirama BA — Planos 100M e 300M",
       description:
@@ -186,6 +208,8 @@ export const cities: City[] = [
     microregion: "Santa Maria da Vitória",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99844-4462", "(77) 98883-4135"],
+    address: "Rua da Chácara, S/N, Centro, Correntina/BA, 47650-000",
     seo: {
       title: "Internet Fibra Óptica em Correntina BA — Planos 100M, 300M e 600M",
       description:
@@ -208,16 +232,19 @@ export const cities: City[] = [
   {
     slug: "javi",
     name: "Javi",
-    description: "Fibra óptica chegando ao distrito de Javi com qualidade urbana.",
+    description: "Fibra óptica para Javi, com atendimento da loja em Múquem de São Francisco.",
     highlight: false,
     badge: null,
     planos: "100M • 300M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Javi"),
+    maps: maps("Javi Muquem de Sao Francisco"),
     region: "Oeste da Bahia",
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99187-0332", "(77) 99976-2398"],
+    address:
+      "Rua José Pessoa Lima, nº 53, Múquem de São Francisco/BA (atende Javi e Múquem)",
     seo: {
       title: "Internet Fibra Óptica em Javi BA — Planos 100M e 300M",
       description:
@@ -249,6 +276,9 @@ export const cities: City[] = [
     microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99811-4991"],
+    address:
+      "Avenida Lidio Francisco de Souza, S/N, Centro, Mansidão/BA, 47160-000",
     seo: {
       title: "Internet Fibra Óptica em Mansidão BA — Planos 100M e 300M",
       description:
@@ -269,30 +299,32 @@ export const cities: City[] = [
   },
   {
     slug: "muquem",
-    name: "Muquém",
-    description: "Fibra óptica para a comunidade de Muquém e região.",
+    name: "Múquem de São Francisco",
+    description: "Fibra óptica para Múquem de São Francisco e região.",
     highlight: false,
     badge: null,
     planos: "100M • 300M",
     whatsapp: DEFAULT_WHATSAPP,
-    maps: maps("Muquem"),
+    maps: maps("Muquem de Sao Francisco"),
     region: "Médio São Francisco",
     microregion: "Bom Jesus da Lapa",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99187-0332", "(77) 99976-2398"],
+    address: "Rua José Pessoa Lima, nº 53, Múquem de São Francisco/BA",
     seo: {
-      title: "Internet Fibra Óptica em Muquém BA — Planos 100M e 300M",
+      title: "Internet Fibra Óptica em Múquem de São Francisco BA — 100M e 300M",
       description:
-        "Internet 100% fibra óptica em Muquém, Bahia. Planos residenciais a partir de 100 Mega com Wi-Fi moderno, sem franquia e suporte humano pelo WhatsApp.",
+        "Internet 100% fibra óptica em Múquem de São Francisco, Bahia. Planos residenciais a partir de 100 Mega com Wi-Fi moderno, sem franquia e suporte humano pelo WhatsApp.",
       intro:
-        "Em Muquém, a Provider Mais Fibra entrega internet fibra óptica de qualidade urbana para residências e pequenos comércios. Planos de 100M e 300M, com atendimento próximo e visita técnica rápida.",
+        "Em Múquem de São Francisco, a Provider Mais Fibra entrega internet fibra óptica de qualidade urbana para residências e pequenos comércios. Planos de 100M e 300M, com atendimento próximo e visita técnica rápida.",
       keywords: [
-        "internet fibra Muquém",
-        "internet Muquém BA",
-        "provedor de internet Muquém",
+        "internet fibra Múquem de São Francisco",
+        "internet Múquem BA",
+        "provedor de internet Múquem de São Francisco",
       ],
       highlights: [
-        "Cobertura ativa em Muquém",
+        "Cobertura ativa em Múquem de São Francisco",
         "Planos de 100M e 300M",
         ...COMMON_HIGHLIGHTS,
       ],
@@ -311,6 +343,8 @@ export const cities: City[] = [
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99204-0018"],
+    address: "Avenida 02, Vila Rosário, Posto Rosário/BA",
     seo: {
       title: "Internet Fibra Óptica em Posto Rosário BA — 100M e 300M",
       description:
@@ -342,6 +376,8 @@ export const cities: City[] = [
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99148-0023"],
+    address: "Av. Brasil, S/N, Centro, Roda Velha/BA, 47827-970",
     seo: {
       title: "Internet Fibra Óptica em Roda Velha BA — 100M, 300M e 600M",
       description:
@@ -364,8 +400,8 @@ export const cities: City[] = [
   },
   {
     slug: "santa-rita",
-    name: "Santa Rita",
-    description: "Fibra óptica para residências e comércios de Santa Rita.",
+    name: "Santa Rita de Cássia",
+    description: "Fibra óptica para residências e comércios de Santa Rita de Cássia.",
     highlight: false,
     badge: null,
     planos: "100M • 300M • 600M",
@@ -375,19 +411,26 @@ export const cities: City[] = [
     microregion: "Barra",
     state: "Bahia",
     stateCode: "BA",
+    phones: [
+      "(77) 99823-6720",
+      "(77) 99864-9170",
+      "(77) 99870-0787",
+    ],
+    address:
+      "Rua Santos Dumont, 277, Centro, Santa Rita de Cássia/BA, 47150-128",
     seo: {
-      title: "Internet Fibra Óptica em Santa Rita BA — Planos 100M a 600M",
+      title: "Internet Fibra Óptica em Santa Rita de Cássia BA — Planos 100M a 600M",
       description:
-        "Internet fibra em Santa Rita, Bahia. Planos residenciais e comerciais de 100, 300 e 600 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
+        "Internet fibra em Santa Rita de Cássia, Bahia. Planos residenciais e comerciais de 100, 300 e 600 Mega com Wi-Fi moderno e suporte humano pelo WhatsApp.",
       intro:
-        "Em Santa Rita, a Provider Mais Fibra entrega internet 100% fibra óptica para famílias, comércios e pequenas empresas, com planos de 100M, 300M e 600M, instalação rápida e atendimento próximo.",
+        "Em Santa Rita de Cássia, a Provider Mais Fibra entrega internet 100% fibra óptica para famílias, comércios e pequenas empresas, com planos de 100M, 300M e 600M, instalação rápida e atendimento próximo.",
       keywords: [
-        "internet fibra Santa Rita",
-        "internet Santa Rita BA",
-        "provedor de internet Santa Rita",
+        "internet fibra Santa Rita de Cássia",
+        "internet Santa Rita de Cássia BA",
+        "provedor de internet Santa Rita de Cássia",
       ],
       highlights: [
-        "Cobertura ativa em Santa Rita",
+        "Cobertura ativa em Santa Rita de Cássia",
         "Planos de 100M, 300M e 600M",
         ...COMMON_HIGHLIGHTS,
       ],
@@ -406,6 +449,9 @@ export const cities: City[] = [
     microregion: "Barreiras",
     state: "Bahia",
     stateCode: "BA",
+    phones: ["(77) 99925-3425"],
+    address:
+      "Avenida Domingos Pereira dos Santos, 2, Centro, Wanderley/BA, 47940-000",
     seo: {
       title: "Internet Fibra Óptica em Wanderley BA — Planos 100M e 300M",
       description:

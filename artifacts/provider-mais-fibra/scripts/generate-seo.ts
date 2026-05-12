@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cities, type City } from "../src/lib/cities";
+import { cities, phoneToTel, type City } from "../src/lib/cities";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, "..", "dist", "public");
@@ -256,7 +256,7 @@ function cityRoute(c: City): RouteSpec {
         "@id": `${cityUrl}#business`,
         name: `Provider Mais Fibra — ${c.name}`,
         url: cityUrl,
-        telephone: "+5577998444757",
+        telephone: c.phones.length > 0 ? c.phones.map(phoneToTel) : "+5577998444757",
         priceRange: "$$",
         image: `${SITE_URL}/opengraph.jpg`,
         areaServed: {
@@ -291,7 +291,11 @@ function cityRoute(c: City): RouteSpec {
       <h2>Por que escolher a Provider Mais Fibra em ${escapeHtml(c.name)}</h2>
       <ul>${highlightsHtml}</ul>
       <h2>Atendimento em ${escapeHtml(c.name)}</h2>
-      <p>Fale pelo WhatsApp <a href="https://wa.me/${c.whatsapp}">(77) 99844-4757</a> para assinar um plano ou tirar dúvidas sobre cobertura.</p>
+      <p>Telefones: ${c.phones
+        .map((p) => `<a href="tel:${phoneToTel(p)}">${escapeHtml(p)}</a>`)
+        .join(" • ")}</p>
+      <p>Endereço: ${escapeHtml(c.address)}</p>
+      <p>Fale também pelo WhatsApp <a href="https://wa.me/${c.whatsapp}">(77) 99844-4757</a>.</p>
       <p><a href="/onde-estamos">Ver todas as cidades atendidas</a></p>
     `,
   };

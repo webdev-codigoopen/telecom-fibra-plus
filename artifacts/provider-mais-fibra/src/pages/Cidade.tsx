@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { Link, useParams } from "wouter";
-import { MapPin, MessageCircle, Phone, ArrowLeft, Clock, Wifi } from "lucide-react";
+import { MapPin, MessageCircle, Phone, ArrowLeft, Clock, Wifi, MapPinned } from "lucide-react";
 import SEO from "@/components/SEO";
 import { PHONE_E164, SITE_URL } from "@/lib/seoConfig";
+import { phoneToTel } from "@/lib/cities";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
@@ -48,7 +49,7 @@ export default function Cidade() {
     "@id": `${cityUrl}#business`,
     name: `Provider Mais Fibra — ${city.name}`,
     url: cityUrl,
-    telephone: PHONE_E164,
+    telephone: city.phones.length > 0 ? city.phones.map(phoneToTel) : PHONE_E164,
     priceRange: "$$",
     image: `${SITE_URL}/opengraph.jpg`,
     areaServed: {
@@ -232,6 +233,47 @@ export default function Cidade() {
               <p className="text-[#4A4F61] text-sm">
                 Fale com nossa equipe local pelos canais abaixo
               </p>
+            </motion.div>
+
+            {/* Local store: phones + address */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="mb-8 p-6 sm:p-8 rounded-2xl bg-white"
+              style={{ border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+              data-testid="local-store-block"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-xs font-bold text-[#B0B5C3] uppercase tracking-wide mb-3">
+                    Telefones em {city.name}
+                  </p>
+                  <ul className="flex flex-col gap-2">
+                    {city.phones.map((p, i) => (
+                      <li key={p}>
+                        <a
+                          href={`tel:${phoneToTel(p)}`}
+                          data-testid={`city-phone-${city.slug}-${i}`}
+                          className="inline-flex items-center gap-2 text-[#122AD5] font-semibold text-base hover:underline"
+                        >
+                          <Phone size={16} />
+                          {p}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-[#B0B5C3] uppercase tracking-wide mb-3">
+                    Endereço
+                  </p>
+                  <p className="text-sm text-[#4A4F61] leading-relaxed flex items-start gap-2">
+                    <MapPinned size={18} className="text-[#122AD5] flex-shrink-0 mt-0.5" />
+                    <span>{city.address}</span>
+                  </p>
+                </div>
+              </div>
             </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
