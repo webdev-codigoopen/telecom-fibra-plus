@@ -73,6 +73,55 @@ router.post("/streaming-brands", requireAdminKey, async (req, res) => {
   }
 });
 
+const reorderBodySchema = z.object({
+  order: z.array(z.number().int().positive()).min(1),
+});
+
+router.patch("/streaming-brands/reorder", requireAdminKey, async (req, res) => {
+  const parsed = reorderBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid reorder data", details: parsed.error.flatten() });
+    return;
+  }
+  const ids = parsed.data.order;
+  const unique = new Set(ids);
+  if (unique.size !== ids.length) {
+    res.status(400).json({ error: "Duplicate brand IDs in order" });
+    return;
+  }
+  try {
+    const existing = await db
+      .select({ id: streamingBrandsTable.id })
+      .from(streamingBrandsTable);
+    const existingIds = new Set(existing.map((row) => row.id));
+    const requestedIds = new Set(ids);
+    if (
+      existingIds.size !== requestedIds.size ||
+      [...existingIds].some((id) => !requestedIds.has(id))
+    ) {
+      res.status(400).json({
+        error: "Order must include every existing brand ID exactly once.",
+      });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < ids.length; i++) {
+        await tx
+          .update(streamingBrandsTable)
+          .set({ sortOrder: i })
+          .where(eq(streamingBrandsTable.id, ids[i]!));
+      }
+    });
+    const rows = await db
+      .select()
+      .from(streamingBrandsTable)
+      .orderBy(streamingBrandsTable.sortOrder, streamingBrandsTable.id);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to reorder streaming brands" });
+  }
+});
+
 router.put("/streaming-brands/:id", requireAdminKey, async (req, res) => {
   const id = Number(req.params["id"]);
   if (!Number.isInteger(id) || id <= 0) {

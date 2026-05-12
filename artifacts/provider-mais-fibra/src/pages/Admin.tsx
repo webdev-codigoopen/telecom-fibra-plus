@@ -2282,6 +2282,52 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [confirmDel, setConfirmDel] = useState<number | null>(null);
+  const [orderedBrands, setOrderedBrands] = useState<StreamingBrand[]>(brands);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOverId, setDragOverId] = useState<number | null>(null);
+  const [reordering, setReordering] = useState(false);
+
+  useEffect(() => {
+    setOrderedBrands(brands);
+  }, [brands]);
+
+  async function persistOrder(next: StreamingBrand[]) {
+    const previous = orderedBrands;
+    setOrderedBrands(next);
+    setReordering(true);
+    setErr(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/streaming-brands/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({ order: next.map((b) => b.id) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await onChange();
+    } catch (e) {
+      setOrderedBrands(previous);
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  function handleDrop(targetId: number) {
+    const sourceId = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (sourceId == null || sourceId === targetId) return;
+    const sourceIdx = orderedBrands.findIndex((b) => b.id === sourceId);
+    const targetIdx = orderedBrands.findIndex((b) => b.id === targetId);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+    const next = [...orderedBrands];
+    const [moved] = next.splice(sourceIdx, 1);
+    next.splice(targetIdx, 0, moved!);
+    void persistOrder(next);
+  }
 
   function startCreate() {
     setCreating(true);
@@ -2399,9 +2445,12 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     <div className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-5 mb-6">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <div>
-          <h2 className="font-bold text-[#0D0D0D] text-base">Marcas de streaming</h2>
+          <h2 className="font-bold text-[#0D0D0D] text-base">
+            Marcas de streaming
+            {reordering && <span className="ml-2 text-[#0040FF] font-medium text-xs">Salvando ordem...</span>}
+          </h2>
           <p className="text-xs text-[#7A7F8C] mt-0.5">
-            Adicione, renomeie ou remova marcas (ex.: Watch, Power Top, Disney+). O nome aparece como item incluso ao editar um plano e o logo aparece no card.
+            Adicione, renomeie, remova ou arraste para reordenar marcas (ex.: Watch, Power Top, Disney+). O nome aparece como item incluso ao editar um plano e o logo aparece no card.
           </p>
         </div>
         {!isEditingForm && (
@@ -2514,17 +2563,53 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
         </div>
       )}
 
-      {brands.length === 0 ? (
+      {orderedBrands.length === 0 ? (
         <div className="text-center text-sm text-[#7A7F8C] py-6">
           Nenhuma marca cadastrada ainda.
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {brands.map((b) => (
+          {orderedBrands.map((b) => (
             <div
               key={b.id}
-              className="flex items-center gap-3 border border-[#E0E3EB] rounded-lg px-3 py-3"
+              draggable={!isEditingForm && !reordering}
+              onDragStart={(e) => {
+                setDragId(b.id);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(b.id));
+              }}
+              onDragOver={(e) => {
+                if (dragId == null) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverId !== b.id) setDragOverId(b.id);
+              }}
+              onDragLeave={() => {
+                if (dragOverId === b.id) setDragOverId(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDrop(b.id);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              className={`flex items-center gap-3 border border-[#E0E3EB] rounded-lg px-3 py-3 transition-all ${
+                dragId === b.id ? "opacity-40" : ""
+              } ${dragOverId === b.id && dragId !== b.id ? "border-[#0040FF] ring-2 ring-[#0040FF]/20" : ""}`}
+              data-testid={`streaming-brand-row-${b.id}`}
             >
+              <div
+                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-[#7A7F8C] hover:text-[#0040FF] transition-colors"
+                title="Arraste para reordenar"
+                aria-label="Arraste para reordenar"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                  <circle cx="9" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/>
+                  <circle cx="15" cy="6" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="18" r="1.5"/>
+                </svg>
+              </div>
               <div className="w-20 h-12 rounded bg-[#0040FF] flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {b.logoUrl ? (
                   <img src={b.logoUrl} alt={b.name} className="max-h-10 max-w-[72px] object-contain" />
