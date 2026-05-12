@@ -1,96 +1,208 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus } from "lucide-react";
+import { motion } from "framer-motion";
 
-const faqs = [
-  { q: "Como é feita a instalação?", a: "Nossa equipe técnica realiza a instalação no seu imóvel com agendamento prévio, garantindo a melhor configuração para sua conexão. O processo é rápido e o técnico orienta sobre o uso do equipamento." },
-  { q: "Minha internet está lenta, o que posso fazer?", a: "Reinicie o roteador desconectando da tomada por 30 segundos e reconectando. Teste a velocidade pelo nosso app. Se o problema persistir, entre em contato com nosso suporte via WhatsApp." },
-  { q: "Quanto tempo leva para instalar minha internet?", a: "A instalação é realizada em até 3 dias úteis após a contratação, de acordo com a disponibilidade da nossa equipe técnica na sua região." },
-  { q: "Como emitir a 2ª via do boleto?", a: "Você pode emitir a 2ª via do boleto pelo app Provider Mais Fibra ou entrando em contato com nossa equipe via WhatsApp. É rápido e fácil!" },
-  { q: "O que está incluso em todos os planos?", a: "Todos os planos incluem instalação grátis, roteador Wi-Fi e 100 canais de IPTV. Os planos 600 e 900 Mega incluem roteador Wi-Fi 6 e acesso ao Watch." },
-  { q: "Como cancelar minha assinatura?", a: "Entre em contato com nossa equipe pelo WhatsApp (77) 99844-4757 para solicitar o cancelamento. O processo é simples e nosso time estará disponível para ajudá-lo." },
-  { q: "O que é o serviço de IPTV?", a: "IPTV é televisão por internet. Com ele você assiste mais de 100 canais direto no seu app, Smart TV ou celular, incluindo canais abertos, notícias, esportes, filmes e séries." },
-  { q: "A Provider atende na minha cidade?", a: "Atendemos 11 cidades do Oeste da Bahia: Barra, Barreiras, Buritirama, Correntina, Luís Eduardo Magalhães, Mansidão, Muquém, Posto Rosário, Roda Velha, Santa Rita e Wanderley." },
-  { q: "Como funciona o suporte 24h?", a: "Nosso suporte está disponível 24 horas por dia via WhatsApp para resolver qualquer problema rapidamente. Para situações técnicas que exigem visita, agendamos a visita o mais rápido possível." },
-  { q: "Qual a melhor velocidade para home office e streaming?", a: "Para home office e streaming simultâneo de qualidade, recomendamos o plano 600 MEGA com Wi-Fi 6. Para múltiplos usuários e uso intenso, o plano 900 MEGA garante máxima performance para toda a família." },
+const BASE = import.meta.env.BASE_URL;
+const CHEVRON = `${BASE}images/icons/chevron-down.svg`;
+
+const FONT_NUNITO = "'Nunito', system-ui, sans-serif";
+const FONT_MONTSERRAT = "'Montserrat', system-ui, sans-serif";
+
+const COLOR_HEADING = "#003F99";
+const COLOR_SUBTITLE = "#4A4F61";
+const COLOR_BORDER = "#E8EAEF";
+const COLOR_ITEM_TEXT = "#0D0E14";
+
+type FaqItem = {
+  q: string;
+  a: string;
+};
+
+const leftItems: FaqItem[] = [
+  {
+    q: "Como é feita a instalação?",
+    a: "A instalação é feita por nossa equipe técnica especializada, sem custo adicional nos planos selecionados. Agendamos no melhor horário para você.",
+  },
+  {
+    q: "Quanto tempo leva para instalar minha internet?",
+    a: "Após a confirmação do plano, a instalação é realizada em até 48 horas úteis na maioria das cidades atendidas.",
+  },
+  {
+    q: "O que está incluso em todos os planos?",
+    a: "Todos os planos incluem instalação grátis, roteador Wi-Fi e mais de 100 canais de TV via aplicativo.",
+  },
+  {
+    q: "O que é o serviço de IPTV?",
+    a: "É a transmissão de canais de TV pela internet, permitindo assistir em smart TVs, celulares e tablets com qualidade HD.",
+  },
+  {
+    q: "Como funciona o suporte 24h?",
+    a: "Nossa equipe está disponível 24 horas por dia, 7 dias por semana, via WhatsApp, telefone e e-mail para qualquer dúvida ou problema.",
+  },
 ];
 
-export default function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+const rightItems: FaqItem[] = [
+  {
+    q: "Minha internet está lenta, o que posso fazer?",
+    a: "Reinicie o roteador, verifique se há aparelhos consumindo banda e teste a velocidade. Se persistir, fale com nosso suporte 24h.",
+  },
+  {
+    q: "Como emitir a 2ª via do boleto?",
+    a: "Acesse a área do cliente em nosso site ou aplicativo, ou solicite via WhatsApp para receber a segunda via instantaneamente.",
+  },
+  {
+    q: "Como cancelar minha assinatura?",
+    a: "Entre em contato com nosso atendimento. O cancelamento é gratuito e processado conforme as condições do contrato.",
+  },
+  {
+    q: "A Provider atende na minha cidade?",
+    a: "Atendemos 12 cidades do Oeste da Bahia, incluindo Barreiras, Luís Eduardo Magalhães, Barra, Buritirama, Mansidão e outras.",
+  },
+  {
+    q: "Qual a melhor velocidade para home office e streaming?",
+    a: "Para home office e streaming em alta qualidade, recomendamos os planos de 400 Mega ou superiores, garantindo estabilidade.",
+  },
+];
 
+function FaqRow({ item }: { item: FaqItem }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="bg-white"
+      style={{
+        border: `1px solid ${COLOR_BORDER}`,
+        borderRadius: 12,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between cursor-pointer"
+        style={{
+          paddingLeft: 24,
+          paddingRight: 24,
+          paddingTop: 16,
+          paddingBottom: 16,
+          background: "transparent",
+          border: 0,
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONT_NUNITO,
+            fontWeight: 700,
+            fontSize: 14,
+            lineHeight: "20px",
+            color: COLOR_ITEM_TEXT,
+            opacity: 0.61,
+          }}
+        >
+          {item.q}
+        </span>
+        <img
+          src={CHEVRON}
+          alt=""
+          aria-hidden="true"
+          width={18}
+          height={18}
+          style={{
+            display: "block",
+            width: 18,
+            height: 18,
+            flexShrink: 0,
+            marginLeft: 16,
+            transition: "transform 0.25s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {open && (
+        <div
+          style={{
+            paddingLeft: 24,
+            paddingRight: 24,
+            paddingBottom: 16,
+            fontFamily: FONT_NUNITO,
+            fontWeight: 400,
+            fontSize: 14,
+            lineHeight: "20px",
+            color: COLOR_ITEM_TEXT,
+            opacity: 0.75,
+          }}
+        >
+          {item.a}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function FAQ() {
   return (
     <section
       id="faq"
       data-testid="faq-section"
-      className="py-20 sm:py-24"
-      style={{ background: "#F4F4F4" }}
+      style={{
+        background: "#FBFBFB",
+        paddingTop: 40,
+        paddingBottom: 100,
+      }}
     >
-      <div className="max-w-[1100px] mx-auto px-4 sm:px-8 lg:px-12">
+      <div
+        className="mx-auto flex flex-col w-full px-6 lg:px-0"
+        style={{ maxWidth: 1022, rowGap: 30 }}
+      >
+        {/* Heading group: gap 12 */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-12"
+          className="flex flex-col items-center text-center"
+          style={{ rowGap: 12 }}
         >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#0D0D0D] mb-3" style={{ letterSpacing: "-0.025em" }}>
-            Tire suas <span className="text-[#0040FF] font-black">Dúvidas</span>
+          <h2
+            className="m-0"
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: "40px",
+              color: COLOR_HEADING,
+            }}
+          >
+            Tire suas <span style={{ fontWeight: 800 }}>Dúvidas</span>
           </h2>
-          <p className="text-[#666666]">As perguntas mais frequentes dos nossos clientes</p>
+          <p
+            className="m-0"
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: "24px",
+              color: COLOR_SUBTITLE,
+            }}
+          >
+            As perguntas mais frequentes dos nossos clientes
+          </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
-          {faqs.map((faq, i) => {
-            const open = openIndex === i;
-            return (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.04, duration: 0.4 }}
-                className="rounded-2xl overflow-hidden bg-white transition-all duration-200 self-start"
-                style={{
-                  border: open ? "2px solid #0040FF" : "1px solid rgba(0,0,0,0.06)",
-                  boxShadow: open ? "0 8px 24px rgba(0,64,255,0.12)" : "0 2px 8px rgba(0,0,0,0.04)",
-                }}
-              >
-                <button
-                  className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left"
-                  onClick={() => setOpenIndex(open ? null : i)}
-                  data-testid={`faq-item-${i}`}
-                >
-                  <span
-                    className="text-sm font-bold transition-colors"
-                    style={{ color: open ? "#0040FF" : "#0D0D0D" }}
-                  >
-                    {faq.q}
-                  </span>
-                  <span
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
-                    style={{ background: open ? "#0040FF" : "#F4F4F4", color: open ? "white" : "#0040FF" }}
-                  >
-                    {open ? <Minus size={14} /> : <Plus size={14} />}
-                  </span>
-                </button>
-                <AnimatePresence>
-                  {open && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: "easeInOut" }}
-                      style={{ overflow: "hidden" }}
-                    >
-                      <div className="px-5 pb-5 text-sm leading-relaxed text-[#666666]">
-                        {faq.a}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
+        {/* Two columns of FAQ items */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 w-full"
+          style={{ columnGap: 22, rowGap: 8 }}
+        >
+          <div className="flex flex-col" style={{ rowGap: 8 }}>
+            {leftItems.map((item) => (
+              <FaqRow key={item.q} item={item} />
+            ))}
+          </div>
+          <div className="flex flex-col" style={{ rowGap: 8 }}>
+            {rightItems.map((item) => (
+              <FaqRow key={item.q} item={item} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
