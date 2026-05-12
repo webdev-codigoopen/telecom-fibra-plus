@@ -36,6 +36,23 @@ router.post("/clicks", async (req, res) => {
   }
 });
 
+router.get("/clicks/cities", async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        name: planClicksTable.planPrice,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable)
+      .where(eq(planClicksTable.planSpeed, "city"))
+      .groupBy(planClicksTable.planPrice)
+      .orderBy(desc(sql`count(*)`));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch city clicks" });
+  }
+});
+
 router.get("/clicks/stats", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
