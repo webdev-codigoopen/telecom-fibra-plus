@@ -106,17 +106,33 @@ router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
   }
 });
 
-router.get("/clicks/export/raw", requireAdminKey, async (_req, res) => {
+router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
   try {
-    const rows = await db
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+
+    const baseSelect = db
       .select({
         clickedAt: planClicksTable.clickedAt,
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
         source: planClicksTable.source,
       })
-      .from(planClicksTable)
-      .orderBy(desc(planClicksTable.clickedAt));
+      .from(planClicksTable);
+
+    const filtered = sinceDate
+      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+      : baseSelect;
+
+    const rows = await filtered.orderBy(desc(planClicksTable.clickedAt));
 
     const escape = (val: string | number | Date | null | undefined): string => {
       let s = val == null ? "" : val instanceof Date ? val.toISOString() : String(val);
@@ -146,9 +162,20 @@ router.get("/clicks/export/raw", requireAdminKey, async (_req, res) => {
   }
 });
 
-router.get("/clicks/export", requireAdminKey, async (_req, res) => {
+router.get("/clicks/export", requireAdminKey, async (req, res) => {
   try {
-    const rows = await db
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+
+    const baseSelect = db
       .select({
         planSpeed: planClicksTable.planSpeed,
         planPrice: planClicksTable.planPrice,
@@ -156,7 +183,13 @@ router.get("/clicks/export", requireAdminKey, async (_req, res) => {
         total: sql<number>`cast(count(*) as int)`,
         lastClickedAt: sql<string>`max(${planClicksTable.clickedAt})`,
       })
-      .from(planClicksTable)
+      .from(planClicksTable);
+
+    const filtered = sinceDate
+      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+      : baseSelect;
+
+    const rows = await filtered
       .groupBy(planClicksTable.planSpeed, planClicksTable.planPrice, planClicksTable.source)
       .orderBy(desc(sql`count(*)`));
 

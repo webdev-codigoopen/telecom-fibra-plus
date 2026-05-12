@@ -448,16 +448,30 @@ export default function Admin() {
                   <button
                     onClick={async () => {
                       try {
-                        const res = await fetch(`${baseUrl}/api/clicks/export`, {
-                          headers: { "X-Admin-Key": adminKey },
-                        });
+                        const params = new URLSearchParams();
+                        if (statsRange !== "all") {
+                          const since = new Date();
+                          if (statsRange === "today") {
+                            since.setHours(0, 0, 0, 0);
+                          } else {
+                            since.setDate(since.getDate() - 7);
+                          }
+                          params.set("since", since.toISOString());
+                        }
+                        const qs = params.toString();
+                        const res = await fetch(
+                          `${baseUrl}/api/clicks/export${qs ? `?${qs}` : ""}`,
+                          { headers: { "X-Admin-Key": adminKey } },
+                        );
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
                         const stamp = new Date().toISOString().slice(0, 10);
-                        a.download = `clicks-${stamp}.csv`;
+                        const rangeSlug =
+                          statsRange === "today" ? "today" : statsRange === "week" ? "week" : "all";
+                        a.download = `clicks-${rangeSlug}-${stamp}.csv`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
