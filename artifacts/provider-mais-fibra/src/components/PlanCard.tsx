@@ -276,8 +276,10 @@ export default function PlanCard({
             </span>
             <span
               style={{
-                fontSize: 21,
+                fontSize: 12,
                 fontFamily: FONT_BODY,
+                fontWeight: 700,
+                fontStyle: "normal",
                 color: COLORS.green,
                 lineHeight: 1,
                 marginTop: 4,
