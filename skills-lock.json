@@ -121,6 +121,12 @@
       "skillPath": "skills/redesign-skill/SKILL.md",
       "computedHash": "b405eee0e0e80fc243f731d9aa368bca307e356db7e6157d27101d369dac6726"
     },
+    "seo-audit": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/seo-audit/SKILL.md",
+      "computedHash": "ddd028951738fcbcdebf0f9bd90b708c55d1b9370a31603e0c13e5b262d8b8bb"
+    },
     "stitch-design-taste": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
