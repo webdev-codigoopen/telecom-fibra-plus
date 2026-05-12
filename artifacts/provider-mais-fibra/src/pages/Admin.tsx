@@ -204,6 +204,30 @@ export default function Admin() {
       .map(([source]) => ({ source, color: colorForSource(source) }));
   }, [chartData]);
 
+  const conversionByPlan = useMemo(() => {
+    const byPlan = new Map<
+      string,
+      { planSpeed: string; planPrice: string; previews: number; signups: number }
+    >();
+    for (const s of clickStats) {
+      if (s.planSpeed === "city") continue;
+      const key = `${s.planSpeed}|${s.planPrice}`;
+      let entry = byPlan.get(key);
+      if (!entry) {
+        entry = { planSpeed: s.planSpeed, planPrice: s.planPrice, previews: 0, signups: 0 };
+        byPlan.set(key, entry);
+      }
+      if (s.source === "whatsapp-share") entry.previews += s.total;
+      else entry.signups += s.total;
+    }
+    return Array.from(byPlan.values())
+      .filter((e) => e.previews > 0 || e.signups > 0)
+      .sort((a, b) => {
+        if (b.previews !== a.previews) return b.previews - a.previews;
+        return b.signups - a.signups;
+      });
+  }, [clickStats]);
+
   const stackedChartData = useMemo(() => {
     if (chartView !== "source") return [];
     return chartData.map((point) => {
@@ -868,6 +892,86 @@ export default function Admin() {
                         </BarChart>
                       )}
                     </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              {conversionByPlan.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#2A2D38]">
+                        Conversão WhatsApp — Pré-visualização → Assinatura
+                      </h3>
+                      <p className="text-[11px] text-[#7A7F8C] mt-0.5">
+                        % das pré-visualizações compartilhadas que resultaram em clique em "ASSINE JÁ".
+                      </p>
+                    </div>
+                    {sourceFilter && (
+                      <span className="text-[11px] text-[#7A7F8C] italic">
+                        Filtro de origem ativo — números refletem apenas "{sourceFilter}".
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {conversionByPlan.map((c) => {
+                      const rate = c.previews > 0 ? (c.signups / c.previews) * 100 : null;
+                      const ratePct = rate == null ? null : Math.min(100, Math.round(rate));
+                      const tone =
+                        rate == null
+                          ? { color: "#7A7F8C", background: "#EEF0F5" }
+                          : rate >= 30
+                          ? { color: "#00A030", background: "#E6F8EC" }
+                          : rate >= 10
+                          ? { color: "#A06B00", background: "#FFF4D6" }
+                          : { color: "#C42B2B", background: "#FBE7E7" };
+                      const barWidth = rate == null ? 0 : Math.min(100, rate);
+                      return (
+                        <div
+                          key={`${c.planSpeed}-${c.planPrice}`}
+                          className="rounded-lg border border-[#E0E3EB] px-3 py-3 flex flex-col gap-2"
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div className="flex items-baseline gap-1 min-w-0">
+                              <span className="font-black text-xl text-[#0040FF]">{c.planSpeed}</span>
+                              <span className="text-xs font-semibold text-[#2A2D38]">Mega</span>
+                              <span className="text-[11px] text-[#7A7F8C] truncate">
+                                · R$ {c.planPrice}
+                              </span>
+                            </div>
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={tone}
+                              title={
+                                rate == null
+                                  ? "Nenhuma pré-visualização registrada"
+                                  : `${c.signups} de ${c.previews} pré-visualizações`
+                              }
+                            >
+                              {ratePct == null ? "—" : `${ratePct}%`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-[#2A2D38]">
+                            <span>
+                              Pré-visualizações:{" "}
+                              <span className="font-semibold tabular-nums">{c.previews}</span>
+                            </span>
+                            <span>
+                              Assinaturas:{" "}
+                              <span className="font-semibold tabular-nums">{c.signups}</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${barWidth}%`,
+                                background: rate == null ? "#E0E3EB" : tone.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
