@@ -1,0 +1,116 @@
+Auto-layout do Figma
+
+Quando o Figma usar Auto Layout, traduzir corretamente para CSS:
+
+display: flex;
+flex-direction: row/column;
+align-items: valor-do-figma;
+justify-content: valor-do-figma;
+gap: valor-do-figma;
+padding: valor-do-figma;
+
+Se for grid, usar grid apenas quando a estrutura visual realmente exigir.
+
+Responsividade
+
+Primeiro implementar desktop fiel ao PNG/Figma.
+
+Depois adaptar para:
+
+tablet
+mobile
+
+Sem quebrar o desktop.
+
+A responsividade deve preservar:
+
+hierarquia visual
+espaçamentos proporcionais
+leitura dos textos
+alinhamento dos ícones
+ordem dos elementos
+tamanhos adequados
+Validação obrigatória depois de implementar
+
+Após codar, comparar o resultado com o PNG de referência.
+
+Verificar obrigatoriamente:
+
+fonte correta
+font-size correto
+font-weight correto
+line-height correto
+cor correta
+padding correto
+gap correto
+posição dos elementos
+tamanho dos ícones
+ícones corretos
+altura da seção
+largura do container
+alinhamento dos cards
+border-radius
+sombras
+responsividade
+
+Se encontrar diferença visual, corrigir antes de responder.
+
+Processo de correção
+
+Se o resultado não estiver igual ao PNG/Figma:
+
+Não refazer tudo.
+Não mexer em outras seções.
+Corrigir somente a diferença apontada.
+Comparar novamente.
+Repetir até ficar visualmente equivalente.
+Resposta final obrigatória
+
+Ao finalizar, responder com:
+
+Arquivos alterados:
+- ...
+
+O que foi implementado:
+- ...
+
+Medidas usadas do Figma:
+- ...
+
+Ajustes de responsividade:
+- ...
+
+Validação visual:
+- Fonte conferida
+- Espaçamentos conferidos
+- Ícones conferidos
+- Alinhamentos conferidos
+- Desktop conferido
+- Mobile conferido
+
+Observações:
+- ...
+
+Se algum dado do Figma não puder ser lido pelo MCP, informar claramente e usar o PNG como referência principal.
+
+Regra final
+
+Não finalizar enquanto a seção estiver apenas “parecida”.
+
+Finalizar somente quando estiver visualmente equivalente ao PNG/Figma e sem alterações fora do escopo.
+
+
+E junto com cada seção, use este comando curto:
+
+```txt
+Siga obrigatoriamente as regras do arquivo .replit-rules.md.
+
+Trabalhe somente nesta seção:
+[NOME DA SEÇÃO]
+
+Use:
+- Figma MCP para extrair medidas reais
+- PNG como referência visual principal
+- SVGs/assets fornecidos por mim
+
+Não altere nenhuma outra parte do projeto.
