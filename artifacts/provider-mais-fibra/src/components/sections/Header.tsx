@@ -105,7 +105,7 @@ export default function Header() {
           <img
             src={logoUrl}
             alt="Provider + FIBRA"
-            className="h-8 md:h-[47px] w-auto mt-[-5px]"
+            className="h-8 md:h-[47px] w-auto mt-[-10px]"
             width={264}
             height={47}
             style={{ transform: "translateY(4px)" }}
