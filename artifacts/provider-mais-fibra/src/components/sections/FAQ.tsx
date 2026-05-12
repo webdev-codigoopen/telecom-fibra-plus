@@ -35,15 +35,15 @@ const leftItems: FaqItem[] = [
     a: "É a transmissão de canais de TV pela internet, permitindo assistir em smart TVs, celulares e tablets com qualidade HD.",
   },
   {
-    q: "Como funciona o suporte 24h?",
-    a: "Nossa equipe está disponível 24 horas por dia, 7 dias por semana, via WhatsApp, telefone e e-mail para qualquer dúvida ou problema.",
+    q: "Como funciona o suporte?",
+    a: "Nossa equipe de suporte está disponível via WhatsApp, telefone e e-mail para tirar dúvidas e resolver qualquer problema com a sua conexão.",
   },
 ];
 
 const rightItems: FaqItem[] = [
   {
     q: "Minha internet está lenta, o que posso fazer?",
-    a: "Reinicie o roteador, verifique se há aparelhos consumindo banda e teste a velocidade. Se persistir, fale com nosso suporte 24h.",
+    a: "Reinicie o roteador, verifique se há aparelhos consumindo banda e teste a velocidade. Se persistir, fale com o nosso suporte.",
   },
   {
     q: "Como emitir a 2ª via do boleto?",
