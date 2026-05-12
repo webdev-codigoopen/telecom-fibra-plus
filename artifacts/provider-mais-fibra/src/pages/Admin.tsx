@@ -183,7 +183,7 @@ export default function Admin() {
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
-  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
+  const [previewMode, setPreviewMode] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -1243,6 +1243,7 @@ export default function Admin() {
                       >
                         {([
                           { id: "desktop", label: "Desktop" },
+                          { id: "tablet", label: "Tablet" },
                           { id: "mobile", label: "Mobile" },
                         ] as const).map((opt) => {
                           const active = previewMode === opt.id;
@@ -1279,6 +1280,28 @@ export default function Admin() {
                               source="admin-preview"
                             />
                           ))}
+                        </div>
+                      ) : previewMode === "tablet" ? (
+                        <div className="flex justify-center">
+                          <div
+                            className="rounded-[24px] border-[10px] border-[#0D0D0D] bg-[#0A1F8C] overflow-hidden shadow-xl"
+                            style={{ width: 768 }}
+                          >
+                            <div
+                              className="grid grid-cols-2 justify-items-center px-6 py-6"
+                              style={{ gap: 20 }}
+                            >
+                              {plans.map((plan, i) => (
+                                <PlanCard
+                                  key={plan.id}
+                                  plan={apiPlanToPlan(plan)}
+                                  index={i}
+                                  idSuffix={`-preview-tablet-${plan.id}`}
+                                  source="admin-preview"
+                                />
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <MobilePlansPreview
