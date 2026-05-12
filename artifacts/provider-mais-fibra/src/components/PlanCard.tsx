@@ -178,7 +178,7 @@ export default function PlanCard({
             },
             "Roteador Wi-Fi 6": {
               src: ICON_ROTEADOR,
-              label: "ROTEADOR WI-FI 6",
+              label: "ROTEADOR",
               w: 29,
               h: 20,
             },
