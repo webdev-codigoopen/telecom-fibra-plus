@@ -5,7 +5,28 @@ const logoModules = import.meta.glob<string>(
   { eager: true, import: "default", query: "?url" },
 );
 
-type Logo = { src: string; name: string; family: string };
+type Logo = { src: string; name: string; family: string; whiteOnTransparent?: boolean };
+
+// Logos shipped as white-on-transparent — these disappear on a white pill.
+// We recolor them to brand blue via CSS mask.
+const WHITE_LOGOS = new Set([
+  "amc-us",
+  "band-br",
+  "e-entertainment-us",
+  "film-and-arts-lam",
+  "ge-tv-br",
+  "globo-br",
+  "moonbug-ae",
+  "studio-universal-br",
+  "universal-plus-lam",
+  "universal-premiere-lam",
+  "universal-reality-lam",
+  "gazeta",
+  "Lionsgatep",
+  "Sesc_TV",
+  "Xpeed_School",
+]);
+const BRAND_BLUE = "#122AD5";
 
 function familyOf(file: string): string {
   const base = file.replace(/\.(png|svg)$/i, "").toLowerCase();
@@ -31,8 +52,14 @@ function familyOf(file: string): string {
 
 const RAW_LOGOS: Logo[] = Object.entries(logoModules).map(([path, src]) => {
   const file = path.split("/").pop() ?? "";
-  const name = file.replace(/\.(png|svg)$/i, "").replace(/[-_]/g, " ");
-  return { src, name, family: familyOf(file) };
+  const baseName = file.replace(/\.(png|svg)$/i, "");
+  const name = baseName.replace(/[-_]/g, " ");
+  return {
+    src,
+    name,
+    family: familyOf(file),
+    whiteOnTransparent: WHITE_LOGOS.has(baseName),
+  };
 });
 
 // Interleave by family using round-robin so same-family logos are spread apart
@@ -88,20 +115,42 @@ function Track({ logoHeight, gap, durationSec, reverse, logos }: Required<Props>
           key={`${logo.src}-${i}`}
           className="flex items-center justify-center shrink-0"
           style={{ height: logoHeight }}
+          aria-label={logo.name}
         >
-          <img
-            src={logo.src}
-            alt={logo.name}
-            style={{
-              height: logoHeight,
-              width: "auto",
-              maxWidth: logoHeight * 2.6,
-              objectFit: "contain",
-              display: "block",
-            }}
-            loading="lazy"
-            draggable={false}
-          />
+          {logo.whiteOnTransparent ? (
+            <span
+              role="img"
+              aria-label={logo.name}
+              style={{
+                display: "block",
+                height: logoHeight,
+                width: logoHeight * 2.6,
+                backgroundColor: BRAND_BLUE,
+                WebkitMaskImage: `url(${logo.src})`,
+                maskImage: `url(${logo.src})`,
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+              }}
+            />
+          ) : (
+            <img
+              src={logo.src}
+              alt={logo.name}
+              style={{
+                height: logoHeight,
+                width: "auto",
+                maxWidth: logoHeight * 2.6,
+                objectFit: "contain",
+                display: "block",
+              }}
+              loading="lazy"
+              draggable={false}
+            />
+          )}
         </div>
       ))}
     </div>
