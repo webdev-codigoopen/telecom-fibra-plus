@@ -149,7 +149,27 @@ async function fetchCityConversion(
   return map;
 }
 
-type ColorMode = "volume" | "growth";
+type ColorMode = "volume" | "growth" | "conversion";
+
+function conversionColor(rate: number): string {
+  // rate in [0, 1]. Red (low) -> Yellow (mid) -> Green (high).
+  const clamped = Math.max(0, Math.min(1, rate));
+  let r: number;
+  let g: number;
+  let b: number;
+  if (clamped < 0.5) {
+    const t = clamped / 0.5;
+    r = 224 + (245 - 224) * t;
+    g = 49 + (179 - 49) * t;
+    b = 49 + (8 - 49) * t;
+  } else {
+    const t = (clamped - 0.5) / 0.5;
+    r = 245 + (0 - 245) * t;
+    g = 179 + (192 - 179) * t;
+    b = 8 + (64 - 8) * t;
+  }
+  return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+}
 
 export default function CityClicksMap(props: Props) {
   const isAdminMode = props.adminKey !== undefined;
@@ -302,7 +322,8 @@ export default function CityClicksMap(props: Props) {
     return "#7A7F8C";
   }
 
-  const effectiveColorMode: ColorMode = hasComparison ? colorMode : "volume";
+  const effectiveColorMode: ColorMode =
+    colorMode === "growth" && !hasComparison ? "volume" : colorMode;
 
   const exportRangeLabel = useMemo(() => {
     if (!isAdminMode) return null;
@@ -437,6 +458,25 @@ export default function CityClicksMap(props: Props) {
                 sem mudança
               </span>
             </>
+          ) : effectiveColorMode === "conversion" ? (
+            <>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(0), opacity: 0.85 }} />
+                conversão baixa
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(0.5), opacity: 0.85 }} />
+                média
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(1), opacity: 0.85 }} />
+                alta
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: "#B0B5C3", opacity: 0.6 }} />
+                sem previews
+              </span>
+            </>
           ) : (
             <>
               <span className="inline-flex items-center gap-1">
@@ -524,9 +564,15 @@ export default function CityClicksMap(props: Props) {
           Exportar CSV
         </button>
         <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Cor das bolhas">
-          {(["volume", "growth"] as ColorMode[]).map((mode) => {
+          {(["volume", "growth", "conversion"] as ColorMode[]).map((mode) => {
             const active = effectiveColorMode === mode;
             const disabled = mode === "growth" && !hasComparison;
+            const label =
+              mode === "volume"
+                ? "Cor por volume"
+                : mode === "growth"
+                  ? "Cor por crescimento"
+                  : "Cor por conversão";
             return (
               <button
                 key={mode}
@@ -543,7 +589,7 @@ export default function CityClicksMap(props: Props) {
                 }`}
                 aria-pressed={active}
               >
-                {mode === "volume" ? "Cor por volume" : "Cor por crescimento"}
+                {label}
               </button>
             );
           })}
@@ -579,6 +625,16 @@ export default function CityClicksMap(props: Props) {
             if (effectiveColorMode === "growth") {
               fill = growthColor(city.name);
               opacity = total === 0 && (prevClickMap.get(city.name) ?? 0) === 0 ? 0.35 : 0.8;
+            } else if (effectiveColorMode === "conversion") {
+              const conv = conversion.get(city.name);
+              if (!conv || conv.previews <= 0) {
+                fill = "#B0B5C3";
+                opacity = 0.4;
+              } else {
+                const rate = conv.signups / conv.previews;
+                fill = conversionColor(rate);
+                opacity = 0.85;
+              }
             } else {
               fill = total === 0 ? "#B0B5C3" : isMax ? "#00C040" : "#0040FF";
               opacity = total === 0 ? 0.35 : 0.7;
