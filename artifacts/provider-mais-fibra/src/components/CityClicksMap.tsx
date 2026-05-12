@@ -295,6 +295,29 @@ export default function CityClicksMap(props: Props) {
 
   const effectiveColorMode: ColorMode = hasComparison ? colorMode : "volume";
 
+  const exportRangeLabel = useMemo(() => {
+    if (!isAdminMode) return null;
+    const win = rangeToWindow(range, customFrom, customTo);
+    if (win === null) return null;
+    if (!win.since && !win.until) return "tudo";
+    const fmt = (iso: string, subtractDay = false) => {
+      const d = new Date(iso);
+      if (subtractDay) d.setDate(d.getDate() - 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    // Custom ranges are stored end-exclusive (until = next day at 00:00),
+    // so the user-facing end date is one day earlier. Preset ranges use
+    // `now` as until, which is already the correct end date.
+    const untilIsExclusive = range === "custom";
+    const since = win.since ? fmt(win.since) : null;
+    const until = win.until ? fmt(win.until, untilIsExclusive) : null;
+    if (since && until) return since === until ? since : `${since}_a_${until}`;
+    return since ?? until ?? "periodo";
+  }, [isAdminMode, range, customFrom, customTo]);
+
   const hoveredCity = hovered
     ? CITY_COORDS.find((c) => c.name === hovered) ?? null
     : null;
@@ -635,6 +658,7 @@ export default function CityClicksMap(props: Props) {
         conversion={isAdminMode ? conversion : null}
         selectedCity={selectedCity}
         onSelectCity={onSelectCity}
+        exportRangeLabel={exportRangeLabel}
       />
     </div>
   );
@@ -649,6 +673,7 @@ function TopCitiesList({
   conversion,
   selectedCity,
   onSelectCity,
+  exportRangeLabel,
 }: {
   entries: CityClickEntry[];
   totalClicks: number;
@@ -656,6 +681,7 @@ function TopCitiesList({
   conversion: Map<string, CityConversion> | null;
   selectedCity?: string | null;
   onSelectCity?: (city: string | null) => void;
+  exportRangeLabel?: string | null;
 }) {
   const sorted = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -684,13 +710,58 @@ function TopCitiesList({
   const totalSignups = conversionRows.reduce((s, r) => s + r.signups, 0);
   const overallRate = totalPreviews > 0 ? (totalSignups / totalPreviews) * 100 : null;
 
+  const canExport = exportRangeLabel != null && sorted.some((e) => e.total > 0);
+
+  function handleExportCsv() {
+    if (!canExport) return;
+    const escape = (val: string) => {
+      if (/[",\n;]/.test(val)) return `"${val.replace(/"/g, '""')}"`;
+      return val;
+    };
+    const header = ["Cidade", "Cliques", "Participação (%)"];
+    const rows = sorted
+      .filter((e) => e.total > 0)
+      .map((e) => {
+        const share = totalClicks > 0 ? (e.total / totalClicks) * 100 : 0;
+        return [escape(e.name), String(e.total), share.toFixed(1)].join(",");
+      });
+    const csv = "\uFEFF" + [header.map(escape).join(","), ...rows].join("\n") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `top-cidades_${exportRangeLabel}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <div className="mt-4 border-t border-[#E0E3EB] pt-3">
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-2 gap-2 flex-wrap">
         <h4 className="font-bold text-xs text-[#0D0D0D]">Top cidades</h4>
-        <span className="text-[10px] text-[#7A7F8C]">
-          {totalClicks > 0 ? `${totalClicks} cliques no total` : "Sem cliques no período"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-[#7A7F8C]">
+            {totalClicks > 0 ? `${totalClicks} cliques no total` : "Sem cliques no período"}
+          </span>
+          {exportRangeLabel != null && (
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={!canExport}
+              data-testid="export-top-cities-csv"
+              className={`text-[10px] font-semibold rounded-md px-2 py-1 border transition-colors ${
+                canExport
+                  ? "border-[#0040FF] text-[#0040FF] hover:bg-[#0040FF] hover:text-white"
+                  : "border-[#E0E3EB] text-[#C5C9D3] cursor-not-allowed"
+              }`}
+              title={canExport ? "Baixar ranking de cidades em CSV" : "Sem cliques para exportar"}
+            >
+              Exportar CSV
+            </button>
+          )}
+        </div>
       </div>
       <ol className="flex flex-col gap-1.5">
         {sorted.map((entry, idx) => {
