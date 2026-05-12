@@ -360,6 +360,7 @@ export default function PlanCard({
             fontWeight: 400,
             lineHeight: "14.4px",
             color: COLORS.whiteFaint,
+            paddingTop: hasStreaming ? undefined : 8,
           }}
         >
           *Consultar a disponibilidade
