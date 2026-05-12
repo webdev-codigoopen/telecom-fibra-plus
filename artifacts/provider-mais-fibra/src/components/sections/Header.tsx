@@ -90,7 +90,7 @@ export default function Header() {
       className="header-section fixed top-0 left-0 right-0 z-50 transition-all duration-300 text-[#ffffff] border-t-[#0d0d0d00] border-r-[#0d0d0d00] border-b-[#0d0d0d00] border-l-[#0d0d0d00] bg-[#000000]"
       style={{
         background: HEADER_BG,
-        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.30)" : "0 2px 10px rgba(0,0,0,0.25)",
+        boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.30)" : "none",
         fontFamily: FONT_NUNITO,
       }}
     >
