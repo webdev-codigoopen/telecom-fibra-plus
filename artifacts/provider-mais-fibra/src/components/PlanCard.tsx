@@ -233,7 +233,10 @@ export default function PlanCard({
       {has600Streaming && <StreamingBox logos="watch" />}
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
       {/* Bottom block: price + CTA + footer (Figma Frame 33: gap 5, naturally compact) */}
-      <div className="flex flex-col mt-auto" style={{ gap: 5 }}>
+      <div
+        className={`flex flex-col ${hasStreaming ? "mt-auto" : ""}`}
+        style={{ gap: 5 }}
+      >
         {/* Price block — 3-col grid keeps the big numeral optically centered */}
         <div
           className="grid items-end justify-center"
