@@ -1,6 +1,25 @@
 import { motion } from "framer-motion";
 import { type Plan, buildWhatsAppUrl } from "../lib/plans";
 
+const BASE = import.meta.env.BASE_URL;
+const ICON_INSTALACAO = `${BASE}images/icons/instalacao-planos-20.svg`;
+const ICON_ROTEADOR = `${BASE}images/icons/roteador-planos-29x20.svg`;
+const ICON_CANAIS = `${BASE}images/icons/canais-planos-64x20.svg`;
+const ICON_WHATSAPP = `${BASE}images/icons/whatsapp-planos-16.svg`;
+const TAG_MEGA = `${BASE}images/icons/mega-tag-planos-47x16.svg`;
+
+const FONT_NUNITO = "'Nunito', 'Montserrat', system-ui, sans-serif";
+
+const COLORS = {
+  cardBg: "#1A38D5",
+  cardBorder: "rgba(255,255,255,0.08)",
+  cardShadow: "0 12px 36px rgba(0, 8, 80, 0.35)",
+  white: "#FFFFFF",
+  whiteSoft: "rgba(255,255,255,0.85)",
+  whiteFaint: "rgba(255,255,255,0.65)",
+  green: "#95EB1D",
+};
+
 type Props = {
   plan: Plan;
   index?: number;
@@ -19,10 +38,48 @@ function trackPlanClick(plan: Plan, source: string) {
   });
 }
 
+function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
+  return (
+    <div
+      className="plans-section__streaming flex flex-col items-center justify-center gap-2 px-3 py-3 rounded-lg mb-5"
+      style={{ border: "1px solid rgba(255,255,255,0.45)" }}
+    >
+      <div
+        className="text-[11px] tracking-[0.04em] flex items-center gap-1"
+        style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 700 }}
+      >
+        <span style={{ color: COLORS.green }}>+</span>
+        <span>ASSINATURA INCLUSA</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span
+          className="text-[20px] italic tracking-tight"
+          style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 800, fontStyle: "italic" }}
+        >
+          watch
+        </span>
+        {logos === "watch+powertop" && (
+          <>
+            <span style={{ color: COLORS.white, fontFamily: FONT_NUNITO, fontWeight: 700 }}>+</span>
+            <span
+              className="text-[14px] tracking-tight leading-none text-left"
+              style={{ color: COLORS.green, fontFamily: FONT_NUNITO, fontWeight: 900 }}
+            >
+              POWER<br />TOP
+            </span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PlanCard({ plan, index = 0, idSuffix = "", source = "hero" }: Props) {
   const whatsappUrl = buildWhatsAppUrl(plan);
-  const isFeatured = plan.featured;
   const [reais, centavos] = plan.price.split(",");
+
+  const has600Streaming = plan.speed === "600";
+  const has900Streaming = plan.speed === "900";
 
   return (
     <motion.div
@@ -31,125 +88,133 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       viewport={{ once: true }}
       transition={{ delay: index * 0.08, duration: 0.45 }}
       data-testid={`plan-card-${plan.speed}${idSuffix}`}
-      className="relative flex flex-col h-full rounded-2xl bg-white text-[#0D0D0D] transition-all duration-300 hover:-translate-y-1"
+      className="plans-section__card relative flex flex-col h-full rounded-2xl px-6 pt-7 pb-6"
       style={{
-        border: isFeatured ? "2px solid #00C040" : "1px solid rgba(0,0,0,0.06)",
-        boxShadow: isFeatured
-          ? "0 18px 44px rgba(0,192,64,0.30)"
-          : "0 8px 22px rgba(0,0,0,0.08)",
+        background: COLORS.cardBg,
+        border: `1px solid ${COLORS.cardBorder}`,
+        boxShadow: COLORS.cardShadow,
+        fontFamily: FONT_NUNITO,
+        color: COLORS.white,
       }}
     >
-      {isFeatured && plan.badge && (
-        <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-black tracking-[0.15em] uppercase whitespace-nowrap text-white"
-          style={{ background: "#00C040", boxShadow: "0 4px 12px rgba(0,192,64,0.35)" }}
-        >
-          {plan.badge}
-        </div>
-      )}
-
-      {plan.imageUrl && (
-        <div className="px-5 pt-5">
-          <div className="rounded-xl overflow-hidden bg-[#F5F7FA] aspect-[16/9]">
-            <img
-              src={plan.imageUrl}
-              alt={`Plano ${plan.speed} Mega`}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="px-5 pt-5 pb-5 flex flex-col flex-1">
-        <div className="flex items-start justify-between mb-3">
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold tracking-wide"
-            style={{ background: "#E8F0FF", color: "#0040FF" }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#0040FF]" />
-            INTERNET 100% FIBRA
-          </div>
-          <div
-            className="inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[10px] font-black"
-            style={{ background: "#00C040", color: "white" }}
-          >
-            +100
-          </div>
-        </div>
-
-        <div className="mb-1">
-          <div className="flex items-baseline gap-1.5 leading-none">
-            <span
-              className="font-amino text-[#0040FF]"
-              style={{ fontSize: 64, lineHeight: 1 }}
-            >
-              {plan.speed}
-            </span>
-            <span className="text-base font-bold text-[#0D0D0D]">Mega</span>
-          </div>
-          <p className="text-[11px] text-[#7A7F8C] mt-1 font-medium">{plan.wifi}</p>
-        </div>
-
-        <div className="h-px bg-[#EEF0F5] my-4" />
-
-        <ul className="space-y-2 mb-4 flex-1">
-          {plan.inclusions.map((item) => (
-            <li key={item} className="flex items-center gap-2 text-[13px] text-[#2A2D38]">
-              <span
-                className="inline-flex items-center justify-center w-4 h-4 rounded-full flex-shrink-0"
-                style={{ background: "#00C040" }}
-              >
-                <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </span>
-              {item}
-            </li>
-          ))}
-        </ul>
-
-        {plan.bonus && (
-          <div
-            className="text-[9px] font-black tracking-[0.1em] uppercase px-2.5 py-2 rounded-lg mb-4 text-center text-white leading-tight"
-            style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
-          >
-            {plan.bonus}
-          </div>
-        )}
-
-        <div className="mb-4">
-          <div className="flex items-start gap-1">
-            <span className="text-xs font-bold text-[#666666] mt-2 font-nexa" style={{ letterSpacing: 0 }}>R$</span>
-            <span
-              className="font-nexa text-[#0D0D0D] leading-none"
-              style={{ fontSize: 40 }}
-            >
-              {reais}
-            </span>
-            <span className="font-nexa text-[#0D0D0D] text-lg leading-none mt-1">
-              ,{centavos ?? "00"}
-            </span>
-            <span className="text-xs text-[#666666] font-medium self-end mb-1">/mês</span>
-          </div>
-        </div>
-
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid={`plan-cta-${plan.speed}${idSuffix}`}
-          onClick={() => trackPlanClick(plan, source)}
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-full font-bold text-[13px] text-white transition-all duration-200 hover:scale-[1.02] active:scale-95"
-          style={{ background: "#00C040", boxShadow: "0 6px 16px rgba(0,192,64,0.35)" }}
-        >
-          Quero esse plano
-        </a>
-
-        <p className="text-[9px] text-[#999999] text-center mt-2.5 italic">
-          *Consultar disponibilidade na sua cidade
-        </p>
+      {/* "INTERNET 100% FIBRA" header */}
+      <div
+        className="text-center text-[12px] tracking-[0.04em] mb-3"
+        style={{ color: COLORS.white, fontWeight: 600 }}
+      >
+        INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
       </div>
+
+      {/* Speed + MEGA tag */}
+      <div className="flex items-start justify-center gap-1 mb-5">
+        <span
+          className="leading-none"
+          style={{
+            fontSize: 88,
+            fontWeight: 900,
+            color: COLORS.white,
+            letterSpacing: "-0.04em",
+            lineHeight: 0.85,
+          }}
+        >
+          {plan.speed}
+        </span>
+        <img
+          src={TAG_MEGA}
+          alt="Mega"
+          width={47}
+          height={16}
+          className="mt-3 flex-shrink-0"
+        />
+      </div>
+
+      {/* Icons row */}
+      <div className="flex items-start justify-center gap-5 mb-5">
+        <div className="flex flex-col items-center gap-1.5">
+          <img src={ICON_INSTALACAO} alt="" width={20} height={20} />
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+            INSTALAÇÃO
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <img src={ICON_ROTEADOR} alt="" width={29} height={20} />
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+            ROTEADOR
+          </span>
+        </div>
+        <div className="flex flex-col items-center gap-1.5">
+          <img src={ICON_CANAIS} alt="" width={64} height={20} />
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+            CANAIS
+          </span>
+        </div>
+      </div>
+
+      {/* Streaming bonus (600 / 900) */}
+      {has600Streaming && <StreamingBox logos="watch" />}
+      {has900Streaming && <StreamingBox logos="watch+powertop" />}
+
+      {/* Price block */}
+      <div className="flex items-end justify-center gap-2 mb-6 mt-auto">
+        <div className="flex flex-col items-end leading-none pb-2">
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontWeight: 700 }}>
+            POR
+          </span>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.green, fontWeight: 700 }}>
+            APENAS
+          </span>
+          <span className="text-[18px] mt-1" style={{ color: COLORS.green, fontWeight: 900 }}>
+            R$
+          </span>
+        </div>
+        <span
+          className="leading-none"
+          style={{
+            fontSize: 56,
+            fontWeight: 900,
+            color: COLORS.white,
+            letterSpacing: "-0.04em",
+            lineHeight: 0.85,
+          }}
+        >
+          {reais}
+        </span>
+        <div className="flex flex-col items-start leading-none pb-1">
+          <span className="text-[14px]" style={{ color: COLORS.white, fontWeight: 700 }}>
+            ,{centavos ?? "00"}
+          </span>
+          <span className="text-[10px] tracking-[0.05em]" style={{ color: COLORS.whiteSoft, fontWeight: 600 }}>
+            /MÊS
+          </span>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <a
+        href={whatsappUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid={`plan-cta-${plan.speed}${idSuffix}`}
+        onClick={() => trackPlanClick(plan, source)}
+        className="plans-section__cta flex items-center justify-center gap-2 w-full h-11 rounded-lg text-[14px] transition-all duration-200 hover:bg-white/10 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
+        style={{
+          border: `1.5px solid ${COLORS.white}`,
+          color: COLORS.white,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+        }}
+      >
+        <img src={ICON_WHATSAPP} alt="" width={16} height={16} />
+        <span>ASSINE JÁ</span>
+      </a>
+
+      {/* Footer note */}
+      <p
+        className="text-center text-[10px] mt-4 italic leading-tight"
+        style={{ color: COLORS.whiteFaint, fontWeight: 400 }}
+      >
+        *Consultar a disponibilidade<br />de planos na sua cidade
+      </p>
     </motion.div>
   );
 }

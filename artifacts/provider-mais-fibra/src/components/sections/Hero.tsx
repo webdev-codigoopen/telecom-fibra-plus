@@ -35,52 +35,31 @@ export default function Hero() {
     <section
       id="planos"
       data-testid="hero-section"
-      className="relative overflow-hidden pt-28 pb-20"
-      style={{ background: "linear-gradient(135deg, #001A6E 0%, #0040FF 100%)" }}
+      className="plans-section relative overflow-hidden pt-24 pb-20"
+      style={{
+        background:
+          "linear-gradient(180deg, #122AD5 0%, #1A38D5 60%, #2138CD 100%)",
+        fontFamily: "'Nunito', 'Montserrat', system-ui, sans-serif",
+      }}
     >
-      {/* Decorative radial overlay */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage:
-            "radial-gradient(ellipse at 20% 30%, rgba(0,192,64,0.25) 0%, transparent 55%), radial-gradient(ellipse at 85% 70%, rgba(26,95,255,0.5) 0%, transparent 55%)",
-        }}
-      />
-      {/* Grid texture */}
-      <div
-        aria-hidden
-        className="absolute inset-0 opacity-[0.06] pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-      />
-
       <div className="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center max-w-3xl mx-auto mb-12"
+          className="text-center max-w-3xl mx-auto mb-10"
         >
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider mb-6"
-            style={{ background: "rgba(0,192,64,0.15)", color: "#00D94A", border: "1px solid rgba(0,192,64,0.35)" }}
+          <h2
+            className="text-white leading-[1.25]"
+            style={{
+              fontSize: "clamp(20px, 2.4vw, 26px)",
+              fontWeight: 600,
+              letterSpacing: "-0.005em",
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00D94A] animate-pulse" />
-            Internet 100% Fibra Óptica
-          </div>
-          <h1
-            className="text-white font-bold leading-[1.05] mb-5"
-            style={{ fontSize: "clamp(34px, 5vw, 56px)", letterSpacing: "-0.025em" }}
-          >
-            A <span className="font-black" style={{ color: "#00D94A" }}>conexão</span> ideal para o seu dia a dia está na Provider
-          </h1>
-          <p className="text-white/75 text-base sm:text-lg max-w-2xl mx-auto">
-            Escolha o plano que combina com você e tenha velocidade, estabilidade e suporte 24h via WhatsApp.
-          </p>
+            A <span style={{ fontWeight: 900 }}>conexão</span> ideal para o seu dia a dia está na{" "}
+            <span style={{ fontWeight: 900 }}>Provider</span>
+          </h2>
         </motion.div>
 
         {/* Desktop grid */}
