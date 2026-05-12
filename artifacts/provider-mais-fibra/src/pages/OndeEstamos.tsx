@@ -183,13 +183,6 @@ export default function OndeEstamos() {
                       {city.description}
                     </p>
 
-                    <div className="mb-4">
-                      <p className="text-xs font-bold text-[#B0B5C3] uppercase tracking-wide mb-1.5">
-                        Planos disponíveis
-                      </p>
-                      <p className="text-xs font-semibold text-[#122AD5]">{city.planos}</p>
-                    </div>
-
                     <Link
                       href={`/cidade/${city.slug}`}
                       data-testid={`link-city-page-${city.slug}`}
