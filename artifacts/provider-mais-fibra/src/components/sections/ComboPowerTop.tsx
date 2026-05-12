@@ -89,7 +89,7 @@ export default function ComboPowerTop() {
             paddingBottom: 18,
           }}
         >
-          <LogoCarousel logoHeight={56} gap={32} durationSec={40} />
+          <LogoCarousel logoHeight={56} gap={32} durationSec={120} />
         </div>
 
         {/* Mobile: two rows (left and right) inside white pill */}
@@ -102,7 +102,7 @@ export default function ComboPowerTop() {
             paddingBottom: 14,
           }}
         >
-          <SplitLogoCarousel logoHeight={36} gap={28} durationSec={45} />
+          <SplitLogoCarousel logoHeight={36} gap={28} durationSec={90} />
         </div>
       </div>
 
