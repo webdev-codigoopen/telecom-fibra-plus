@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const logoModules = import.meta.glob<string>(
   "../../../../attached_assets/channel-logos/*.{png,svg}",
@@ -99,16 +99,52 @@ type Props = {
   logos?: { src: string; name: string }[];
 };
 
-function Track({ logoHeight, gap, durationSec, reverse, logos }: Required<Props>) {
-  const items = [...logos, ...logos];
+function Track({ logoHeight, gap, durationSec, reverse, logos, paused }: Required<Props> & { paused: boolean }) {
+  const items = useMemo(() => [...logos, ...logos], [logos]);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
+  const lastTsRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    let raf = 0;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+
+    const step = (ts: number) => {
+      if (lastTsRef.current == null) lastTsRef.current = ts;
+      const dt = ts - lastTsRef.current;
+      lastTsRef.current = ts;
+      if (!paused) {
+        const halfWidth = el.scrollWidth / 2;
+        if (halfWidth > 0) {
+          // pixels per ms = halfWidth / (durationSec * 1000)
+          const delta = (halfWidth * dt) / (durationSec * 1000);
+          offsetRef.current += reverse ? -delta : delta;
+          // Wrap within [0, halfWidth) so positions stay continuous and seamless
+          if (offsetRef.current >= halfWidth) offsetRef.current -= halfWidth;
+          if (offsetRef.current < 0) offsetRef.current += halfWidth;
+          el.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
+        }
+      }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      lastTsRef.current = null;
+    };
+  }, [durationSec, reverse, paused, items.length]);
+
   return (
     <div
+      ref={trackRef}
       className="pmf-logo-track flex w-max items-center"
       style={{
         gap,
-        animation: `pmf-logo-scroll ${durationSec}s linear infinite`,
-        animationDirection: reverse ? "reverse" : "normal",
         willChange: "transform",
+        backfaceVisibility: "hidden",
       }}
     >
       {items.map((logo, i) => (
@@ -166,14 +202,11 @@ export default function LogoCarousel({
   logos,
 }: Props) {
   const list = useMemo(() => logos ?? ALL_LOGOS, [logos]);
+  const [paused, setPaused] = useState(false);
 
   return (
     <>
       <style>{`
-        @keyframes pmf-logo-scroll {
-          from { transform: translate3d(0, 0, 0); }
-          to   { transform: translate3d(-50%, 0, 0); }
-        }
         .pmf-logo-mask {
           -webkit-mask-image: linear-gradient(
             to right,
@@ -190,20 +223,19 @@ export default function LogoCarousel({
             transparent 100%
           );
         }
-        .pmf-logo-mask:hover .pmf-logo-track {
-          animation-play-state: paused;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .pmf-logo-track { animation: none !important; }
-        }
       `}</style>
-      <div className="pmf-logo-mask w-full overflow-hidden">
+      <div
+        className="pmf-logo-mask w-full overflow-hidden"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
         <Track
           logoHeight={logoHeight}
           gap={gap}
           durationSec={durationSec}
           reverse={reverse}
           logos={list}
+          paused={paused}
         />
       </div>
     </>
