@@ -30,9 +30,10 @@ type Props = {
   index?: number;
   idSuffix?: string;
   source?: string;
+  cityName?: string;
 };
 
-function trackPlanClick(plan: Plan, source: string) {
+function trackPlanClick(plan: Plan, source: string, cityName?: string) {
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   fetch(`${baseUrl}/api/clicks`, {
     method: "POST",
@@ -41,6 +42,7 @@ function trackPlanClick(plan: Plan, source: string) {
       planSpeed: plan.speed,
       planPrice: plan.price,
       source,
+      city: cityName,
     }),
   }).catch((err) => {
     console.warn("[PlanCard] Failed to record click event:", err);
@@ -75,8 +77,9 @@ export default function PlanCard({
   index = 0,
   idSuffix = "",
   source = "hero",
+  cityName,
 }: Props) {
-  const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id) : undefined;
+  const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id, cityName) : undefined;
   const whatsappUrl = buildWhatsAppUrl(plan, shareUrl);
   const [reais, centavos] = plan.price.split(",");
 
@@ -349,7 +352,7 @@ export default function PlanCard({
           target="_blank"
           rel="noopener noreferrer"
           data-testid={`plan-cta-${plan.speed}${idSuffix}`}
-          onClick={() => trackPlanClick(plan, source)}
+          onClick={() => trackPlanClick(plan, source, cityName)}
           className="plans-section__cta flex items-center justify-center transition-all duration-200 hover:bg-white/10 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
           style={{
             gap: 8,

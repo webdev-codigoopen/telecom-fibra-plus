@@ -102,6 +102,32 @@ async function fetchCityTotals(baseUrl: string, adminKey: string, win: Window): 
   return totals;
 }
 
+export type CityConversion = { previews: number; signups: number };
+
+async function fetchCityConversion(
+  baseUrl: string,
+  adminKey: string,
+  win: Window,
+): Promise<Map<string, CityConversion>> {
+  const params = new URLSearchParams();
+  if (win.since) params.set("since", win.since);
+  if (win.until) params.set("until", win.until);
+  const qs = params.toString();
+  const url = `${baseUrl}/api/clicks/cities-conversion${qs ? `?${qs}` : ""}`;
+  const res = await fetch(url, { headers: { "X-Admin-Key": adminKey } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data: { city: string; previews: number; signups: number }[] = await res.json();
+  const map = new Map<string, CityConversion>();
+  for (const row of data) {
+    if (!row.city) continue;
+    const prev = map.get(row.city) ?? { previews: 0, signups: 0 };
+    prev.previews += row.previews ?? 0;
+    prev.signups += row.signups ?? 0;
+    map.set(row.city, prev);
+  }
+  return map;
+}
+
 type ColorMode = "volume" | "growth";
 
 export default function CityClicksMap(props: Props) {
@@ -116,6 +142,7 @@ export default function CityClicksMap(props: Props) {
   const [customTo, setCustomTo] = useState<string>("");
   const [entries, setEntries] = useState<CityClickEntry[]>([]);
   const [prevEntries, setPrevEntries] = useState<CityClickEntry[] | null>(null);
+  const [conversion, setConversion] = useState<Map<string, CityConversion>>(new Map());
   const [prevError, setPrevError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,11 +170,16 @@ export default function CityClicksMap(props: Props) {
           () => ({ ok: false as const }),
         )
       : Promise.resolve({ ok: true as const, totals: null });
+    const conversionPromise = fetchCityConversion(baseUrl, adminKey, win).then(
+      (r) => r,
+      () => new Map<string, CityConversion>(),
+    );
 
-    Promise.all([currentPromise, prevPromise])
-      .then(([currentTotals, prevResult]) => {
+    Promise.all([currentPromise, prevPromise, conversionPromise])
+      .then(([currentTotals, prevResult, conversionMap]) => {
         if (myReqId !== reqIdRef.current) return;
         setEntries(Array.from(currentTotals.entries()).map(([name, total]) => ({ name, total })));
+        setConversion(conversionMap);
         if (!prevResult.ok) {
           setPrevEntries(null);
           setPrevError(true);
@@ -238,8 +270,10 @@ export default function CityClicksMap(props: Props) {
     : null;
   const hoveredTotal = hoveredCity ? clickMap.get(hoveredCity.name) ?? 0 : 0;
   const hoveredDelta = hoveredCity ? deltaFor(hoveredCity.name) : null;
+  const hoveredConv = hoveredCity ? conversion.get(hoveredCity.name) ?? null : null;
   const hoveredPos = hoveredCity ? project(hoveredCity.lat, hoveredCity.lon) : null;
-  const tooltipHeight = hoveredDelta ? 52 : 36;
+  const tooltipHeight =
+    36 + (hoveredDelta ? 16 : 0) + (hoveredConv && (hoveredConv.previews > 0 || hoveredConv.signups > 0) ? 16 : 0);
 
   function formatDelta(d: { abs: number; pct: number | null; prev: number; current: number }): string {
     if (d.current === 0 && d.prev === 0) return "Sem cliques nos dois períodos";
@@ -500,6 +534,21 @@ export default function CityClicksMap(props: Props) {
                   {formatDelta(hoveredDelta)}
                 </text>
               )}
+              {hoveredConv && (hoveredConv.previews > 0 || hoveredConv.signups > 0) && (
+                <text
+                  x={Math.min(VIEW_W - 200, Math.max(8, hoveredPos.x + 14)) + 10}
+                  y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + (hoveredDelta ? 60 : 45)}
+                  fill="#FFD66B"
+                  fontSize="10"
+                  fontWeight="600"
+                >
+                  {(() => {
+                    const { previews, signups } = hoveredConv;
+                    const pct = previews > 0 ? Math.round((signups / previews) * 100) : null;
+                    return `Preview ${previews} → Assina ${signups}${pct !== null ? ` (${pct}%)` : ""}`;
+                  })()}
+                </text>
+              )}
             </g>
           )}
         </svg>
@@ -512,6 +561,7 @@ export default function CityClicksMap(props: Props) {
             ? new Map(CITY_COORDS.map((c) => [c.name, deltaFor(c.name)]))
             : null
         }
+        conversion={isAdminMode ? conversion : null}
       />
     </div>
   );
@@ -523,10 +573,12 @@ function TopCitiesList({
   entries,
   totalClicks,
   deltas,
+  conversion,
 }: {
   entries: CityClickEntry[];
   totalClicks: number;
   deltas: Map<string, DeltaInfo | null> | null;
+  conversion: Map<string, CityConversion> | null;
 }) {
   const sorted = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -534,6 +586,26 @@ function TopCitiesList({
       return a.name.localeCompare(b.name, "pt-BR");
     });
   }, [entries]);
+
+  const conversionRows = useMemo(() => {
+    if (!conversion) return [];
+    return Array.from(conversion.entries())
+      .map(([name, c]) => ({
+        name,
+        previews: c.previews,
+        signups: c.signups,
+        rate: c.previews > 0 ? (c.signups / c.previews) * 100 : null,
+      }))
+      .filter((r) => r.previews > 0 || r.signups > 0)
+      .sort((a, b) => {
+        if (b.previews !== a.previews) return b.previews - a.previews;
+        return a.name.localeCompare(b.name, "pt-BR");
+      });
+  }, [conversion]);
+
+  const totalPreviews = conversionRows.reduce((s, r) => s + r.previews, 0);
+  const totalSignups = conversionRows.reduce((s, r) => s + r.signups, 0);
+  const overallRate = totalPreviews > 0 ? (totalSignups / totalPreviews) * 100 : null;
 
   return (
     <div className="mt-4 border-t border-[#E0E3EB] pt-3">
@@ -594,6 +666,79 @@ function TopCitiesList({
           );
         })}
       </ol>
+      {conversion && (
+        <div className="mt-5 pt-3 border-t border-[#E0E3EB]">
+          <div className="flex items-baseline justify-between mb-2">
+            <h4 className="font-bold text-xs text-[#0D0D0D]">
+              Conversão por cidade
+              <span className="ml-1 font-normal text-[10px] text-[#7A7F8C]">
+                (preview WhatsApp → assinatura)
+              </span>
+            </h4>
+            <span className="text-[10px] text-[#7A7F8C] tabular-nums">
+              {totalPreviews > 0
+                ? `${totalPreviews} previews · ${totalSignups} assinaturas${
+                    overallRate !== null ? ` · ${overallRate.toFixed(0)}%` : ""
+                  }`
+                : "Sem previews no período"}
+            </span>
+          </div>
+          {conversionRows.length === 0 ? (
+            <p className="text-[11px] text-[#7A7F8C] italic">
+              Nenhum preview do WhatsApp foi aberto a partir de uma página de cidade neste período.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-1.5">
+              {conversionRows.map((r, idx) => {
+                const rate = r.rate;
+                const rateColor =
+                  rate === null
+                    ? "text-[#7A7F8C]"
+                    : rate >= 50
+                      ? "text-[#00863A]"
+                      : rate >= 20
+                        ? "text-[#0040FF]"
+                        : "text-[#C92020]";
+                const barPct = rate === null ? 0 : Math.min(100, Math.max(0, rate));
+                const barColor =
+                  rate === null
+                    ? "#B0B5C3"
+                    : rate >= 50
+                      ? "#00C040"
+                      : rate >= 20
+                        ? "#0040FF"
+                        : "#E03131";
+                return (
+                  <li key={r.name} className="flex items-center gap-2 text-xs">
+                    <span className="w-5 text-right font-semibold text-[#7A7F8C] tabular-nums">
+                      {idx + 1}.
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate font-semibold text-[#2A2D38]">{r.name}</span>
+                        <span className="tabular-nums text-[#7A7F8C] text-[11px] shrink-0 flex items-center gap-2">
+                          <span>
+                            {r.previews} prev · {r.signups} assin
+                          </span>
+                          <span className={`font-semibold ${rateColor}`}>
+                            {rate === null ? "—" : `${rate.toFixed(0)}%`}
+                          </span>
+                        </span>
+                      </span>
+                      <span className="block mt-1 h-1.5 rounded-full bg-[#F0F2F7] overflow-hidden">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{ width: `${barPct}%`, background: barColor }}
+                        />
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+      )}
     </div>
   );
 }

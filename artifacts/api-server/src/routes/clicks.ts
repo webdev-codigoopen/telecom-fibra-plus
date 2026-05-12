@@ -19,7 +19,7 @@ function requireAdminKey(req: Request, res: Response, next: NextFunction): void 
 }
 
 router.post("/clicks", async (req, res) => {
-  const { planSpeed, planPrice, source } = req.body ?? {};
+  const { planSpeed, planPrice, source, city } = req.body ?? {};
   if (!planSpeed || !planPrice) {
     res.status(400).json({ error: "planSpeed and planPrice are required" });
     return;
@@ -29,6 +29,7 @@ router.post("/clicks", async (req, res) => {
       planSpeed: String(planSpeed),
       planPrice: String(planPrice),
       source: source ? String(source) : "hero",
+      city: city ? String(city).slice(0, 120) : null,
     });
     res.status(201).json({ ok: true });
   } catch {
@@ -154,6 +155,58 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
     res.json(rows);
   } catch {
     res.status(500).json({ error: "Failed to fetch click timeseries" });
+  }
+});
+
+router.get("/clicks/cities-conversion", requireAdminKey, async (req, res) => {
+  try {
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+
+    const previewExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} = 'whatsapp-share') as int)`;
+    const signupExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} <> 'whatsapp-share') as int)`;
+
+    const baseSelect = db
+      .select({
+        city: planClicksTable.city,
+        previews: previewExpr,
+        signups: signupExpr,
+      })
+      .from(planClicksTable);
+
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+
+    const rows = await filtered.groupBy(planClicksTable.city);
+    const cleaned = rows
+      .filter((r) => r.city != null && r.city.length > 0)
+      .map((r) => ({ city: r.city as string, previews: r.previews, signups: r.signups }));
+    res.json(cleaned);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch city conversion stats" });
   }
 });
 

@@ -52,10 +52,11 @@ export function buildWhatsAppUrl(plan: Plan, shareUrl?: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
-export function buildPlanShareUrl(planId: number): string | undefined {
+export function buildPlanShareUrl(planId: number, cityName?: string): string | undefined {
   if (typeof window === "undefined") return undefined;
   const baseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-  return `${window.location.origin}${baseUrl}/api/plans/${planId}/share`;
+  const qs = cityName ? `?city=${encodeURIComponent(cityName)}` : "";
+  return `${window.location.origin}${baseUrl}/api/plans/${planId}/share${qs}`;
 }
 
 export const ALL_INCLUSIONS = [

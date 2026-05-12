@@ -5,6 +5,7 @@ export const planClicksTable = pgTable("plan_clicks", {
   planSpeed: text("plan_speed").notNull(),
   planPrice: text("plan_price").notNull(),
   source: text("source").notNull().default("hero"),
+  city: text("city"),
   clickedAt: timestamp("clicked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

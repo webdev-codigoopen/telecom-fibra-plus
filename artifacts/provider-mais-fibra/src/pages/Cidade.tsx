@@ -142,6 +142,7 @@ export default function Cidade() {
                   plan={plan}
                   index={i}
                   source={city.name}
+                  cityName={city.name}
                   idSuffix={`-${city.slug}`}
                 />
               ))}

@@ -56,11 +56,13 @@ router.get("/plans/:id/share", async (req, res) => {
     const apiIdx = req.originalUrl.indexOf("/api/");
     const basePath = apiIdx >= 0 ? req.originalUrl.slice(0, apiIdx) : "";
     const homeUrl = `${basePath}/` || "/";
+    const cityParam = typeof req.query["city"] === "string" ? req.query["city"].slice(0, 120) : null;
     Promise.resolve(
       db.insert(planClicksTable).values({
         planSpeed: plan.speed,
         planPrice: plan.price,
         source: "whatsapp-share",
+        city: cityParam && cityParam.length > 0 ? cityParam : null,
       }),
     ).then(
       () => undefined,
