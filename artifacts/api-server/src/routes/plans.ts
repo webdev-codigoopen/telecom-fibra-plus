@@ -23,6 +23,21 @@ router.get("/plans/admin/verify", requireAdminKey, (_req, res) => {
   res.json({ ok: true });
 });
 
+const CRAWLER_UA_PATTERN =
+  /facebookexternalhit|facebookcatalog|facebot|twitterbot|slackbot|slack-imgproxy|linkedinbot|discordbot|telegrambot|skypeuripreview|pinterest(?:bot)?|embedly|quora link preview|vkshare|w3c_validator|redditbot|applebot|bingpreview|googlebot|google-inspectiontool|googleother|yandexbot|duckduckbot|baiduspider|petalbot|chatgpt-user|gptbot|oai-searchbot|perplexitybot|claudebot|anthropic-ai|bytespider/i;
+
+function isBotUserAgent(ua: string | undefined): boolean {
+  if (!ua) return false;
+  if (CRAWLER_UA_PATTERN.test(ua)) return true;
+  // WhatsApp's link-preview fetcher sends a bare UA like "WhatsApp/2.23.20.0 A"
+  // with no browser engine. The in-app browser used by real recipients
+  // includes a full Mozilla/AppleWebKit UA, so we only flag the bare form.
+  if (/\bWhatsApp\/[\d.]+/i.test(ua) && !/Mozilla|AppleWebKit|Chrome|Safari/i.test(ua)) {
+    return true;
+  }
+  return false;
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -57,11 +72,13 @@ router.get("/plans/:id/share", async (req, res) => {
     const basePath = apiIdx >= 0 ? req.originalUrl.slice(0, apiIdx) : "";
     const homeUrl = `${basePath}/` || "/";
     const cityParam = typeof req.query["city"] === "string" ? req.query["city"].slice(0, 120) : null;
+    const userAgent = req.get("user-agent") ?? undefined;
+    const fromBot = isBotUserAgent(userAgent);
     Promise.resolve(
       db.insert(planClicksTable).values({
         planSpeed: plan.speed,
         planPrice: plan.price,
-        source: "whatsapp-share",
+        source: fromBot ? "whatsapp-share-bot" : "whatsapp-share",
         city: cityParam && cityParam.length > 0 ? cityParam : null,
       }),
     ).then(

@@ -80,6 +80,8 @@ const KNOWN_SOURCE_COLORS: Record<string, string> = {
   sticky: "#00C040",
   whatsapp: "#25D366",
   share: "#9333EA",
+  "whatsapp-share": "#9333EA",
+  "whatsapp-share-bot": "#A1A6B0",
   city: "#FF8A00",
   cta: "#E11D48",
   footer: "#0EA5E9",
@@ -249,6 +251,7 @@ export default function Admin() {
         byPlan.set(key, entry);
       }
       if (s.source === "whatsapp-share") entry.previews += s.total;
+      else if (s.source === "whatsapp-share-bot") continue;
       else entry.signups += s.total;
     }
     return Array.from(byPlan.values())
