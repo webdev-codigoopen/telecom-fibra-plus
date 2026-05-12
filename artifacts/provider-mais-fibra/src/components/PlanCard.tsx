@@ -116,7 +116,7 @@ export default function PlanCard({
     >
       {/* Top block: header + speed + icons */}
       <div
-        className="flex flex-col items-center"
+        className="flex flex-col items-center pt-[45px]"
         style={{ gap: 15, paddingTop: hasStreaming ? 0 : 60 }}
       >
         {/* INTERNET 100% FIBRA */}
