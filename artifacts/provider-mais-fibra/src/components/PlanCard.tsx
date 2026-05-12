@@ -147,8 +147,8 @@ export default function PlanCard({
             height={16}
             className="absolute pointer-events-none"
             style={{
-              left: "calc(50% + 1.55ch)",
-              top: "62%",
+              left: "calc(76% + 1.55ch)",
+              top: "50%",
               transform: "translateY(-50%)",
             }}
           />
