@@ -1,8 +1,23 @@
-import { Router, type IRouter, type Request } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { createHash } from "crypto";
 import { db, demandInterestsTable, planClicksTable } from "@workspace/db";
+import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
+  const secret = process.env["ADMIN_SECRET"];
+  if (!secret) {
+    res.status(503).json({ error: "Admin access not configured" });
+    return;
+  }
+  const key = req.headers["x-admin-key"];
+  if (key !== secret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  next();
+}
 
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX_PER_WINDOW = 3;
@@ -118,6 +133,131 @@ router.post("/demand/interest", async (req, res) => {
     res.status(201).json({ ok: true });
   } catch {
     res.status(500).json({ error: "Não foi possível registrar seu interesse. Tente novamente." });
+  }
+});
+
+function parseDate(value: unknown): Date | undefined {
+  if (typeof value !== "string" || value.length === 0) return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+}
+
+router.get("/demand/interests", requireAdminKey, async (req, res) => {
+  try {
+    const sinceDate = parseDate(req.query["since"]);
+    const untilDate = parseDate(req.query["until"]);
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, MAX_CITY_LEN)
+      : undefined;
+    const limitParam = typeof req.query["limit"] === "string" ? parseInt(req.query["limit"], 10) : NaN;
+    const limit = Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 1000 ? limitParam : 500;
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
+    if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
+    if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
+
+    const baseSelect = db
+      .select({
+        id: demandInterestsTable.id,
+        city: demandInterestsTable.city,
+        neighborhood: demandInterestsTable.neighborhood,
+        whatsapp: demandInterestsTable.whatsapp,
+        createdAt: demandInterestsTable.createdAt,
+      })
+      .from(demandInterestsTable);
+
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+
+    const rows = await filtered
+      .orderBy(desc(demandInterestsTable.createdAt))
+      .limit(limit);
+
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch interests" });
+  }
+});
+
+router.get("/demand/interests/cities", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        city: demandInterestsTable.city,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(demandInterestsTable)
+      .groupBy(demandInterestsTable.city)
+      .orderBy(desc(sql`count(*)`));
+    res.json(rows);
+  } catch {
+    res.status(500).json({ error: "Failed to fetch interest cities" });
+  }
+});
+
+router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
+  try {
+    const sinceDate = parseDate(req.query["since"]);
+    const untilDate = parseDate(req.query["until"]);
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, MAX_CITY_LEN)
+      : undefined;
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
+    if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
+    if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
+
+    const baseSelect = db
+      .select({
+        createdAt: demandInterestsTable.createdAt,
+        city: demandInterestsTable.city,
+        neighborhood: demandInterestsTable.neighborhood,
+        whatsapp: demandInterestsTable.whatsapp,
+      })
+      .from(demandInterestsTable);
+
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+
+    const rows = await filtered.orderBy(desc(demandInterestsTable.createdAt));
+
+    const escape = (val: string | Date | null | undefined): string => {
+      let s = val == null ? "" : val instanceof Date ? val.toISOString() : String(val);
+      if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) {
+        s = `'${s}`;
+      }
+      if (/[",\n\r]/.test(s)) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const header = "created_at,city,neighborhood,whatsapp";
+    const body = rows
+      .map((r) => [escape(r.createdAt), escape(r.city), escape(r.neighborhood), escape(r.whatsapp)].join(","))
+      .join("\n");
+    const csv = `${header}\n${body}${body ? "\n" : ""}`;
+
+    let filename: string;
+    if (sinceDate && untilDate) {
+      const fromStamp = sinceDate.toISOString().slice(0, 10);
+      const toStamp = new Date(untilDate.getTime() - 1).toISOString().slice(0, 10);
+      filename = `interesses-${fromStamp}_to_${toStamp}.csv`;
+    } else {
+      const stamp = new Date().toISOString().slice(0, 10);
+      filename = `interesses-${stamp}.csv`;
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch {
+    res.status(500).json({ error: "Failed to export interests" });
   }
 });
 

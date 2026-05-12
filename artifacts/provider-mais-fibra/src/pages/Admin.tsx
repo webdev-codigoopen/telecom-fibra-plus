@@ -228,7 +228,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -767,6 +767,7 @@ export default function Admin() {
           {([
             { id: "planos", label: "Planos" },
             { id: "ctas", label: "Configuração de CTAs" },
+            { id: "interesses", label: "Interesses (Demanda)" },
           ] as const).map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -805,6 +806,10 @@ export default function Admin() {
             baseUrl={baseUrl}
             onChange={fetchAppSettingsAdmin}
           />
+        )}
+
+        {!loading && activeTab === "interesses" && (
+          <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "planos" && (
@@ -2916,6 +2921,282 @@ function CtaSettingsManager({ settings, adminKey, baseUrl, onChange }: CtaSettin
           )}
         </div>
       </form>
+    </section>
+  );
+}
+
+
+type DemandInterest = {
+  id: number;
+  city: string;
+  neighborhood: string;
+  whatsapp: string;
+  createdAt: string;
+};
+
+type InterestCity = { city: string; total: number };
+
+type DemandInterestsManagerProps = {
+  adminKey: string;
+  baseUrl: string;
+};
+
+function formatWhatsappDisplay(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  if (d.length === 13 && d.startsWith("55")) {
+    return `+55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
+  }
+  if (d.length === 12 && d.startsWith("55")) {
+    return `+55 (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
+  }
+  if (d.length === 11) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  }
+  if (d.length === 10) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+  return digits;
+}
+
+function whatsappLink(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  const withCountry = d.length <= 11 ? `55${d}` : d;
+  return `https://wa.me/${withCountry}`;
+}
+
+function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerProps) {
+  const [items, setItems] = useState<DemandInterest[]>([]);
+  const [cities, setCities] = useState<InterestCity[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cityFilter, setCityFilter] = useState<string>("");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
+  const buildParams = useCallback((): URLSearchParams => {
+    const params = new URLSearchParams();
+    if (cityFilter) params.set("city", cityFilter);
+    if (fromDate) {
+      const since = new Date(`${fromDate}T00:00:00`);
+      if (!Number.isNaN(since.getTime())) params.set("since", since.toISOString());
+    }
+    if (toDate) {
+      const until = new Date(`${toDate}T00:00:00`);
+      if (!Number.isNaN(until.getTime())) {
+        until.setDate(until.getDate() + 1);
+        params.set("until", until.toISOString());
+      }
+    }
+    return params;
+  }, [cityFilter, fromDate, toDate]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const params = buildParams();
+      const qs = params.toString();
+      const [listRes, citiesRes] = await Promise.all([
+        fetch(`${baseUrl}/api/demand/interests${qs ? `?${qs}` : ""}`, {
+          headers: { "X-Admin-Key": adminKey },
+        }),
+        fetch(`${baseUrl}/api/demand/interests/cities`, {
+          headers: { "X-Admin-Key": adminKey },
+        }),
+      ]);
+      if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
+      const data: DemandInterest[] = await listRes.json();
+      setItems(data);
+      if (citiesRes.ok) {
+        const cityData: InterestCity[] = await citiesRes.json();
+        setCities(cityData);
+      }
+    } catch {
+      setErrorMsg("Não foi possível carregar os interesses.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl, buildParams]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  async function exportCsv() {
+    try {
+      const params = buildParams();
+      const qs = params.toString();
+      const res = await fetch(
+        `${baseUrl}/api/demand/interests/export${qs ? `?${qs}` : ""}`,
+        { headers: { "X-Admin-Key": adminKey } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      const slug = cityFilter ? `-${cityFilter.toLowerCase().replace(/\s+/g, "-")}` : "";
+      a.download = `interesses${slug}-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setErrorMsg("Não foi possível exportar o CSV.");
+    }
+  }
+
+  function clearFilters() {
+    setCityFilter("");
+    setFromDate("");
+    setToDate("");
+  }
+
+  const totalLabel = items.length === 1 ? "1 cadastro" : `${items.length} cadastros`;
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">Interesses registrados (mapa de demanda)</h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Pessoas que registraram interesse em ter fibra na rua delas pela página{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-end gap-3 mb-4">
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Cidade</span>
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="border border-[#E0E3EB] rounded-md px-2 py-1.5 bg-white text-sm text-[#2A2D38] min-w-[200px] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-city-filter"
+          >
+            <option value="">Todas as cidades</option>
+            {cities.map((c) => (
+              <option key={c.city} value={c.city}>
+                {c.city} ({c.total})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>De</span>
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="border border-[#E0E3EB] rounded-md px-2 py-1.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-from-date"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Até</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(e) => setToDate(e.target.value)}
+            className="border border-[#E0E3EB] rounded-md px-2 py-1.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-to-date"
+          />
+        </label>
+        {(cityFilter || fromDate || toDate) && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs text-[#7A7F8C] hover:text-[#0D0D0D] underline"
+          >
+            Limpar filtros
+          </button>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void fetchData()}
+            disabled={loading}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-50"
+          >
+            {loading ? "Atualizando..." : "Atualizar"}
+          </button>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={items.length === 0}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md border border-[#0040FF]/20 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-50"
+            data-testid="interest-export-csv"
+          >
+            Exportar CSV
+          </button>
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="text-xs text-[#7A7F8C] mb-2">{loading ? "Carregando..." : totalLabel}</div>
+
+      {!loading && items.length === 0 ? (
+        <div className="text-center text-[#7A7F8C] py-12 border border-dashed border-[#E0E3EB] rounded-xl">
+          Nenhum interesse registrado para os filtros selecionados.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#E0E3EB] rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F5F7FA] text-[#7A7F8C] text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Data</th>
+                <th className="text-left px-3 py-2 font-semibold">Cidade</th>
+                <th className="text-left px-3 py-2 font-semibold">Bairro/Rua</th>
+                <th className="text-left px-3 py-2 font-semibold">WhatsApp</th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => {
+                const date = new Date(it.createdAt);
+                const dateLabel = date.toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <tr key={it.id} className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]">
+                    <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">{dateLabel}</td>
+                    <td className="px-3 py-2 text-[#0D0D0D] font-medium">{it.city}</td>
+                    <td className="px-3 py-2 text-[#2A2D38]">{it.neighborhood}</td>
+                    <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap font-mono text-xs">
+                      {formatWhatsappDisplay(it.whatsapp)}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                      <a
+                        href={whatsappLink(it.whatsapp)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md border border-[#25D366]/30 text-[#0E7D3D] hover:bg-[#25D366]/10"
+                        data-testid={`interest-open-whatsapp-${it.id}`}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
+                          <path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 0 1 8.413 3.488 11.824 11.824 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 0 0 1.51 5.26l.6.953-1.005 3.668 3.768-.987.616.407z"/>
+                        </svg>
+                        Abrir WhatsApp
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
