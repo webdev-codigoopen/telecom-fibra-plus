@@ -45,13 +45,21 @@ function trackPlanClick(plan: Plan, source: string) {
 
 function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
   const src = logos === "watch+powertop" ? LOGO_WATCH_POWERTOP : LOGO_WATCH;
+  const intrinsicH = logos === "watch+powertop" ? 80 : 76;
   const alt =
     logos === "watch+powertop"
       ? "+ Assinatura inclusa Watch + Power Top"
       : "+ Assinatura inclusa Watch";
   return (
     <div className="plans-section__streaming flex justify-center">
-      <img src={src} alt={alt} width={193} height={42} style={{ width: 193, height: 42 }} className="max-w-full" />
+      <img
+        src={src}
+        alt={alt}
+        width={223}
+        height={intrinsicH}
+        style={{ width: 223, height: intrinsicH }}
+        className="max-w-full"
+      />
     </div>
   );
 }
@@ -123,7 +131,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
             className="absolute pointer-events-none"
             style={{
               left: "calc(50% + 1.05ch)",
-              top: "50%",
+              top: "62%",
               transform: "translateY(-50%)",
             }}
           />
@@ -166,8 +174,8 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       {/* Streaming bonus (600 / 900) */}
       {has600Streaming && <StreamingBox logos="watch" />}
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
-      {/* Bottom block: price + CTA + footer */}
-      <div className="flex flex-col mt-auto" style={{ gap: 10 }}>
+      {/* Bottom block: price + CTA + footer (Figma Frame 33: gap 5, naturally compact) */}
+      <div className="flex flex-col mt-auto" style={{ gap: 5 }}>
         {/* Price block */}
         <div className="flex items-end justify-center" style={{ gap: 6 }}>
           <div className="flex flex-col items-end leading-none" style={{ paddingBottom: 8 }}>
