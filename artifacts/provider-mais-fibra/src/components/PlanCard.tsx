@@ -95,7 +95,7 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
       <div className="flex flex-col items-center" style={{ gap: 15 }}>
         {/* INTERNET 100% FIBRA */}
         <div
-          className="text-center"
+          className="text-center font-normal"
           style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.02em", color: COLORS.white }}
         >
           INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
@@ -163,11 +163,9 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           );
         })()}
       </div>
-
       {/* Streaming bonus (600 / 900) */}
       {has600Streaming && <StreamingBox logos="watch" />}
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
-
       {/* Bottom block: price + CTA + footer */}
       <div className="flex flex-col mt-auto" style={{ gap: 10 }}>
         {/* Price block */}
