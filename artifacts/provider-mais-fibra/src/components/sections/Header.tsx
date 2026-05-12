@@ -88,7 +88,7 @@ export default function Header() {
       data-testid="header"
       className="header-section fixed top-0 left-0 right-0 z-50 transition-all duration-300 text-[#ffffff] border-t-[#0d0d0d00] border-r-[#0d0d0d00] border-b-[#0d0d0d00] border-l-[#0d0d0d00] bg-[#000000]"
       style={{
-        background: scrolled ? HEADER_BG : "transparent",
+        background: scrolled || location !== "/" ? HEADER_BG : "transparent",
         boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.30)" : "none",
         fontFamily: FONT_NUNITO,
       }}
