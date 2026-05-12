@@ -214,6 +214,7 @@ export default function Admin() {
   const [customTo, setCustomTo] = useState<string>(() => loadStoredFilters().customTo);
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>(() => loadStoredFilters().source);
+  const [cityFilter, setCityFilter] = useState<string | null>(null);
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [chartView, setChartView] = useState<ChartView>(() => loadStoredUiState().chartView);
   const [dragId, setDragId] = useState<number | null>(null);
@@ -336,6 +337,7 @@ export default function Admin() {
     source: string = "",
     customFromStr: string = "",
     customToStr: string = "",
+    city: string | null = null,
   ) => {
     setClickStatsLoading(true);
     try {
@@ -384,6 +386,10 @@ export default function Admin() {
       if (source) {
         params.set("source", source);
         prevParams.set("source", source);
+      }
+      if (city) {
+        params.set("city", city);
+        prevParams.set("city", city);
       }
       const qs = params.toString();
       const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
@@ -443,7 +449,7 @@ export default function Admin() {
       const stored = loadStoredFilters();
       const [plansRes] = await Promise.all([
         fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
-        fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo),
+        fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, null),
         fetchStreamingBrands(),
       ]);
       if (!plansRes.ok) throw new Error(`HTTP ${plansRes.status}`);
@@ -681,7 +687,42 @@ export default function Admin() {
             {/* Click stats */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
-                <h2 className="font-bold text-[#0D0D0D] text-base">Cliques por Plano</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-[#0D0D0D] text-base">Cliques por Plano</h2>
+                  {cityFilter && (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF8D6] border border-[#FFD600] pl-2.5 pr-1 py-0.5 text-xs font-semibold text-[#5C4500]"
+                      data-testid="city-filter-chip"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M12 22s-8-7.5-8-13a8 8 0 1 1 16 0c0 5.5-8 13-8 13z" />
+                        <circle cx="12" cy="9" r="3" />
+                      </svg>
+                      Cidade: {cityFilter}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCityFilter(null);
+                          void fetchClickStats(
+                            adminKey,
+                            statsRange,
+                            sourceFilter,
+                            customFrom,
+                            customTo,
+                            null,
+                          );
+                        }}
+                        className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-white text-[#5C4500] hover:bg-[#5C4500] hover:text-white transition-colors"
+                        aria-label="Remover filtro de cidade"
+                        title="Remover filtro de cidade"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
                   <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Período">
                     {([
@@ -698,9 +739,9 @@ export default function Admin() {
                           onClick={() => {
                             setStatsRange(opt.id);
                             if (opt.id === "custom") {
-                              void fetchClickStats(adminKey, opt.id, sourceFilter, customFrom, customTo);
+                              void fetchClickStats(adminKey, opt.id, sourceFilter, customFrom, customTo, cityFilter);
                             } else {
-                              void fetchClickStats(adminKey, opt.id, sourceFilter);
+                              void fetchClickStats(adminKey, opt.id, sourceFilter, "", "", cityFilter);
                             }
                           }}
                           disabled={clickStatsLoading && active}
@@ -728,7 +769,7 @@ export default function Admin() {
                             const v = e.target.value;
                             setCustomFrom(v);
                             if (v && customTo) {
-                              void fetchClickStats(adminKey, "custom", sourceFilter, v, customTo);
+                              void fetchClickStats(adminKey, "custom", sourceFilter, v, customTo, cityFilter);
                             }
                           }}
                           className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
@@ -745,7 +786,7 @@ export default function Admin() {
                             const v = e.target.value;
                             setCustomTo(v);
                             if (customFrom && v) {
-                              void fetchClickStats(adminKey, "custom", sourceFilter, customFrom, v);
+                              void fetchClickStats(adminKey, "custom", sourceFilter, customFrom, v, cityFilter);
                             }
                           }}
                           className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
@@ -796,7 +837,7 @@ export default function Admin() {
                                 const { from, to } = computeRange(sc.id);
                                 setCustomFrom(from);
                                 setCustomTo(to);
-                                void fetchClickStats(adminKey, "custom", sourceFilter, from, to);
+                                void fetchClickStats(adminKey, "custom", sourceFilter, from, to, cityFilter);
                               }}
                               className={`px-2 py-1 rounded-md border transition-colors ${
                                 active
@@ -817,7 +858,7 @@ export default function Admin() {
                     onChange={(e) => {
                       const v = e.target.value;
                       setSourceFilter(v);
-                      void fetchClickStats(adminKey, statsRange, v, customFrom, customTo);
+                      void fetchClickStats(adminKey, statsRange, v, customFrom, customTo, cityFilter);
                     }}
                     className="text-xs font-semibold border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#2A2D38] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
                     aria-label="Filtrar por origem"
@@ -830,7 +871,7 @@ export default function Admin() {
                     ))}
                   </select>
                   <button
-                    onClick={() => fetchClickStats(adminKey, statsRange, sourceFilter, customFrom, customTo)}
+                    onClick={() => fetchClickStats(adminKey, statsRange, sourceFilter, customFrom, customTo, cityFilter)}
                     disabled={clickStatsLoading}
                     className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
                   >
@@ -1234,7 +1275,22 @@ export default function Admin() {
             </div>
 
             <div className="mb-8">
-              <CityClicksMap adminKey={adminKey} baseUrl={baseUrl} />
+              <CityClicksMap
+                adminKey={adminKey}
+                baseUrl={baseUrl}
+                selectedCity={cityFilter}
+                onSelectCity={(city) => {
+                  setCityFilter(city);
+                  void fetchClickStats(
+                    adminKey,
+                    statsRange,
+                    sourceFilter,
+                    customFrom,
+                    customTo,
+                    city,
+                  );
+                }}
+              />
             </div>
 
             <div className="flex items-center justify-between mb-6">

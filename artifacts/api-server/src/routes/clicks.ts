@@ -61,6 +61,9 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
     const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
       ? req.query["source"]
       : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
     let sinceDate: Date | undefined;
     if (sinceParam) {
       const parsed = new Date(sinceParam);
@@ -84,6 +87,7 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
     if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
     if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
 
     const baseSelect = db
       .select({
@@ -114,6 +118,9 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
     const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
       ? req.query["source"]
       : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
     const bucketParam = typeof req.query["bucket"] === "string" ? req.query["bucket"] : "day";
     const bucket = bucketParam === "hour" ? "hour" : "day";
 
@@ -130,6 +137,7 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
     if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
 
     const bucketExpr = bucket === "hour"
       ? sql<string>`date_trunc('hour', ${planClicksTable.clickedAt})`

@@ -29,8 +29,20 @@ type StatRow = {
 type RangeId = "today" | "7d" | "30d" | "90d" | "all" | "custom";
 
 type Props =
-  | { adminKey: string; baseUrl: string; clicks?: undefined }
-  | { clicks: CityClickEntry[]; adminKey?: undefined; baseUrl?: undefined };
+  | {
+      adminKey: string;
+      baseUrl: string;
+      clicks?: undefined;
+      selectedCity?: string | null;
+      onSelectCity?: (city: string | null) => void;
+    }
+  | {
+      clicks: CityClickEntry[];
+      adminKey?: undefined;
+      baseUrl?: undefined;
+      selectedCity?: undefined;
+      onSelectCity?: undefined;
+    };
 
 const VIEW_W = 720;
 const VIEW_H = 460;
@@ -135,6 +147,8 @@ export default function CityClicksMap(props: Props) {
   const adminKey = props.adminKey;
   const baseUrl = props.baseUrl;
   const externalClicks = props.clicks;
+  const selectedCity = props.selectedCity ?? null;
+  const onSelectCity = props.onSelectCity;
 
   const [hovered, setHovered] = useState<string | null>(null);
   const [range, setRange] = useState<RangeId>("all");
@@ -469,13 +483,29 @@ export default function CityClicksMap(props: Props) {
                   ? `▼${Math.abs(d.abs)}`
                   : ""
               : "";
+            const isSelected = selectedCity === city.name;
             return (
               <g
                 key={city.name}
                 onMouseEnter={() => setHovered(city.name)}
                 onMouseLeave={() => setHovered((cur) => (cur === city.name ? null : cur))}
-                style={{ cursor: "pointer" }}
+                onClick={
+                  onSelectCity
+                    ? () => onSelectCity(isSelected ? null : city.name)
+                    : undefined
+                }
+                style={{ cursor: onSelectCity ? "pointer" : "default" }}
               >
+                {isSelected && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={r + 6}
+                    fill="none"
+                    stroke="#FFD600"
+                    strokeWidth={3}
+                  />
+                )}
                 <circle cx={x} cy={y} r={r} fill={fill} opacity={opacity} />
                 <circle cx={x} cy={y} r={3} fill="#0D0D0D" />
                 <text
@@ -603,6 +633,8 @@ export default function CityClicksMap(props: Props) {
             : null
         }
         conversion={isAdminMode ? conversion : null}
+        selectedCity={selectedCity}
+        onSelectCity={onSelectCity}
       />
     </div>
   );
@@ -615,11 +647,15 @@ function TopCitiesList({
   totalClicks,
   deltas,
   conversion,
+  selectedCity,
+  onSelectCity,
 }: {
   entries: CityClickEntry[];
   totalClicks: number;
   deltas: Map<string, DeltaInfo | null> | null;
   conversion: Map<string, CityConversion> | null;
+  selectedCity?: string | null;
+  onSelectCity?: (city: string | null) => void;
 }) {
   const sorted = useMemo(() => {
     return [...entries].sort((a, b) => {
@@ -678,11 +714,20 @@ function TopCitiesList({
               );
             }
           }
-          return (
-            <li
-              key={entry.name}
-              className={`flex items-center gap-2 text-xs ${isZero && !d ? "opacity-40" : ""}`}
-            >
+          const isSelected = selectedCity === entry.name;
+          const rowClass = `flex items-center gap-2 text-xs w-full text-left rounded-md ${
+            isZero && !d ? "opacity-40" : ""
+          } ${
+            onSelectCity
+              ? `cursor-pointer transition-colors px-1 -mx-1 ${
+                  isSelected
+                    ? "bg-[#FFF8D6] ring-1 ring-[#FFD600]"
+                    : "hover:bg-[#F5F7FA]"
+                }`
+              : ""
+          }`;
+          const inner = (
+            <>
               <span className="w-5 text-right font-semibold text-[#7A7F8C] tabular-nums">
                 {idx + 1}.
               </span>
@@ -703,6 +748,23 @@ function TopCitiesList({
                   />
                 </span>
               </span>
+            </>
+          );
+          return (
+            <li key={entry.name}>
+              {onSelectCity ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectCity(isSelected ? null : entry.name)}
+                  className={rowClass}
+                  aria-pressed={isSelected}
+                  aria-label={`Filtrar dashboard por ${entry.name}`}
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div className={rowClass}>{inner}</div>
+              )}
             </li>
           );
         })}
