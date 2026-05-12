@@ -4,6 +4,7 @@ import Home from "@/pages/Home";
 import QuemSomos from "@/pages/QuemSomos";
 import Contato from "@/pages/Contato";
 import OndeEstamos from "@/pages/OndeEstamos";
+import Admin from "@/pages/Admin";
 
 function Router() {
   return (
@@ -12,6 +13,7 @@ function Router() {
       <Route path="/quem-somos" component={QuemSomos} />
       <Route path="/contato" component={Contato} />
       <Route path="/onde-estamos" component={OndeEstamos} />
+      <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

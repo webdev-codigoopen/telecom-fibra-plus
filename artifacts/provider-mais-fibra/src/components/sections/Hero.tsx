@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { useRef, useState, useCallback } from "react";
-import { plans } from "../../lib/plans";
+import { usePlans } from "../../hooks/usePlans";
 import PlanCard from "../PlanCard";
 
 export default function Hero() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const { plans } = usePlans();
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;

@@ -1,0 +1,497 @@
+import { useState, useEffect, useCallback } from "react";
+import { type ApiPlan } from "../hooks/usePlans";
+
+const STORAGE_KEY = "pmf_admin_key";
+
+const ALL_INCLUSIONS = [
+  "Instalação Grátis",
+  "Roteador Wi-Fi",
+  "Roteador Wi-Fi 6",
+  "100 Canais",
+  "Watch",
+  "Power Top",
+];
+
+function emptyPlan(): Omit<ApiPlan, "id"> {
+  return {
+    speed: "",
+    wifi: "",
+    price: "",
+    inclusions: [],
+    featured: false,
+    badge: null,
+    bonus: null,
+    sortOrder: 0,
+  };
+}
+
+export default function Admin() {
+  const [adminKey, setAdminKey] = useState(() => localStorage.getItem(STORAGE_KEY) ?? "");
+  const [keyInput, setKeyInput] = useState("");
+  const [authed, setAuthed] = useState(false);
+  const [plans, setPlans] = useState<ApiPlan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState<ApiPlan | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const fetchPlans = useCallback(async (key: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const verify = await fetch(`${baseUrl}/api/plans/admin/verify`, {
+        headers: { "X-Admin-Key": key },
+      });
+      if (verify.status === 401) {
+        setAuthed(false);
+        setError("Senha incorreta.");
+        localStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      if (!verify.ok) throw new Error(`HTTP ${verify.status}`);
+
+      const res = await fetch(`${baseUrl}/api/plans`, {
+        headers: { "X-Admin-Key": key },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: ApiPlan[] = await res.json();
+      setPlans(data);
+      setAuthed(true);
+    } catch (err) {
+      setError("Não foi possível carregar os planos.");
+    } finally {
+      setLoading(false);
+    }
+  }, [baseUrl]);
+
+  function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    localStorage.setItem(STORAGE_KEY, keyInput);
+    setAdminKey(keyInput);
+    fetchPlans(keyInput);
+  }
+
+  useEffect(() => {
+    if (adminKey) fetchPlans(adminKey);
+    else setLoading(false);
+  }, [adminKey, fetchPlans]);
+
+  async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const isCreating = !("id" in plan);
+      const url = isCreating
+        ? `${baseUrl}/api/plans`
+        : `${baseUrl}/api/plans/${(plan as ApiPlan).id}`;
+      const method = isCreating ? "POST" : "PUT";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify(plan),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await fetchPlans(adminKey);
+      setEditingPlan(null);
+      setIsNew(false);
+    } catch (err) {
+      setSaveError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deletePlan(id: number) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/plans/${id}`, {
+        method: "DELETE",
+        headers: { "X-Admin-Key": adminKey },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchPlans(adminKey);
+      setDeleteConfirm(null);
+    } catch (err) {
+      setSaveError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEdit(plan: ApiPlan) {
+    setEditingPlan({ ...plan });
+    setIsNew(false);
+    setSaveError(null);
+  }
+
+  function startNew() {
+    setEditingPlan({ id: -1, ...emptyPlan() });
+    setIsNew(true);
+    setSaveError(null);
+  }
+
+  function cancelEdit() {
+    setEditingPlan(null);
+    setIsNew(false);
+    setSaveError(null);
+  }
+
+  if (!authed && !loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F5F7FA" }}>
+        <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#0040FF" }}>
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div>
+              <h1 className="font-bold text-lg text-[#0D0D0D]">Painel Admin</h1>
+              <p className="text-xs text-[#7A7F8C]">Provider Mais Fibra</p>
+            </div>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-[#2A2D38] mb-1">Senha de acesso</label>
+              <input
+                type="password"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="Digite a senha"
+                required
+              />
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-lg font-bold text-sm text-white transition-all duration-200 hover:opacity-90"
+              style={{ background: "#0040FF" }}
+            >
+              Entrar
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: "#F5F7FA" }}>
+      <header className="bg-white border-b border-[#E0E3EB] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <a href="/" className="text-[#7A7F8C] hover:text-[#0040FF] transition-colors">
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 5l-7 7 7 7"/>
+            </svg>
+          </a>
+          <h1 className="font-bold text-[#0D0D0D]">Gerenciar Planos</h1>
+        </div>
+        <button
+          onClick={() => {
+            localStorage.removeItem(STORAGE_KEY);
+            setAdminKey("");
+            setAuthed(false);
+            setKeyInput("");
+          }}
+          className="text-sm text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors"
+        >
+          Sair
+        </button>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+        {loading && (
+          <div className="text-center text-[#7A7F8C] py-12">Carregando...</div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
+            {error}
+          </div>
+        )}
+
+        {!loading && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-sm text-[#7A7F8C]">{plans.length} plano(s) cadastrado(s)</p>
+              <button
+                onClick={startNew}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90"
+                style={{ background: "#0040FF" }}
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Novo Plano
+              </button>
+            </div>
+
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4 text-sm">
+                {saveError}
+              </div>
+            )}
+
+            {(editingPlan !== null) && (
+              <PlanForm
+                plan={editingPlan}
+                isNew={isNew}
+                saving={saving}
+                onSave={savePlan}
+                onCancel={cancelEdit}
+              />
+            )}
+
+            <div className="space-y-3">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-4 flex items-center gap-4"
+                  style={plan.featured ? { borderColor: "#00C040" } : {}}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-black text-2xl text-[#0040FF]">{plan.speed}</span>
+                      <span className="text-sm font-semibold text-[#2A2D38]">Mega</span>
+                      {plan.featured && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "#00C040" }}>
+                          {plan.badge ?? "Destaque"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-sm text-[#7A7F8C]">
+                      <span>R$ {plan.price}/mês</span>
+                      <span>·</span>
+                      <span>{plan.wifi}</span>
+                      {plan.bonus && (
+                        <>
+                          <span>·</span>
+                          <span className="truncate">{plan.bonus}</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {plan.inclusions.map((inc) => (
+                        <span key={inc} className="text-[11px] px-1.5 py-0.5 rounded bg-[#EEF0F5] text-[#2A2D38]">{inc}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => startEdit(plan)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium text-[#0040FF] border border-[#0040FF]/20 hover:bg-[#0040FF]/5 transition-colors"
+                    >
+                      Editar
+                    </button>
+                    {deleteConfirm === plan.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => deletePlan(plan.id)}
+                          disabled={saving}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(null)}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirm(plan.id)}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50 transition-colors"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {plans.length === 0 && !editingPlan && (
+                <div className="text-center text-[#7A7F8C] py-12 bg-white rounded-xl border border-[#E0E3EB]">
+                  Nenhum plano cadastrado. Clique em "Novo Plano" para começar.
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+type PlanFormProps = {
+  plan: ApiPlan;
+  isNew: boolean;
+  saving: boolean;
+  onSave: (plan: ApiPlan | Omit<ApiPlan, "id">) => void;
+  onCancel: () => void;
+};
+
+function PlanForm({ plan, isNew, saving, onSave, onCancel }: PlanFormProps) {
+  const [form, setForm] = useState<ApiPlan>({ ...plan });
+
+  function toggleInclusion(item: string) {
+    setForm((prev) => ({
+      ...prev,
+      inclusions: prev.inclusions.includes(item)
+        ? prev.inclusions.filter((i) => i !== item)
+        : [...prev.inclusions, item],
+    }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isNew) {
+      const { id: _id, ...rest } = form;
+      onSave(rest);
+    } else {
+      onSave(form);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl border-2 border-[#0040FF]/30 px-6 py-5 mb-6">
+      <h2 className="font-bold text-[#0D0D0D] mb-4">{isNew ? "Novo Plano" : "Editar Plano"}</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Velocidade (Mega)</label>
+            <input
+              type="text"
+              value={form.speed}
+              onChange={(e) => setForm((p) => ({ ...p, speed: e.target.value }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              placeholder="Ex: 600"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Preço (R$)</label>
+            <input
+              type="text"
+              value={form.price}
+              onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              placeholder="Ex: 99,90"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Wi-Fi</label>
+            <input
+              type="text"
+              value={form.wifi}
+              onChange={(e) => setForm((p) => ({ ...p, wifi: e.target.value }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              placeholder="Ex: Wi-Fi 6 incluso"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Ordem</label>
+            <input
+              type="number"
+              value={form.sortOrder}
+              onChange={(e) => setForm((p) => ({ ...p, sortOrder: Number(e.target.value) }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Inclusos</label>
+          <div className="flex flex-wrap gap-2">
+            {ALL_INCLUSIONS.map((item) => {
+              const checked = form.inclusions.includes(item);
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggleInclusion(item)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
+                  style={checked
+                    ? { background: "#00C040", color: "white", borderColor: "#00C040" }
+                    : { background: "white", color: "#2A2D38", borderColor: "#E0E3EB" }
+                  }
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Bônus (opcional)</label>
+            <input
+              type="text"
+              value={form.bonus ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, bonus: e.target.value || null }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              placeholder="Ex: Assinatura Inclusa — Watch"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-1">Badge (opcional)</label>
+            <input
+              type="text"
+              value={form.badge ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, badge: e.target.value || null }))}
+              className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              placeholder="Ex: Mais Vendido"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.featured}
+              onChange={(e) => setForm((p) => ({ ...p, featured: e.target.checked }))}
+              className="w-4 h-4 rounded accent-green-500"
+            />
+            <span className="text-sm font-medium text-[#2A2D38]">Plano em destaque (borda verde)</span>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-3 pt-2 border-t border-[#E0E3EB]">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-5 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#0040FF" }}
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-5 py-2 rounded-lg text-sm font-medium text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors"
+          >
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
