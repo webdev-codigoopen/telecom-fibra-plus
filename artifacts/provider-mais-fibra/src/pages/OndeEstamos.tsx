@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
-import { MapPin, MessageCircle, Phone, Clock } from "lucide-react";
+import { Link } from "wouter";
+import { MapPin, MessageCircle, Phone, Clock, ArrowRight } from "lucide-react";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
+import { cities } from "@/lib/cities";
 
 function trackCityAssinar(cityName: string) {
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -14,117 +16,6 @@ function trackCityAssinar(cityName: string) {
     console.warn("[OndeEstamos] Failed to record city click event:", err);
   });
 }
-
-const cities = [
-  {
-    name: "Barreiras",
-    description: "Sede regional e maior cobertura da rede Provider Mais Fibra.",
-    highlight: true,
-    badge: "Sede Regional",
-    planos: "100M • 300M • 600M • 900M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Barreiras,BA",
-  },
-  {
-    name: "Luís Eduardo Magalhães",
-    description: "Cobertura completa para o maior polo agro do Oeste da Bahia.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M • 900M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Luis+Eduardo+Magalhaes,BA",
-  },
-  {
-    name: "Angical",
-    description: "Internet rápida e confiável para residências e empresas locais.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Angical,BA",
-  },
-  {
-    name: "Baianópolis",
-    description: "Fibra óptica chegou até você com velocidade e estabilidade.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Baianopolis,BA",
-  },
-  {
-    name: "Cristópolis",
-    description: "Conectividade de alta qualidade para o interior do Oeste baiano.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Cristopolis,BA",
-  },
-  {
-    name: "São Desidério",
-    description: "Um dos maiores municípios em área do Brasil, totalmente conectado.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Sao+Desiderio,BA",
-  },
-  {
-    name: "Jaborandi",
-    description: "Internet fibra para famílias e agronegócio da região.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Jaborandi,BA",
-  },
-  {
-    name: "Cotegipe",
-    description: "Fibra óptica de qualidade no coração do Oeste baiano.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Cotegipe,BA",
-  },
-  {
-    name: "Wanderley",
-    description: "Conexão estável e veloz para residências e comércios locais.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Wanderley,BA",
-  },
-  {
-    name: "Bom Jesus da Lapa",
-    description: "Internet de qualidade para a cidade santuário do Oeste baiano.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Bom+Jesus+da+Lapa,BA",
-  },
-  {
-    name: "Santa Maria da Vitória",
-    description: "Cobertura em fibra óptica para toda a cidade e região.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Santa+Maria+da+Vitoria,BA",
-  },
-  {
-    name: "Correntina",
-    description: "Conectando famílias e empresas às margens do Rio Corrente.",
-    highlight: false,
-    badge: null,
-    planos: "100M • 300M • 600M",
-    whatsapp: "5577998444757",
-    maps: "https://maps.google.com/?q=Correntina,BA",
-  },
-];
 
 export default function OndeEstamos() {
   return (
@@ -157,7 +48,7 @@ export default function OndeEstamos() {
                 <span style={{ color: "#FFD600" }}> Mais Fibra</span> está
               </h1>
               <p className="text-white/70 text-lg mb-8">
-                Presentes em <strong className="text-white">11 cidades</strong> do Oeste da Bahia com fibra óptica 100%
+                Presentes em <strong className="text-white">{cities.length} cidades</strong> do Oeste da Bahia com fibra óptica 100%
               </p>
 
               <div className="flex flex-wrap justify-center gap-4">
@@ -165,7 +56,7 @@ export default function OndeEstamos() {
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
                   style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
                 >
-                  <span className="text-2xl font-black text-[#00D94A]">11</span>
+                  <span className="text-2xl font-black text-[#00D94A]">{cities.length}</span>
                   Cidades Atendidas
                 </div>
                 <div
@@ -199,14 +90,14 @@ export default function OndeEstamos() {
                 Escolha sua cidade e assine agora
               </h2>
               <p className="text-[#4A4F61] text-sm">
-                Clique em "Assinar" para falar com nossa equipe diretamente pelo WhatsApp
+                Clique na cidade para ver os planos disponíveis ou fale direto pelo WhatsApp
               </p>
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {cities.map((city, i) => (
                 <motion.div
-                  key={city.name}
+                  key={city.slug}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -220,8 +111,10 @@ export default function OndeEstamos() {
                       : "0 2px 8px rgba(0,0,0,0.06)",
                   }}
                 >
-                  <div
-                    className="p-5 flex items-start justify-between"
+                  <Link
+                    href={`/cidade/${city.slug}`}
+                    data-testid={`link-city-header-${city.slug}`}
+                    className="p-5 flex items-start justify-between cursor-pointer"
                     style={{ background: city.highlight ? "#0040FF" : "#F5F6FA" }}
                   >
                     <div className="flex items-center gap-3">
@@ -229,7 +122,7 @@ export default function OndeEstamos() {
                         className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: city.highlight ? "rgba(255,255,255,0.2)" : "#0040FF" }}
                       >
-                        <MapPin size={18} color={city.highlight ? "white" : "white"} />
+                        <MapPin size={18} color="white" />
                       </div>
                       <div>
                         <h3
@@ -254,7 +147,7 @@ export default function OndeEstamos() {
                         {city.badge}
                       </span>
                     )}
-                  </div>
+                  </Link>
 
                   <div className="p-5 flex-1 flex flex-col">
                     <p className="text-sm text-[#4A4F61] leading-relaxed mb-4 flex-1">
@@ -267,6 +160,16 @@ export default function OndeEstamos() {
                       </p>
                       <p className="text-xs font-semibold text-[#0040FF]">{city.planos}</p>
                     </div>
+
+                    <Link
+                      href={`/cidade/${city.slug}`}
+                      data-testid={`link-city-page-${city.slug}`}
+                      className="flex items-center justify-center gap-1.5 mb-2 py-2 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-[#E8EFFF]"
+                      style={{ color: "#0040FF" }}
+                    >
+                      Ver página de {city.name}
+                      <ArrowRight size={13} />
+                    </Link>
 
                     <div className="flex gap-2">
                       <a
