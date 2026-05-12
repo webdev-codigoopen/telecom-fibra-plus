@@ -320,6 +320,58 @@ export default function CityClicksMap(props: Props) {
           )}
         </svg>
       </div>
+      <TopCitiesList entries={CITY_COORDS.map((c) => ({ name: c.name, total: clickMap.get(c.name) ?? 0 }))} totalClicks={totalClicks} />
+    </div>
+  );
+}
+
+function TopCitiesList({ entries, totalClicks }: { entries: CityClickEntry[]; totalClicks: number }) {
+  const sorted = useMemo(() => {
+    return [...entries].sort((a, b) => {
+      if (b.total !== a.total) return b.total - a.total;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+  }, [entries]);
+
+  return (
+    <div className="mt-4 border-t border-[#E0E3EB] pt-3">
+      <div className="flex items-baseline justify-between mb-2">
+        <h4 className="font-bold text-xs text-[#0D0D0D]">Top cidades</h4>
+        <span className="text-[10px] text-[#7A7F8C]">
+          {totalClicks > 0 ? `${totalClicks} cliques no total` : "Sem cliques no período"}
+        </span>
+      </div>
+      <ol className="flex flex-col gap-1.5">
+        {sorted.map((entry, idx) => {
+          const isZero = entry.total === 0;
+          const share = totalClicks > 0 ? (entry.total / totalClicks) * 100 : 0;
+          const barWidth = share;
+          return (
+            <li
+              key={entry.name}
+              className={`flex items-center gap-2 text-xs ${isZero ? "opacity-40" : ""}`}
+            >
+              <span className="w-5 text-right font-semibold text-[#7A7F8C] tabular-nums">
+                {idx + 1}.
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold text-[#2A2D38]">{entry.name}</span>
+                  <span className="tabular-nums text-[#7A7F8C] text-[11px] shrink-0">
+                    {entry.total} {totalClicks > 0 && `· ${share.toFixed(1)}%`}
+                  </span>
+                </span>
+                <span className="block mt-1 h-1.5 rounded-full bg-[#F0F2F7] overflow-hidden">
+                  <span
+                    className="block h-full rounded-full bg-[#0040FF]"
+                    style={{ width: `${barWidth}%` }}
+                  />
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
