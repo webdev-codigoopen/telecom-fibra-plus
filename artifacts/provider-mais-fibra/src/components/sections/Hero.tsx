@@ -72,7 +72,7 @@ export default function Hero() {
           style={{ gap: 20 }}
         >
           {plans.map((plan, i) => (
-            <PlanCard key={plan.speed} plan={plan} index={i} />
+            <PlanCard key={plan.speed} plan={plan} index={i} source="home-hero" />
           ))}
         </div>
 
@@ -85,7 +85,7 @@ export default function Hero() {
         >
           {plans.map((plan, i) => (
             <div key={plan.speed} className="flex-none w-[295px] snap-center">
-              <PlanCard plan={plan} index={i} idSuffix="-mobile" />
+              <PlanCard plan={plan} index={i} idSuffix="-mobile" source="home-hero" />
             </div>
           ))}
         </div>

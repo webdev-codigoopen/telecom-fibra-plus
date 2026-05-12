@@ -8,7 +8,21 @@ import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 import PlanCard from "@/components/PlanCard";
 import { usePlans } from "@/hooks/usePlans";
 import { getCityBySlug } from "@/lib/cities";
+import { normalizeSource } from "@/lib/plans";
 import NotFound from "@/pages/not-found";
+
+function trackCtaClick(source: string) {
+  const normalized = normalizeSource(source);
+  if (!normalized) return;
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  fetch(`${baseUrl}/api/clicks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planSpeed: "cta", planPrice: normalized, source: normalized }),
+  }).catch((err) => {
+    console.warn("[Cidade] Failed to record CTA click:", err);
+  });
+}
 
 export default function Cidade() {
   const params = useParams<{ slug: string }>();
@@ -100,6 +114,7 @@ export default function Cidade() {
                   target="_blank"
                   rel="noopener noreferrer"
                   data-testid="cta-hero-whatsapp"
+                  onClick={() => trackCtaClick(`city-cta-hero:${city.name}`)}
                   className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-[#0D0E14] transition-all hover:scale-105"
                   style={{ background: "#95EB1D" }}
                 >
@@ -141,7 +156,7 @@ export default function Cidade() {
                   key={plan.speed}
                   plan={plan}
                   index={i}
-                  source={city.name}
+                  source={`city:${city.name}`}
                   cityName={city.name}
                   idSuffix={`-${city.slug}`}
                 />
@@ -233,7 +248,7 @@ export default function Cidade() {
       </main>
 
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source={`city-sticky:${city.name}`} />
     </div>
   );
 }

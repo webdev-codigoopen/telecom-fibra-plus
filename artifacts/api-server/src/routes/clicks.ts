@@ -218,8 +218,8 @@ router.get("/clicks/cities-conversion", requireAdminKey, async (req, res) => {
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
     if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
 
-    const previewExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} = 'whatsapp-share') as int)`;
-    const signupExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} not in ('whatsapp-share', 'whatsapp-share-bot')) as int)`;
+    const previewExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} = 'whatsapp-share' or ${planClicksTable.source} like 'whatsapp-share:%') as int)`;
+    const signupExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} not like 'whatsapp-share%') as int)`;
 
     const baseSelect = db
       .select({

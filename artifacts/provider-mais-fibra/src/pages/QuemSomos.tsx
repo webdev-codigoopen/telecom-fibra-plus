@@ -278,7 +278,7 @@ export default function QuemSomos() {
       </main>
 
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source="quem-somos-sticky" />
     </div>
   );
 }

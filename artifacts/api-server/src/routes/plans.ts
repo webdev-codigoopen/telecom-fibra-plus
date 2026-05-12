@@ -72,13 +72,19 @@ router.get("/plans/:id/share", async (req, res) => {
     const basePath = apiIdx >= 0 ? req.originalUrl.slice(0, apiIdx) : "";
     const homeUrl = `${basePath}/` || "/";
     const cityParam = typeof req.query["city"] === "string" ? req.query["city"].slice(0, 120) : null;
+    const sourceRaw = typeof req.query["source"] === "string" ? req.query["source"] : "";
+    const sourceParam = sourceRaw
+      .replace(/[^a-zA-Z0-9:_\-.]/g, "")
+      .slice(0, 64);
     const userAgent = req.get("user-agent") ?? undefined;
     const fromBot = isBotUserAgent(userAgent);
+    const baseSource = fromBot ? "whatsapp-share-bot" : "whatsapp-share";
+    const recordedSource = sourceParam.length > 0 ? `${baseSource}:${sourceParam}` : baseSource;
     Promise.resolve(
       db.insert(planClicksTable).values({
         planSpeed: plan.speed,
         planPrice: plan.price,
-        source: fromBot ? "whatsapp-share-bot" : "whatsapp-share",
+        source: recordedSource,
         city: cityParam && cityParam.length > 0 ? cityParam : null,
       }),
     ).then(

@@ -1,8 +1,25 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { normalizeSource } from "../../lib/plans";
 
-export default function WhatsAppFloat() {
+type Props = {
+  source?: string;
+};
+
+function trackStickyClick(source: string) {
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  fetch(`${baseUrl}/api/clicks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ planSpeed: "cta", planPrice: source, source }),
+  }).catch((err) => {
+    console.warn("[WhatsAppFloat] Failed to record click event:", err);
+  });
+}
+
+export default function WhatsAppFloat({ source = "home-sticky" }: Props = {}) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const normalizedSource = normalizeSource(source) || "home-sticky";
 
   return (
     <div
@@ -30,6 +47,7 @@ export default function WhatsAppFloat() {
         target="_blank"
         rel="noopener noreferrer"
         data-testid="whatsapp-float"
+        onClick={() => trackStickyClick(normalizedSource)}
         className="relative w-14 h-14 rounded-full flex items-center justify-center transition-transform duration-200 hover:scale-110 active:scale-95"
         style={{
           background: "#25D366",

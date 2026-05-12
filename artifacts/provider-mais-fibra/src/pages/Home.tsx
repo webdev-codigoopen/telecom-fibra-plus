@@ -25,7 +25,7 @@ export default function Home() {
         <FAQ />
       </main>
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source="home-sticky" />
     </div>
   );
 }

@@ -330,7 +330,7 @@ export default function Contato() {
       </main>
 
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source="contato-sticky" />
     </div>
   );
 }

@@ -215,7 +215,7 @@ export default function DemandaCidades() {
         </section>
       </main>
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source="demanda-cidades-sticky" />
 
       <AnimatePresence>
         {formOpen && (

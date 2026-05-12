@@ -251,7 +251,7 @@ export default function OndeEstamos() {
       </main>
 
       <Footer />
-      <WhatsAppFloat />
+      <WhatsAppFloat source="onde-estamos-sticky" />
     </div>
   );
 }

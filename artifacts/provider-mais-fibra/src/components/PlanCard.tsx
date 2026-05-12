@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { type Plan, buildWhatsAppUrl, buildPlanShareUrl } from "../lib/plans";
+import { type Plan, buildWhatsAppUrl, buildPlanShareUrl, normalizeSource } from "../lib/plans";
 import { useStreamingBrands, type StreamingBrand } from "../hooks/useStreamingBrands";
 import {
   buildPlanWhatsappHref,
@@ -111,7 +111,8 @@ export default function PlanCard({
   cityName,
 }: Props) {
   const settings = useAppSettings();
-  const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id, cityName) : undefined;
+  const normalizedSource = normalizeSource(source) || "hero";
+  const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id, cityName, normalizedSource) : undefined;
   const fallbackUrl = buildWhatsAppUrl(plan, shareUrl);
   const cachedLocation = getCachedLocation();
   const whatsappUrl = cachedLocation
@@ -392,7 +393,7 @@ export default function PlanCard({
           rel="noopener noreferrer"
           data-testid={`plan-cta-${plan.speed}${idSuffix}`}
           onClick={(event) => {
-            trackPlanClick(plan, source, cityName);
+            trackPlanClick(plan, normalizedSource, cityName);
             void handlePlanWhatsappClick(event, plan.speed, shareUrl);
           }}
           className="plans-section__cta flex items-center justify-center transition-all duration-200 hover:bg-white/10 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"

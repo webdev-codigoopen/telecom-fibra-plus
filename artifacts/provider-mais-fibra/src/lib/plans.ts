@@ -52,11 +52,41 @@ export function buildWhatsAppUrl(plan: Plan, shareUrl?: string): string {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 }
 
-export function buildPlanShareUrl(planId: number, cityName?: string): string | undefined {
+// Normalize a source identifier so the same logical entry point produces the
+// same DB key everywhere. Both the in-page click POST (/api/clicks) and the
+// link-preview share endpoint (/api/plans/:id/share?source=) must agree on
+// the resulting key, otherwise previews and signups end up in separate
+// buckets in the admin dashboard. We:
+//   - lowercase
+//   - strip diacritics (so "Luís" → "luis")
+//   - collapse whitespace and unsupported chars into a single dash
+//   - keep ":" as a namespace separator (e.g. "city:luis-eduardo-magalhaes")
+//   - cap length at 64 (server enforces this too)
+export function normalizeSource(source: string | undefined | null): string {
+  if (!source) return "";
+  const lowered = source.toLowerCase();
+  const folded = lowered.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const cleaned = folded
+    .replace(/[^a-z0-9:_.\-\s]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-_.]+|[-_.]+$/g, "");
+  return cleaned.slice(0, 64);
+}
+
+export function buildPlanShareUrl(
+  planId: number,
+  cityName?: string,
+  source?: string,
+): string | undefined {
   if (typeof window === "undefined") return undefined;
   const baseUrl = (import.meta.env.BASE_URL ?? "/").replace(/\/$/, "");
-  const qs = cityName ? `?city=${encodeURIComponent(cityName)}` : "";
-  return `${window.location.origin}${baseUrl}/api/plans/${planId}/share${qs}`;
+  const params = new URLSearchParams();
+  if (cityName) params.set("city", cityName);
+  const normalized = normalizeSource(source);
+  if (normalized) params.set("source", normalized);
+  const qs = params.toString();
+  return `${window.location.origin}${baseUrl}/api/plans/${planId}/share${qs ? `?${qs}` : ""}`;
 }
 
 export const ALL_INCLUSIONS = [

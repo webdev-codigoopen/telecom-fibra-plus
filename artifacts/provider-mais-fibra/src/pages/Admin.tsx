@@ -324,9 +324,12 @@ export default function Admin() {
         entry = { planSpeed: s.planSpeed, planPrice: s.planPrice, previews: 0, signups: 0 };
         byPlan.set(key, entry);
       }
-      if (s.source === "whatsapp-share") entry.previews += s.total;
-      else if (s.source === "whatsapp-share-bot") continue;
-      else entry.signups += s.total;
+      if (s.source.startsWith("whatsapp-share-bot")) continue;
+      if (s.source === "whatsapp-share" || s.source.startsWith("whatsapp-share:")) {
+        entry.previews += s.total;
+      } else {
+        entry.signups += s.total;
+      }
     }
     return Array.from(byPlan.values())
       .filter((e) => e.previews > 0 || e.signups > 0)
@@ -335,6 +338,58 @@ export default function Admin() {
         return b.signups - a.signups;
       });
   }, [clickStats]);
+
+  const conversionBySource = useMemo(() => {
+    const bySource = new Map<
+      string,
+      { source: string; previews: number; signups: number }
+    >();
+    const ensure = (src: string) => {
+      let entry = bySource.get(src);
+      if (!entry) {
+        entry = { source: src, previews: 0, signups: 0 };
+        bySource.set(src, entry);
+      }
+      return entry;
+    };
+    for (const s of clickStats) {
+      if (s.planSpeed === "city") continue;
+      if (s.source.startsWith("whatsapp-share-bot")) continue;
+      if (s.source === "whatsapp-share") {
+        ensure("(sem origem)").previews += s.total;
+      } else if (s.source.startsWith("whatsapp-share:")) {
+        const entrySource = s.source.slice("whatsapp-share:".length) || "(sem origem)";
+        ensure(entrySource).previews += s.total;
+      } else {
+        ensure(s.source).signups += s.total;
+      }
+    }
+    return Array.from(bySource.values())
+      .filter((e) => e.previews > 0 || e.signups > 0)
+      .sort((a, b) => {
+        if (b.previews !== a.previews) return b.previews - a.previews;
+        return b.signups - a.signups;
+      });
+  }, [clickStats]);
+
+  const sourceLabels: Record<string, string> = {
+    "home-hero": "Home — Hero",
+    "hero": "Home — Hero",
+    "home-sticky": "Home — Botão flutuante",
+    "admin-preview": "Admin (preview)",
+    "onde-estamos-sticky": "Onde Estamos — Botão flutuante",
+    "contato-sticky": "Contato — Botão flutuante",
+    "quem-somos-sticky": "Quem Somos — Botão flutuante",
+    "demanda-cidades-sticky": "Demanda Cidades — Botão flutuante",
+    "(sem origem)": "Sem origem",
+  };
+  function formatSourceLabel(src: string): string {
+    if (sourceLabels[src]) return sourceLabels[src]!;
+    if (src.startsWith("city:")) return `Cidade — ${src.slice(5)}`;
+    if (src.startsWith("city-sticky:")) return `Cidade ${src.slice(12)} — Botão flutuante`;
+    if (src.startsWith("city-cta-hero:")) return `Cidade ${src.slice(14)} — CTA Hero`;
+    return src;
+  }
 
   const stackedChartData = useMemo(() => {
     if (chartView !== "source") return [];
@@ -1204,6 +1259,80 @@ export default function Admin() {
                                 · R$ {c.planPrice}
                               </span>
                             </div>
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={tone}
+                              title={
+                                rate == null
+                                  ? "Nenhuma pré-visualização registrada"
+                                  : `${c.signups} de ${c.previews} pré-visualizações`
+                              }
+                            >
+                              {ratePct == null ? "—" : `${ratePct}%`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-[#2A2D38]">
+                            <span>
+                              Pré-visualizações:{" "}
+                              <span className="font-semibold tabular-nums">{c.previews}</span>
+                            </span>
+                            <span>
+                              Assinaturas:{" "}
+                              <span className="font-semibold tabular-nums">{c.signups}</span>
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
+                            <div
+                              className="h-full rounded-full"
+                              style={{
+                                width: `${barWidth}%`,
+                                background: rate == null ? "#E0E3EB" : tone.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {conversionBySource.length > 0 && (
+                <div className="bg-white rounded-xl border border-[#E0E3EB] px-4 py-4 mb-3">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#2A2D38]">
+                        Conversão WhatsApp — por origem
+                      </h3>
+                      <p className="text-[11px] text-[#7A7F8C] mt-0.5">
+                        Onde nasceram as pré-visualizações (Home, FAQ, páginas de cidade, etc.) e quanto cada origem converte em "ASSINE JÁ".
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {conversionBySource.map((c) => {
+                      const rate = c.previews > 0 ? (c.signups / c.previews) * 100 : null;
+                      const ratePct = rate == null ? null : Math.min(100, Math.round(rate));
+                      const tone =
+                        rate == null
+                          ? { color: "#7A7F8C", background: "#EEF0F5" }
+                          : rate >= 30
+                          ? { color: "#00A030", background: "#E6F8EC" }
+                          : rate >= 10
+                          ? { color: "#A06B00", background: "#FFF4D6" }
+                          : { color: "#C42B2B", background: "#FBE7E7" };
+                      const barWidth = rate == null ? 0 : Math.min(100, rate);
+                      return (
+                        <div
+                          key={c.source}
+                          className="rounded-lg border border-[#E0E3EB] px-3 py-3 flex flex-col gap-2"
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span
+                              className="font-semibold text-sm text-[#0D0D0D] truncate min-w-0"
+                              title={c.source}
+                            >
+                              {formatSourceLabel(c.source)}
+                            </span>
                             <span
                               className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                               style={tone}
