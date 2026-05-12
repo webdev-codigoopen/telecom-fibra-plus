@@ -335,10 +335,9 @@ export default function PlanCard({
         - Inner gap 8 between CTA and footer for both variants.
       */}
       <div
-        className="flex flex-col"
+        className="flex flex-col mt-auto"
         style={{
           gap: 8,
-          marginTop: hasStreaming ? 27 : 45,
         }}
       >
         <a
