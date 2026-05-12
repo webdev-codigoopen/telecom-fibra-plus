@@ -78,9 +78,11 @@ export default function PlanCard({
   const whatsappUrl = buildWhatsAppUrl(plan, shareUrl);
   const [reais, centavos] = plan.price.split(",");
 
-  const has600Streaming = plan.speed === "600";
-  const has900Streaming = plan.speed === "900";
-  const hasStreaming = has600Streaming || has900Streaming;
+  const hasWatch = plan.inclusions.includes("Watch");
+  const hasPowerTop = plan.inclusions.includes("Power Top");
+  const streamingLogos: "watch" | "watch+powertop" | null =
+    hasWatch && hasPowerTop ? "watch+powertop" : hasWatch ? "watch" : null;
+  const hasStreaming = streamingLogos !== null;
 
   // Figma:
   // - cards WITH streaming: pt 30 / inner gap 11 (price kept in compact bottom block, mt-auto)
@@ -181,13 +183,6 @@ export default function PlanCard({
               h: 20,
             },
             "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
-            Watch: { src: LOGO_WATCH, label: "WATCH", w: 92, h: 20 },
-            "Power Top": {
-              src: LOGO_WATCH_POWERTOP,
-              label: "POWER TOP",
-              w: 92,
-              h: 20,
-            },
           };
           const items = plan.inclusions
             .map((name) => ({ name, def: ICON_MAP[name] }))
@@ -231,9 +226,8 @@ export default function PlanCard({
           );
         })()}
       </div>
-      {/* Streaming bonus (600 / 900) */}
-      {has600Streaming && <StreamingBox logos="watch" />}
-      {has900Streaming && <StreamingBox logos="watch+powertop" />}
+      {/* Streaming bonus — driven by inclusions (Watch / Watch + Power Top) */}
+      {streamingLogos && <StreamingBox logos={streamingLogos} />}
       {/*
         Layout split:
         - WITH streaming: price+cta+footer share one mt-auto block (gap 5) — compact
