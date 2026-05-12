@@ -649,7 +649,7 @@ export default function Admin() {
                     })}
                   </div>
                   {statsRange === "custom" && (
-                    <div className="inline-flex items-center gap-2 text-xs text-[#2A2D38]">
+                    <div className="inline-flex flex-wrap items-center gap-2 text-xs text-[#2A2D38]">
                       <label className="flex items-center gap-1">
                         <span className="text-[#7A7F8C]">De</span>
                         <input
@@ -684,6 +684,64 @@ export default function Admin() {
                           aria-label="Data final"
                         />
                       </label>
+                      <div className="inline-flex flex-wrap items-center gap-1" role="group" aria-label="Atalhos de período">
+                        {([
+                          { id: "last7", label: "Últimos 7 dias" },
+                          { id: "last30", label: "Últimos 30 dias" },
+                          { id: "thisMonth", label: "Este mês" },
+                          { id: "lastMonth", label: "Mês passado" },
+                        ] as const).map((sc) => {
+                          const fmt = (d: Date) => {
+                            const y = d.getFullYear();
+                            const m = String(d.getMonth() + 1).padStart(2, "0");
+                            const day = String(d.getDate()).padStart(2, "0");
+                            return `${y}-${m}-${day}`;
+                          };
+                          const computeRange = (id: typeof sc.id): { from: string; to: string } => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            if (id === "last7") {
+                              const from = new Date(today);
+                              from.setDate(from.getDate() - 6);
+                              return { from: fmt(from), to: fmt(today) };
+                            }
+                            if (id === "last30") {
+                              const from = new Date(today);
+                              from.setDate(from.getDate() - 29);
+                              return { from: fmt(from), to: fmt(today) };
+                            }
+                            if (id === "thisMonth") {
+                              const from = new Date(today.getFullYear(), today.getMonth(), 1);
+                              return { from: fmt(from), to: fmt(today) };
+                            }
+                            const from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                            const to = new Date(today.getFullYear(), today.getMonth(), 0);
+                            return { from: fmt(from), to: fmt(to) };
+                          };
+                          const current = computeRange(sc.id);
+                          const active = customFrom === current.from && customTo === current.to;
+                          return (
+                            <button
+                              key={sc.id}
+                              type="button"
+                              onClick={() => {
+                                const { from, to } = computeRange(sc.id);
+                                setCustomFrom(from);
+                                setCustomTo(to);
+                                void fetchClickStats(adminKey, "custom", sourceFilter, from, to);
+                              }}
+                              className={`px-2 py-1 rounded-md border transition-colors ${
+                                active
+                                  ? "bg-[#0040FF] text-white border-[#0040FF]"
+                                  : "bg-white text-[#2A2D38] border-[#E0E3EB] hover:border-[#0040FF]/50"
+                              }`}
+                              aria-pressed={active}
+                            >
+                              {sc.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   <select
