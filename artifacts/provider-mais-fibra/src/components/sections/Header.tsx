@@ -100,7 +100,7 @@ export default function Header() {
             navigate("/");
             window.scrollTo({ top: 0 });
           }}
-          className="header-section__logo flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9]"
+          className="header-section__logo cursor-pointer flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9]"
           aria-label="Provider + FIBRA — Início"
         >
           <img
