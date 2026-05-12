@@ -14,6 +14,8 @@ const ICON_ROTEADOR = `${BASE}images/icons/roteador-planos-29x20.svg`;
 const ICON_CANAIS = `${BASE}images/icons/canais-planos-64x20.svg`;
 const ICON_WHATSAPP = `${BASE}images/icons/whatsapp-planos-16.svg`;
 const TAG_MEGA = `${BASE}images/icons/mega-tag-planos-47x16.svg`;
+const LOGO_WATCH = `${BASE}images/icons/watch-planos-193x42.svg`;
+const LOGO_WATCH_POWERTOP = `${BASE}images/icons/watch-powertop-planos-193x42.svg`;
 
 function resolveLogoUrl(url: string): string {
   if (/^https?:\/\//i.test(url)) return url;
@@ -65,6 +67,30 @@ function trackPlanClick(plan: Plan, source: string, cityName?: string) {
 
 function StreamingBox({ brands }: { brands: StreamingBrand[] }) {
   const altNames = brands.map((b) => b.name).join(" + ");
+  const names = new Set(brands.map((b) => b.name));
+  const hasWatch = names.has("Watch");
+  const hasPowerTop = names.has("Power Top");
+
+  // Use the pre-composed badge SVGs (which already include the
+  // "+ ASSINATURA INCLUSA" header) when the plan matches the well-known
+  // Watch / Watch + Power Top combinations from the brand design.
+  if (hasWatch && brands.length <= 2 && (brands.length === 1 || hasPowerTop)) {
+    const src = hasPowerTop ? LOGO_WATCH_POWERTOP : LOGO_WATCH;
+    const intrinsicH = hasPowerTop ? 72 : 68;
+    return (
+      <div className="plans-section__streaming flex justify-center">
+        <img
+          src={src}
+          alt={`+ Assinatura inclusa ${altNames}`}
+          width={200}
+          height={intrinsicH}
+          style={{ width: 200, height: intrinsicH }}
+          className="max-w-full pb-[10px]"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className="plans-section__streaming flex flex-wrap items-center justify-center pb-[10px]"
