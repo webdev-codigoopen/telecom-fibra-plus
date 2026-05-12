@@ -1,19 +1,50 @@
-import { Instagram, MapPin, Clock } from "lucide-react";
 import { useLocation } from "wouter";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const links = [
   { label: "Home", href: "/", page: true },
   { label: "Planos", href: "#planos", page: false },
-  { label: "Sobre Nós", href: "/quem-somos", page: true },
-  { label: "Onde Estamos", href: "/onde-estamos", page: true },
-  { label: "Tire suas dúvidas", href: "#faq", page: false },
+  { label: "IPTV", href: "#iptv", page: false },
+  { label: "Sobre N\u00F3s", href: "/quem-somos", page: true },
+  { label: "Tire suas d\u00FAvidas", href: "#faq", page: false },
 ];
 
 const cities = [
-  "Barra", "Barreiras", "Buritirama", "Correntina", "Luís Eduardo Magalhães",
-  "Mansidão", "Muquém", "Posto Rosário", "Roda Velha", "Santa Rita", "Wanderley",
+  "Barra",
+  "Barreiras",
+  "Buritirama",
+  "Correntina",
+  "Luis Eduardo Magalh\u00E3es",
+  "Mansid\u00E3o",
+  "Muqu\u00E9m",
+  "Posto Ros\u00E1rio",
+  "Roda Velha",
+  "Santa Rita",
+  "Wanderley",
 ];
+
+function InstagramIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="1" fill="#FFFFFF" stroke="none" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#FFFFFF" aria-hidden="true">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
+const TEXT_COLOR = "#FFFFFF";
+const HEADING_FONT = "Nunito, sans-serif";
+const BODY_FONT = "Nunito, sans-serif";
+const PARA_FONT = "Montserrat, sans-serif";
 
 export default function Footer() {
   const [location, navigate] = useLocation();
@@ -36,131 +67,311 @@ export default function Footer() {
     }
   };
 
+  const headingStyle: React.CSSProperties = {
+    fontFamily: HEADING_FONT,
+    fontWeight: 700,
+    fontSize: 14,
+    lineHeight: "20px",
+    color: TEXT_COLOR,
+    margin: 0,
+  };
+
+  const bodyStyle: React.CSSProperties = {
+    fontFamily: BODY_FONT,
+    fontWeight: 400,
+    fontSize: 14,
+    lineHeight: "20px",
+    color: TEXT_COLOR,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: BODY_FONT,
+    fontWeight: 600,
+    fontSize: 12,
+    lineHeight: "16px",
+    color: TEXT_COLOR,
+    textTransform: "uppercase",
+    margin: 0,
+  };
+
   return (
     <footer
       data-testid="footer"
-      style={{ background: "#001A6E" }}
-      className="pt-16 pb-6"
+      style={{
+        backgroundColor: "#043198",
+        paddingTop: 64,
+        paddingBottom: 24,
+        width: "100%",
+      }}
     >
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-8 lg:px-12">
+      <div
+        className="footer-container"
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          paddingLeft: 64,
+          paddingRight: 64,
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Top section with bottom border */}
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-10 border-b"
-          style={{ borderColor: "rgba(255,255,255,0.10)" }}
+          className="footer-top"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 68,
+            paddingBottom: 32,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}
         >
-          {/* Col 1 - Brand */}
-          <div>
-            <img src={logoVerticalWhite} alt="Provider Mais Fibra" className="h-16 w-auto mb-4" />
-            <p className="text-white/65 text-sm leading-relaxed mb-5">
-              Internet de alta velocidade com fibra óptica 100% para o Oeste da Bahia. Conectando famílias e empresas com qualidade e confiança.
+          {/* Col 1 — Brand */}
+          <div
+            style={{
+              width: 271,
+              display: "flex",
+              flexDirection: "column",
+              gap: 15.1,
+              flexShrink: 0,
+            }}
+          >
+            <img
+              src={logoVerticalWhite}
+              alt="Provider Mais Fibra"
+              style={{ width: 125, height: 64, objectFit: "contain", display: "block" }}
+            />
+            <p
+              style={{
+                fontFamily: PARA_FONT,
+                fontWeight: 400,
+                fontSize: 14,
+                lineHeight: "22.75px",
+                color: TEXT_COLOR,
+                margin: 0,
+                width: 271,
+              }}
+            >
+              Internet de alta velocidade com fibra &oacute;ptica 100% para o
+              Oeste da Bahia. Conectando fam&iacute;lias e empresas com
+              qualidade e confian&ccedil;a.
             </p>
-            <div className="flex items-center gap-3">
+            <div style={{ display: "flex", flexDirection: "row", gap: 12 }}>
               <a
                 href="https://instagram.com/provider.fibra"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}
+                aria-label="Instagram"
                 data-testid="footer-instagram"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9999,
+                  backgroundColor: "rgba(255,255,255,0.13)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background-color 0.2s",
+                }}
               >
-                <Instagram size={16} color="rgba(255,255,255,0.85)" />
+                <InstagramIcon size={18} />
               </a>
               <a
                 href="https://wa.me/5577998444757"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                style={{ background: "rgba(0,192,64,0.15)", border: "1px solid rgba(0,192,64,0.3)" }}
+                aria-label="WhatsApp"
                 data-testid="footer-whatsapp"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 9999,
+                  backgroundColor: "rgba(255,255,255,0.13)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "background-color 0.2s",
+                }}
               >
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" style={{ color: "#00D94A" }}>
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                </svg>
+                <WhatsAppIcon size={18} />
               </a>
             </div>
           </div>
 
-          {/* Col 2 - Links */}
-          <div>
-            <h4 className="text-white font-bold text-sm mb-5 uppercase tracking-wider">Links Úteis</h4>
-            <ul className="space-y-2.5">
-              {links.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    onClick={(e) => { e.preventDefault(); handleNav(link.href, link.page); }}
-                    className="text-white/65 hover:text-[#00D94A] text-sm transition-colors duration-200"
-                  >
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+          {/* Col 2 — Links Úteis */}
+          <div
+            style={{
+              width: 161,
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              flexShrink: 0,
+            }}
+          >
+            <h4 style={headingStyle}>Links &Uacute;teis</h4>
+            {links.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNav(link.href, link.page);
+                }}
+                style={{ ...bodyStyle, textDecoration: "none", cursor: "pointer" }}
+              >
+                {link.label}
+              </a>
+            ))}
           </div>
 
-          {/* Col 3 - Cities */}
-          <div>
-            <h4 className="text-white font-bold text-sm mb-5 uppercase tracking-wider">Cidades de Atuação</h4>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-2">
-              {cities.map((c) => (
-                <li key={c} className="text-white/65 text-xs flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-[#00C040]" />
-                  {c}
-                </li>
-              ))}
-            </ul>
+          {/* Col 3 — Cidades */}
+          <div
+            style={{
+              width: 198,
+              display: "flex",
+              flexDirection: "column",
+              gap: 15,
+              flexShrink: 0,
+            }}
+          >
+            <h4 style={headingStyle}>Cidade(s) de Atua&ccedil;&atilde;o</h4>
+            {cities.map((c) => (
+              <span key={c} style={bodyStyle}>
+                {c}
+              </span>
+            ))}
           </div>
 
-          {/* Col 4 - Atendimento */}
-          <div>
-            <h4 className="text-white font-bold text-sm mb-5 uppercase tracking-wider">Atendimento</h4>
-            <div className="space-y-4">
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold mb-1">WhatsApp</p>
+          {/* Col 4 — Atendimento */}
+          <div
+            style={{
+              width: 238,
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              flexShrink: 0,
+            }}
+          >
+            <h4 style={headingStyle}>Atendimento</h4>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 15 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <p style={labelStyle}>WHATSAPP</p>
                 <a
                   href="https://wa.me/5577998444757"
-                  className="text-white hover:text-[#00D94A] text-sm font-bold transition-colors"
                   target="_blank"
                   rel="noopener noreferrer"
+                  style={{
+                    fontFamily: BODY_FONT,
+                    fontWeight: 500,
+                    fontSize: 14,
+                    lineHeight: "20px",
+                    color: TEXT_COLOR,
+                    textDecoration: "none",
+                  }}
                 >
                   (77) 99844-4757
                 </a>
               </div>
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
-                  <Clock size={10} /> Horário
-                </p>
-                <p className="text-white/70 text-xs">Seg–Sex: 8h às 18h</p>
-                <p className="text-white/70 text-xs">Sáb: 8h às 12h</p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <p style={labelStyle}>HOR&Aacute;RIO</p>
+                <p style={{ ...bodyStyle, margin: 0 }}>Seg&ndash;Sex: 8h &ndash; 18h</p>
+                <p style={{ ...bodyStyle, margin: 0 }}>S&aacute;b: 8h &ndash; 12h</p>
               </div>
-              <div>
-                <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold mb-1 flex items-center gap-1.5">
-                  <MapPin size={10} /> Endereço
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <p style={labelStyle}>Endere&ccedil;o sede</p>
+                <p style={{ ...bodyStyle, margin: 0 }}>
+                  Edif&iacute;cio S&atilde;o Matheus, t&eacute;rreo &ndash; n&deg;49
                 </p>
-                <p className="text-white/70 text-xs leading-relaxed">
-                  Edifício São Matheus, térreo n° 49<br />
-                  Rua José Rocha — Centro<br />
-                  Barreiras — BA, 47800-184
+                <p style={{ ...bodyStyle, margin: 0 }}>
+                  Rua Jos&eacute; Rocha &ndash; Centro - BA &ndash; 47800-184
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/40 text-xs">
-            © 2026 Provider Mais Fibra. Todos os direitos reservados.
+        {/* Bottom bar */}
+        <div
+          className="footer-bottom"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: 24,
+            gap: 16,
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 400,
+              fontSize: 12,
+              lineHeight: "16.8px",
+              color: TEXT_COLOR,
+              margin: 0,
+            }}
+          >
+            &copy; 2026 Provider Mais Fibra. Todos os direitos reservados.
           </p>
-          <div className="flex items-center gap-4">
-            <a href="#" className="text-white/40 hover:text-white/70 text-xs transition-colors">
-              Política de Privacidade
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 16 }}>
+            <a
+              href="#"
+              style={{
+                fontFamily: BODY_FONT,
+                fontWeight: 400,
+                fontSize: 12,
+                lineHeight: "16px",
+                color: TEXT_COLOR,
+                textDecoration: "none",
+              }}
+            >
+              Pol&iacute;tica de Privacidade
             </a>
-            <span className="text-white/20">|</span>
-            <a href="#" className="text-white/40 hover:text-white/70 text-xs transition-colors">
+            <span
+              style={{
+                fontFamily: BODY_FONT,
+                fontWeight: 400,
+                fontSize: 16,
+                lineHeight: "24px",
+                color: TEXT_COLOR,
+              }}
+              aria-hidden="true"
+            >
+              |
+            </span>
+            <a
+              href="#"
+              style={{
+                fontFamily: BODY_FONT,
+                fontWeight: 400,
+                fontSize: 12,
+                lineHeight: "16px",
+                color: TEXT_COLOR,
+                textDecoration: "none",
+              }}
+            >
               Termos de Uso
             </a>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 1023px) {
+          .footer-top { flex-wrap: wrap !important; gap: 40px !important; }
+          .footer-top > div { width: calc(50% - 20px) !important; }
+        }
+        @media (max-width: 599px) {
+          .footer-container { padding-left: 24px !important; padding-right: 24px !important; }
+          .footer-top > div { width: 100% !important; }
+          .footer-bottom { flex-direction: column !important; align-items: flex-start !important; }
+        }
+      `}</style>
     </footer>
   );
 }
