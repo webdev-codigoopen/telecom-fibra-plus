@@ -25,13 +25,17 @@ const navLinks: NavLink[] = [
 ];
 
 const COLORS = {
-  bg: "#001A6E",
   active: "#95EB1D",
   inactive: "rgba(255,255,255,0.9)",
   ctaBg: "#95EB1D",
   ctaText: "#2A40DA",
   divider: "rgba(255,255,255,0.6)",
 };
+
+const HEADER_BG =
+  "linear-gradient(19.475deg, rgb(18, 42, 213) 29.23%, rgb(33, 56, 205) 56.94%, rgb(42, 65, 219) 86.07%)";
+
+const FONT_NUNITO = "'Nunito', 'Montserrat', system-ui, sans-serif";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -85,8 +89,9 @@ export default function Header() {
       data-testid="header"
       className="header-section fixed top-0 left-0 right-0 z-50 transition-all duration-300"
       style={{
-        background: COLORS.bg,
+        background: HEADER_BG,
         boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.30)" : "0 2px 10px rgba(0,0,0,0.25)",
+        fontFamily: FONT_NUNITO,
       }}
     >
       <div className="header-section__container mx-auto flex items-center justify-between h-16 md:h-[88px] max-w-[1240px] px-4 sm:px-6 lg:px-8">
@@ -96,7 +101,7 @@ export default function Header() {
             navigate("/");
             window.scrollTo({ top: 0 });
           }}
-          className="header-section__logo flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#001A6E]"
+          className="header-section__logo flex-shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9]"
           aria-label="Provider + FIBRA — Início"
         >
           <img
@@ -117,9 +122,10 @@ export default function Header() {
                 key={link.label}
                 onClick={() => handleNav(link)}
                 data-testid={`nav-link-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                className="header-section__nav-link text-[16px] leading-[20px] font-montserrat transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#001A6E] rounded whitespace-nowrap px-2 hover:text-[#95EB1D]"
+                className="header-section__nav-link text-[16px] leading-[20px] transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] rounded whitespace-nowrap px-2 hover:text-[#95EB1D]"
                 style={{
                   color: active ? COLORS.active : COLORS.inactive,
+                  fontFamily: FONT_NUNITO,
                   fontWeight: active ? 700 : 600,
                 }}
               >
@@ -143,8 +149,8 @@ export default function Header() {
                 handleNav({ label: "Aplicativo", href: "#app" });
               }}
               data-testid="header-app-link"
-              className="text-[16px] leading-[20px] font-semibold font-montserrat transition-colors hover:text-[#95EB1D]"
-              style={{ color: COLORS.inactive }}
+              className="text-[16px] leading-[20px] transition-colors hover:text-[#95EB1D]"
+              style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
             >
               Aplicativo
             </a>
@@ -196,8 +202,8 @@ export default function Header() {
           <button
             onClick={() => handleNav({ label: "Planos", href: "#planos" })}
             data-testid="header-cta"
-            className="header-section__cta ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] font-bold font-montserrat transition-all duration-200 hover:scale-[1.03] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#001A6E] whitespace-nowrap"
-            style={{ background: COLORS.ctaBg, color: COLORS.ctaText }}
+            className="header-section__cta ml-2 h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 hover:scale-[1.03] active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] whitespace-nowrap"
+            style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
           >
             Assine Já
           </button>
@@ -236,9 +242,10 @@ export default function Header() {
               <button
                 key={link.label}
                 onClick={() => handleNav(link)}
-                className="w-full text-left py-3.5 px-1 text-[15px] font-semibold font-montserrat border-b border-white/10 transition-colors last:border-b-0 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
+                className="w-full text-left py-3.5 px-1 text-[16px] leading-[20px] border-b border-white/10 transition-colors last:border-b-0 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
                 style={{
                   color: active ? COLORS.active : COLORS.inactive,
+                  fontFamily: FONT_NUNITO,
                   fontWeight: active ? 700 : 600,
                 }}
               >
@@ -250,8 +257,8 @@ export default function Header() {
           {/* Aplicativo row */}
           <button
             onClick={() => handleNav({ label: "Aplicativo", href: "#app" })}
-            className="w-full text-left py-3.5 px-1 text-[15px] font-semibold font-montserrat border-b border-white/10 flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
-            style={{ color: COLORS.inactive }}
+            className="w-full text-left py-3.5 px-1 text-[16px] leading-[20px] border-b border-white/10 flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
+            style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
           >
             <span>Aplicativo</span>
             <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
@@ -282,8 +289,8 @@ export default function Header() {
                 setIsOpen(false);
                 handleNav({ label: "Planos", href: "#planos" });
               }}
-              className="ml-auto h-10 px-5 rounded-lg text-[14px] font-bold font-montserrat transition-all duration-200 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#001060]"
-              style={{ background: COLORS.ctaBg, color: COLORS.ctaText }}
+              className="ml-auto h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9]"
+              style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
             >
               Assine Já
             </button>
