@@ -249,7 +249,7 @@ export default function PlanCard({
             <span
               style={{
                 fontSize: 8,
-                fontFamily: FONT_SPEED,
+                fontFamily: FONT_BODY,
                 fontWeight: 400,
                 color: COLORS.white,
                 lineHeight: 1,
@@ -260,7 +260,7 @@ export default function PlanCard({
             <span
               style={{
                 fontSize: 8,
-                fontFamily: FONT_SPEED,
+                fontFamily: FONT_BODY,
                 fontWeight: 400,
                 color: COLORS.white,
                 lineHeight: 1,
@@ -272,7 +272,7 @@ export default function PlanCard({
             <span
               style={{
                 fontSize: 21,
-                fontFamily: FONT_SPEED,
+                fontFamily: FONT_BODY,
                 color: COLORS.green,
                 lineHeight: 1,
                 marginTop: 4,
@@ -313,8 +313,8 @@ export default function PlanCard({
             <span
               style={{
                 fontSize: 12,
-                fontFamily: FONT_SPEED,
-                fontWeight: 400,
+                fontFamily: FONT_BODY,
+                fontWeight: 700,
                 color: COLORS.green,
                 lineHeight: 1,
                 marginTop: 4,
