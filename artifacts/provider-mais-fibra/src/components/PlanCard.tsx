@@ -37,7 +37,11 @@ function trackPlanClick(plan: Plan, source: string) {
   fetch(`${baseUrl}/api/clicks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ planSpeed: plan.speed, planPrice: plan.price, source }),
+    body: JSON.stringify({
+      planSpeed: plan.speed,
+      planPrice: plan.price,
+      source,
+    }),
   }).catch((err) => {
     console.warn("[PlanCard] Failed to record click event:", err);
   });
@@ -64,7 +68,12 @@ function StreamingBox({ logos }: { logos: "watch" | "watch+powertop" }) {
   );
 }
 
-export default function PlanCard({ plan, index = 0, idSuffix = "", source = "hero" }: Props) {
+export default function PlanCard({
+  plan,
+  index = 0,
+  idSuffix = "",
+  source = "hero",
+}: Props) {
   const shareUrl = plan.id != null ? buildPlanShareUrl(plan.id) : undefined;
   const whatsappUrl = buildWhatsAppUrl(plan, shareUrl);
   const [reais, centavos] = plan.price.split(",");
@@ -104,13 +113,21 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
         {/* INTERNET 100% FIBRA */}
         <div
           className="text-center font-normal"
-          style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.02em", color: COLORS.white }}
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            color: COLORS.white,
+          }}
         >
           INTERNET <span style={{ fontWeight: 800 }}>100% FIBRA</span>
         </div>
 
         {/* Speed + MEGA tag */}
-        <div className="relative flex items-center justify-center" style={{ height: 95 }}>
+        <div
+          className="relative flex items-center justify-center"
+          style={{ height: 95 }}
+        >
           <span
             className="leading-none"
             style={{
@@ -139,23 +156,62 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
 
         {/* Icons row — driven by plan.inclusions order */}
         {(() => {
-          const ICON_MAP: Record<string, { src: string; label: string; w: number; h: number }> = {
-            "Instalação Grátis": { src: ICON_INSTALACAO, label: "INSTALAÇÃO", w: 20, h: 20 },
-            "Roteador Wi-Fi": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
-            "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR WI-FI 6", w: 29, h: 20 },
+          const ICON_MAP: Record<
+            string,
+            { src: string; label: string; w: number; h: number }
+          > = {
+            "Instalação Grátis": {
+              src: ICON_INSTALACAO,
+              label: "INSTALAÇÃO",
+              w: 20,
+              h: 20,
+            },
+            "Roteador Wi-Fi": {
+              src: ICON_ROTEADOR,
+              label: "ROTEADOR",
+              w: 29,
+              h: 20,
+            },
+            "Roteador Wi-Fi 6": {
+              src: ICON_ROTEADOR,
+              label: "ROTEADOR WI-FI 6",
+              w: 29,
+              h: 20,
+            },
             "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
-            "Watch": { src: LOGO_WATCH, label: "WATCH", w: 92, h: 20 },
-            "Power Top": { src: LOGO_WATCH_POWERTOP, label: "POWER TOP", w: 92, h: 20 },
+            Watch: { src: LOGO_WATCH, label: "WATCH", w: 92, h: 20 },
+            "Power Top": {
+              src: LOGO_WATCH_POWERTOP,
+              label: "POWER TOP",
+              w: 92,
+              h: 20,
+            },
           };
           const items = plan.inclusions
             .map((name) => ({ name, def: ICON_MAP[name] }))
-            .filter((x): x is { name: string; def: { src: string; label: string; w: number; h: number } } => Boolean(x.def));
+            .filter(
+              (
+                x,
+              ): x is {
+                name: string;
+                def: { src: string; label: string; w: number; h: number };
+              } => Boolean(x.def),
+            );
           if (items.length === 0) return null;
           return (
             <div className="flex items-end justify-center" style={{ gap: 16 }}>
               {items.map((item, i) => (
-                <div key={`${item.name}-${i}`} className="flex flex-col items-center" style={{ gap: 6 }}>
-                  <img src={item.def.src} alt="" width={item.def.w} height={item.def.h} />
+                <div
+                  key={`${item.name}-${i}`}
+                  className="flex flex-col items-center"
+                  style={{ gap: 6 }}
+                >
+                  <img
+                    src={item.def.src}
+                    alt=""
+                    width={item.def.w}
+                    height={item.def.h}
+                  />
                   <span
                     style={{
                       fontSize: 10,
@@ -183,7 +239,10 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           className="grid items-end justify-center"
           style={{ gridTemplateColumns: "1fr auto 1fr", columnGap: 6 }}
         >
-          <div className="flex flex-col items-end leading-none justify-self-end" style={{ paddingBottom: 8 }}>
+          <div
+            className="flex flex-col items-end leading-none justify-self-end"
+            style={{ paddingBottom: 8 }}
+          >
             <span
               style={{
                 fontSize: 8,
@@ -232,7 +291,10 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           >
             {reais}
           </span>
-          <div className="flex flex-col items-start leading-none justify-self-start" style={{ paddingBottom: 4 }}>
+          <div
+            className="flex flex-col items-start leading-none justify-self-start"
+            style={{ paddingBottom: 4 }}
+          >
             <span
               style={{
                 fontSize: 26,
@@ -296,7 +358,9 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
             color: COLORS.whiteFaint,
           }}
         >
-          *Consultar a disponibilidade<br />de planos na sua cidade
+          *Consultar a disponibilidade
+          <br />
+          de planos na sua cidade
         </p>
       </div>
     </motion.div>
