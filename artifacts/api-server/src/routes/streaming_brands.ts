@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, streamingBrandsTable } from "@workspace/db";
-import { eq, and, ne } from "drizzle-orm";
+import { db, streamingBrandsTable, plansTable } from "@workspace/db";
+import { eq, and, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -122,6 +122,37 @@ router.patch("/streaming-brands/reorder", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/streaming-brands/:id/usages", requireAdminKey, async (req, res) => {
+  const id = Number(req.params["id"]);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Invalid brand ID" });
+    return;
+  }
+  try {
+    const [brand] = await db
+      .select()
+      .from(streamingBrandsTable)
+      .where(eq(streamingBrandsTable.id, id))
+      .limit(1);
+    if (!brand) {
+      res.status(404).json({ error: "Brand not found" });
+      return;
+    }
+    const plans = await db
+      .select({
+        id: plansTable.id,
+        speed: plansTable.speed,
+        price: plansTable.price,
+      })
+      .from(plansTable)
+      .where(sql`${brand.name} = ANY(${plansTable.inclusions})`)
+      .orderBy(plansTable.sortOrder, plansTable.id);
+    res.json({ brandName: brand.name, plans });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch brand usages" });
+  }
+});
+
 router.put("/streaming-brands/:id", requireAdminKey, async (req, res) => {
   const id = Number(req.params["id"]);
   if (!Number.isInteger(id) || id <= 0) {
@@ -148,20 +179,52 @@ router.put("/streaming-brands/:id", requireAdminKey, async (req, res) => {
       res.status(409).json({ error: "Já existe outra marca com esse nome." });
       return;
     }
-    const [updated] = await db
-      .update(streamingBrandsTable)
-      .set({
-        name: parsed.data.name,
-        logoUrl: normalizeOptional(parsed.data.logoUrl),
-        ...(parsed.data.sortOrder != null ? { sortOrder: parsed.data.sortOrder } : {}),
-      })
-      .where(eq(streamingBrandsTable.id, id))
-      .returning();
-    if (!updated) {
+    const result = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(streamingBrandsTable)
+        .where(eq(streamingBrandsTable.id, id))
+        .limit(1);
+      if (!existing) {
+        return { updated: null, renamedPlans: [] as { id: number; speed: string; price: string }[] };
+      }
+      const oldName = existing.name;
+      const newName = parsed.data.name;
+      const [updated] = await tx
+        .update(streamingBrandsTable)
+        .set({
+          name: newName,
+          logoUrl: normalizeOptional(parsed.data.logoUrl),
+          ...(parsed.data.sortOrder != null ? { sortOrder: parsed.data.sortOrder } : {}),
+        })
+        .where(eq(streamingBrandsTable.id, id))
+        .returning();
+      let renamedPlans: { id: number; speed: string; price: string }[] = [];
+      if (oldName !== newName) {
+        const renamed = await tx
+          .update(plansTable)
+          .set({
+            inclusions: sql`array_replace(${plansTable.inclusions}, ${oldName}, ${newName})`,
+          })
+          .where(sql`${oldName} = ANY(${plansTable.inclusions})`)
+          .returning({
+            id: plansTable.id,
+            speed: plansTable.speed,
+            price: plansTable.price,
+          });
+        renamedPlans = renamed;
+      }
+      return { updated, renamedPlans };
+    });
+    if (!result.updated) {
       res.status(404).json({ error: "Brand not found" });
       return;
     }
-    res.json(updated);
+    res.json({
+      ...result.updated,
+      renamedPlans: result.renamedPlans,
+      renamedPlanCount: result.renamedPlans.length,
+    });
   } catch (err) {
     res.status(500).json({ error: "Failed to update streaming brand" });
   }

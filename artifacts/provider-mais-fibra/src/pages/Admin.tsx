@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
 import PlanCard from "../components/PlanCard";
@@ -2273,6 +2273,8 @@ type StreamingBrandsManagerProps = {
   onChange: () => Promise<void> | void;
 };
 
+type AffectedPlan = { id: number; speed: string; price: string };
+
 function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: StreamingBrandsManagerProps) {
   const [editing, setEditing] = useState<StreamingBrand | null>(null);
   const [creating, setCreating] = useState(false);
@@ -2286,6 +2288,12 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
+  const [affectedPlans, setAffectedPlans] = useState<AffectedPlan[]>([]);
+  const [affectedLoading, setAffectedLoading] = useState(false);
+  const usagesAbortRef = useRef<AbortController | null>(null);
+  const [renameSummary, setRenameSummary] = useState<
+    { oldName: string; newName: string; plans: AffectedPlan[] } | null
+  >(null);
 
   useEffect(() => {
     setOrderedBrands(brands);
@@ -2343,15 +2351,47 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setName(b.name);
     setLogoUrl(b.logoUrl ?? "");
     setErr(null);
+    setAffectedPlans([]);
+    setRenameSummary(null);
+    usagesAbortRef.current?.abort();
+    const controller = new AbortController();
+    usagesAbortRef.current = controller;
+    setAffectedLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
+          headers: { "X-Admin-Key": adminKey },
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { plans: AffectedPlan[] };
+        if (controller.signal.aborted) return;
+        setAffectedPlans(data.plans ?? []);
+      } catch {
+        /* ignore (including aborts) */
+      } finally {
+        if (!controller.signal.aborted) setAffectedLoading(false);
+      }
+    })();
   }
 
   function cancel() {
+    usagesAbortRef.current?.abort();
+    usagesAbortRef.current = null;
     setEditing(null);
     setCreating(false);
     setName("");
     setLogoUrl("");
     setErr(null);
+    setAffectedPlans([]);
+    setAffectedLoading(false);
   }
+
+  useEffect(() => {
+    return () => {
+      usagesAbortRef.current?.abort();
+    };
+  }, []);
 
   async function handleLogoUpload(file: File) {
     if (!file) return;
@@ -2392,8 +2432,10 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setBusy(true);
     setErr(null);
     try {
+      const trimmedName = name.trim();
+      const oldName = editing?.name ?? "";
       const body = JSON.stringify({
-        name: name.trim(),
+        name: trimmedName,
         logoUrl: logoUrl.trim() || null,
       });
       const url = editing
@@ -2409,8 +2451,15 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
+      const data = await res.json().catch(() => ({}));
+      const renamedPlans: AffectedPlan[] = Array.isArray(data?.renamedPlans)
+        ? data.renamedPlans
+        : [];
       await onChange();
       cancel();
+      if (editing && oldName && oldName !== trimmedName) {
+        setRenameSummary({ oldName, newName: trimmedName, plans: renamedPlans });
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -2471,6 +2520,30 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
       {err && (
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 mb-3 text-sm">
           {err}
+        </div>
+      )}
+
+      {renameSummary && (
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg px-3 py-2 mb-3 text-sm flex items-start justify-between gap-3">
+          <div>
+            <div className="font-semibold">
+              Marca renomeada de "{renameSummary.oldName}" para "{renameSummary.newName}".
+            </div>
+            <div className="text-[12px] mt-0.5">
+              {renameSummary.plans.length === 0
+                ? "Nenhum plano precisava ser atualizado."
+                : `${renameSummary.plans.length} ${
+                    renameSummary.plans.length === 1 ? "plano foi atualizado" : "planos foram atualizados"
+                  } automaticamente.`}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRenameSummary(null)}
+            className="text-green-700 hover:text-green-900 text-xs font-medium"
+          >
+            Fechar
+          </button>
         </div>
       )}
 
@@ -2555,9 +2628,30 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
               Cancelar
             </button>
           </div>
-          {editing && (
+          {editing && affectedLoading && (
+            <p className="text-[11px] text-[#7A7F8C]">Verificando planos que usam esta marca...</p>
+          )}
+          {editing && !affectedLoading && affectedPlans.length > 0 && name.trim() && name.trim() !== editing.name && (
+            <div className="rounded-md bg-[#FFF8E1] border border-[#F0D78C] px-3 py-2 text-[12px] text-[#5A4500]">
+              <div className="font-semibold mb-1">
+                Ao salvar, {affectedPlans.length}{" "}
+                {affectedPlans.length === 1 ? "plano será atualizado" : "planos serão atualizados"} de "{editing.name}" para "{name.trim()}":
+              </div>
+              <ul className="list-disc pl-5 space-y-0.5">
+                {affectedPlans.slice(0, 8).map((p) => (
+                  <li key={p.id}>
+                    {p.speed} — {p.price}
+                  </li>
+                ))}
+                {affectedPlans.length > 8 && (
+                  <li>e mais {affectedPlans.length - 8}...</li>
+                )}
+              </ul>
+            </div>
+          )}
+          {editing && !affectedLoading && affectedPlans.length === 0 && (
             <p className="text-[11px] text-[#7A7F8C]">
-              Atenção: ao renomear uma marca, planos que usavam o nome antigo deixarão de mostrar este logo. Edite os planos para apontar para o novo nome.
+              Nenhum plano usa esta marca atualmente.
             </p>
           )}
         </div>
