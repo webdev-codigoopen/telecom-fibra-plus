@@ -142,8 +142,10 @@ export default function PlanCard({ plan, index = 0, idSuffix = "", source = "her
           const ICON_MAP: Record<string, { src: string; label: string; w: number; h: number }> = {
             "Instalação Grátis": { src: ICON_INSTALACAO, label: "INSTALAÇÃO", w: 20, h: 20 },
             "Roteador Wi-Fi": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
-            "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR", w: 29, h: 20 },
+            "Roteador Wi-Fi 6": { src: ICON_ROTEADOR, label: "ROTEADOR WI-FI 6", w: 29, h: 20 },
             "100 Canais": { src: ICON_CANAIS, label: "CANAIS", w: 64, h: 20 },
+            "Watch": { src: LOGO_WATCH, label: "WATCH", w: 92, h: 20 },
+            "Power Top": { src: LOGO_WATCH_POWERTOP, label: "POWER TOP", w: 92, h: 20 },
           };
           const items = plan.inclusions
             .map((name) => ({ name, def: ICON_MAP[name] }))
