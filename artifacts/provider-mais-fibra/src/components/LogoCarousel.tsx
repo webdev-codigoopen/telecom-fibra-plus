@@ -7,26 +7,6 @@ const logoModules = import.meta.glob<string>(
 
 type Logo = { src: string; name: string; family: string };
 
-// Logos shipped as white-on-transparent — these disappear on a white pill
-// and CSS-mask recoloring did not give consistent results, so we drop them.
-const WHITE_LOGOS = new Set([
-  "amc-us",
-  "band-br",
-  "e-entertainment-us",
-  "film-and-arts-lam",
-  "ge-tv-br",
-  "globo-br",
-  "moonbug-ae",
-  "studio-universal-br",
-  "universal-plus-lam",
-  "universal-premiere-lam",
-  "universal-reality-lam",
-  "gazeta",
-  "Lionsgatep",
-  "Sesc_TV",
-  "Xpeed_School",
-]);
-
 function familyOf(file: string): string {
   const base = file.replace(/\.(png|svg)$/i, "").toLowerCase();
   // Strip trailing region tag (-br, -us, -lam, -ae)
@@ -49,24 +29,16 @@ function familyOf(file: string): string {
   return stem;
 }
 
-const RAW_LOGOS: Logo[] = Object.entries(logoModules)
-  .filter(([path]) => {
-    const file = path.split("/").pop() ?? "";
-    const baseName = file.replace(/\.(png|svg)$/i, "");
-    // Drop white-on-transparent logos: recoloring via CSS mask did not give
-    // a consistent result across PNG/SVG, so we remove them entirely.
-    return !WHITE_LOGOS.has(baseName);
-  })
-  .map(([path, src]) => {
-    const file = path.split("/").pop() ?? "";
-    const baseName = file.replace(/\.(png|svg)$/i, "");
-    const name = baseName.replace(/[-_]/g, " ");
-    return {
-      src,
-      name,
-      family: familyOf(file),
-    };
-  });
+const RAW_LOGOS: Logo[] = Object.entries(logoModules).map(([path, src]) => {
+  const file = path.split("/").pop() ?? "";
+  const baseName = file.replace(/\.(png|svg)$/i, "");
+  const name = baseName.replace(/[-_]/g, " ");
+  return {
+    src,
+    name,
+    family: familyOf(file),
+  };
+});
 
 // Interleave by family using round-robin so same-family logos are spread apart
 function interleaveByFamily(logos: Logo[]): Logo[] {

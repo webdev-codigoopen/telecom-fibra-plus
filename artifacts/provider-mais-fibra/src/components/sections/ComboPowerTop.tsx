@@ -79,12 +79,10 @@ export default function ComboPowerTop() {
 
       {/* 3. Channel logos carousel — pill on desktop, two opposite rows on mobile */}
       <div className="w-full" style={{ maxWidth: 1240 }}>
-        {/* Desktop: single infinite row inside white pill */}
+        {/* Desktop: single infinite row, transparent background */}
         <div
           className="hidden md:block"
           style={{
-            backgroundColor: "#fff",
-            borderRadius: 24,
             paddingTop: 18,
             paddingBottom: 18,
           }}
@@ -92,12 +90,10 @@ export default function ComboPowerTop() {
           <LogoCarousel logoHeight={56} gap={72} durationSec={600} />
         </div>
 
-        {/* Mobile: two rows (left and right) inside white pill */}
+        {/* Mobile: two rows (left and right), transparent background */}
         <div
           className="md:hidden"
           style={{
-            backgroundColor: "#fff",
-            borderRadius: 20,
             paddingTop: 14,
             paddingBottom: 14,
           }}
