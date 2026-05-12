@@ -1,4 +1,4 @@
-import bgIptv from "@assets/image_1778611956972.png";
+import bgIptv from "@assets/bg-sessao-iptv_1778611391057.png";
 
 const BG_COLOR = "#061CD4";
 
