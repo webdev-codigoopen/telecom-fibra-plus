@@ -224,16 +224,27 @@ export default function OndeEstamos() {
               <p className="text-white/70 text-sm mb-6">
                 Estamos em expansão! Entre em contato e verifique se sua cidade já está na fila de atendimento.
               </p>
-              <a
-                href="https://wa.me/5577998444757?text=Ol%C3%A1!%20Gostaria%20de%20saber%20se%20a%20Provider%20atende%20na%20minha%20cidade."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base text-white transition-all duration-200 hover:scale-105"
-                style={{ background: "#00C040" }}
-              >
-                <MessageCircle size={18} />
-                Verificar Cobertura
-              </a>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href="https://wa.me/5577998444757?text=Ol%C3%A1!%20Gostaria%20de%20saber%20se%20a%20Provider%20atende%20na%20minha%20cidade."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base text-white transition-all duration-200 hover:scale-105"
+                  style={{ background: "#00C040" }}
+                >
+                  <MessageCircle size={18} />
+                  Verificar Cobertura
+                </a>
+                <Link
+                  href="/demanda"
+                  data-testid="link-demanda-onde-estamos"
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base transition-all duration-200 hover:scale-105"
+                  style={{ background: "#FFD600", color: "#0D0E14" }}
+                >
+                  <MapPin size={18} />
+                  Ver mapa público de demanda
+                </Link>
+              </div>
             </motion.div>
           </div>
         </section>

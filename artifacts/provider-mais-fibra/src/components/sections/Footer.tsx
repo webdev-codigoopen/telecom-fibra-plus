@@ -5,6 +5,7 @@ const links = [
   { label: "Planos", href: "#planos", page: false },
   { label: "IPTV", href: "#iptv", page: false },
   { label: "Sobre N\u00F3s", href: "/quem-somos", page: true },
+  { label: "Mapa de Demanda", href: "/demanda", page: true },
   { label: "Tire suas d\u00FAvidas", href: "#faq", page: false },
 ];
 
