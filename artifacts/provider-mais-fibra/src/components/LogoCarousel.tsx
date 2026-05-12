@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 const logoModules = import.meta.glob<string>(
   "../../../../attached_assets/channel-logos/*.{png,svg}",
@@ -77,7 +77,7 @@ type Props = {
   logos?: { src: string; name: string }[];
 };
 
-function Track({ logoHeight, gap, durationSec, reverse, logos, paused }: Required<Props> & { paused: boolean }) {
+function Track({ logoHeight, gap, durationSec, reverse, logos, pausedRef }: Required<Props> & { pausedRef: React.MutableRefObject<boolean> }) {
   const items = useMemo(() => [...logos, ...logos], [logos]);
   const trackRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
@@ -94,13 +94,11 @@ function Track({ logoHeight, gap, durationSec, reverse, logos, paused }: Require
       if (lastTsRef.current == null) lastTsRef.current = ts;
       const dt = ts - lastTsRef.current;
       lastTsRef.current = ts;
-      if (!paused) {
+      if (!pausedRef.current) {
         const halfWidth = el.scrollWidth / 2;
         if (halfWidth > 0) {
-          // pixels per ms = halfWidth / (durationSec * 1000)
           const delta = (halfWidth * dt) / (durationSec * 1000);
           offsetRef.current += reverse ? -delta : delta;
-          // Wrap within [0, halfWidth) so positions stay continuous and seamless
           if (offsetRef.current >= halfWidth) offsetRef.current -= halfWidth;
           if (offsetRef.current < 0) offsetRef.current += halfWidth;
           el.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
@@ -113,7 +111,7 @@ function Track({ logoHeight, gap, durationSec, reverse, logos, paused }: Require
       cancelAnimationFrame(raf);
       lastTsRef.current = null;
     };
-  }, [durationSec, reverse, paused, items.length]);
+  }, [durationSec, reverse, items.length, pausedRef]);
 
   return (
     <div
@@ -159,7 +157,7 @@ export default function LogoCarousel({
   logos,
 }: Props) {
   const list = useMemo(() => logos ?? ALL_LOGOS, [logos]);
-  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(false);
 
   return (
     <>
@@ -183,8 +181,8 @@ export default function LogoCarousel({
       `}</style>
       <div
         className="pmf-logo-mask w-full overflow-hidden"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
+        onPointerEnter={() => { pausedRef.current = true; }}
+        onPointerLeave={() => { pausedRef.current = false; }}
       >
         <Track
           logoHeight={logoHeight}
@@ -192,7 +190,7 @@ export default function LogoCarousel({
           durationSec={durationSec}
           reverse={reverse}
           logos={list}
-          paused={paused}
+          pausedRef={pausedRef}
         />
       </div>
     </>
