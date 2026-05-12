@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
 import PlanCard from "../components/PlanCard";
 import { type Plan } from "../lib/plans";
+import CityClicksMap, { type CityClickEntry } from "../components/CityClicksMap";
 
 function apiPlanToPlan(p: ApiPlan): Plan {
   return {
@@ -83,6 +84,16 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState(true);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const cityClickEntries = useMemo<CityClickEntry[]>(() => {
+    const totals = new Map<string, number>();
+    for (const stat of clickStats) {
+      if (stat.planSpeed !== "city") continue;
+      const name = stat.planPrice;
+      totals.set(name, (totals.get(name) ?? 0) + stat.total);
+    }
+    return Array.from(totals.entries()).map(([name, total]) => ({ name, total }));
+  }, [clickStats]);
 
   const fetchClickStats = useCallback(async (
     key: string,
@@ -574,6 +585,10 @@ export default function Admin() {
                   })}
                 </div>
               )}
+            </div>
+
+            <div className="mb-8">
+              <CityClicksMap clicks={cityClickEntries} />
             </div>
 
             <div className="flex items-center justify-between mb-6">
