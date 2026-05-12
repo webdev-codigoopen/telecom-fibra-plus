@@ -115,11 +115,18 @@ router.get("/clicks/stats", requireAdminKey, async (req, res) => {
 router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
       ? req.query["source"]
       : undefined;
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
       ? req.query["city"].slice(0, 120)
+      : undefined;
+    const planSpeedParam = typeof req.query["planSpeed"] === "string" && req.query["planSpeed"].length > 0
+      ? req.query["planSpeed"].slice(0, 120)
+      : undefined;
+    const planPriceParam = typeof req.query["planPrice"] === "string" && req.query["planPrice"].length > 0
+      ? req.query["planPrice"].slice(0, 120)
       : undefined;
     const bucketParam = typeof req.query["bucket"] === "string" ? req.query["bucket"] : "day";
     const bucket = bucketParam === "hour" ? "hour" : "day";
@@ -133,11 +140,29 @@ router.get("/clicks/timeseries", requireAdminKey, async (req, res) => {
       }
       sinceDate = parsed;
     }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
 
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
     if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
-    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
+    if (cityParam) {
+      conditions.push(eq(planClicksTable.city, cityParam));
+    }
+    if (planSpeedParam) {
+      conditions.push(eq(planClicksTable.planSpeed, planSpeedParam));
+    }
+    if (planPriceParam) {
+      conditions.push(eq(planClicksTable.planPrice, planPriceParam));
+    }
 
     const bucketExpr = bucket === "hour"
       ? sql<string>`date_trunc('hour', ${planClicksTable.clickedAt})`

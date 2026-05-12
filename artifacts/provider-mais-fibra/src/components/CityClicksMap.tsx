@@ -1,4 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type CityCoord = { name: string; lat: number; lon: number };
 
@@ -622,6 +631,17 @@ export default function CityClicksMap(props: Props) {
           )}
         </svg>
       </div>
+      {isAdminMode && selectedCity && adminKey && baseUrl && (
+        <CityTrendPanel
+          baseUrl={baseUrl}
+          adminKey={adminKey}
+          city={selectedCity}
+          range={range}
+          customFrom={customFrom}
+          customTo={customTo}
+          onClose={() => onSelectCity?.(null)}
+        />
+      )}
       {extraEntries.length > 0 && (
         <div
           className="mt-3 rounded-lg border border-[#FFD600]/50 bg-[#FFFBE6] px-3 py-2"
@@ -913,6 +933,162 @@ function TopCitiesList({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+type TrendRow = {
+  bucket: string;
+  planSpeed: string;
+  planPrice: string;
+  source: string;
+  total: number;
+};
+
+type TrendPoint = { bucket: string; label: string; total: number };
+
+function CityTrendPanel({
+  baseUrl,
+  adminKey,
+  city,
+  range,
+  customFrom,
+  customTo,
+  onClose,
+}: {
+  baseUrl: string;
+  adminKey: string;
+  city: string;
+  range: RangeId;
+  customFrom: string;
+  customTo: string;
+  onClose: () => void;
+}) {
+  const [points, setPoints] = useState<TrendPoint[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const reqRef = useRef(0);
+
+  const useHour = range === "today";
+
+  useEffect(() => {
+    const win = rangeToWindow(range, customFrom, customTo);
+    if (win === null) {
+      setPoints(null);
+      setLoading(false);
+      setError("Selecione um intervalo válido.");
+      return;
+    }
+    const myReq = ++reqRef.current;
+    setLoading(true);
+    setError(null);
+
+    const params = new URLSearchParams();
+    if (win.since) params.set("since", win.since);
+    if (win.until) params.set("until", win.until);
+    params.set("planSpeed", "city");
+    params.set("planPrice", city);
+    params.set("bucket", useHour ? "hour" : "day");
+
+    fetch(`${baseUrl}/api/clicks/timeseries?${params.toString()}`, {
+      headers: { "X-Admin-Key": adminKey },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<TrendRow[]>;
+      })
+      .then((rows) => {
+        if (myReq !== reqRef.current) return;
+        const map = new Map<string, TrendPoint>();
+        for (const row of rows) {
+          const date = new Date(row.bucket);
+          const label = useHour
+            ? date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+            : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          const existing = map.get(row.bucket);
+          if (existing) {
+            existing.total += row.total;
+          } else {
+            map.set(row.bucket, { bucket: row.bucket, label, total: row.total });
+          }
+        }
+        const sorted = Array.from(map.values()).sort(
+          (a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime(),
+        );
+        setPoints(sorted);
+      })
+      .catch(() => {
+        if (myReq !== reqRef.current) return;
+        setError("Não foi possível carregar a tendência.");
+      })
+      .finally(() => {
+        if (myReq !== reqRef.current) return;
+        setLoading(false);
+      });
+  }, [baseUrl, adminKey, city, range, customFrom, customTo, useHour]);
+
+  const total = points?.reduce((s, p) => s + p.total, 0) ?? 0;
+
+  return (
+    <div
+      className="mt-4 rounded-lg border border-[#FFD600] bg-[#FFFBE6] p-3"
+      data-testid="city-trend-panel"
+    >
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <div>
+          <h4 className="font-bold text-sm text-[#0D0D0D]">
+            Tendência de cliques · {city}
+          </h4>
+          <p className="text-[11px] text-[#7A5C00]">
+            {useHour ? "Por hora" : "Por dia"} no período selecionado
+            {points && !loading && (
+              <span className="ml-2 text-[#5C4500]">
+                · {total} {total === 1 ? "clique" : "cliques"}
+              </span>
+            )}
+            {loading && <span className="ml-2 text-[#0040FF]">Carregando...</span>}
+            {error && <span className="ml-2 text-red-600">{error}</span>}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
+          aria-label="Fechar tendência"
+        >
+          Fechar ✕
+        </button>
+      </div>
+      <div className="bg-white rounded-md border border-[#E0E3EB] p-2" style={{ height: 220 }}>
+        {!loading && !error && points && points.length === 0 && (
+          <div className="flex items-center justify-center h-full text-xs text-[#7A7F8C]">
+            Sem cliques nesta cidade no período.
+          </div>
+        )}
+        {points && points.length > 0 && (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E0E3EB" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#7A7F8C" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#7A7F8C" }} width={28} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 6 }}
+                formatter={(v: number) => [v, "Cliques"]}
+                labelStyle={{ fontWeight: 600 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="total"
+                stroke="#0040FF"
+                strokeWidth={2}
+                dot={{ r: 3, fill: "#0040FF" }}
+                activeDot={{ r: 5 }}
+                isAnimationActive={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
     </div>
   );
 }
