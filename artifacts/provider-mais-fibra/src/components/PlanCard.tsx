@@ -82,9 +82,11 @@ export default function PlanCard({
   const has900Streaming = plan.speed === "900";
   const hasStreaming = has600Streaming || has900Streaming;
 
-  // Figma: cards with streaming = padding-top 30 / gap 11; without = padding-top 50 / gap 30
-  const paddingTop = hasStreaming ? 30 : 50;
-  const innerGap = hasStreaming ? 11 : 30;
+  // Figma:
+  // - cards WITH streaming: pt 30 / inner gap 11 (price kept in compact bottom block, mt-auto)
+  // - cards WITHOUT streaming (node 6310:414): pt 51 / explicit gaps 44 (header→price) and 45 (price→cta)
+  const paddingTop = hasStreaming ? 30 : 51;
+  const innerGap = hasStreaming ? 11 : 0;
 
   return (
     <motion.div
@@ -232,8 +234,15 @@ export default function PlanCard({
       {/* Streaming bonus (600 / 900) */}
       {has600Streaming && <StreamingBox logos="watch" />}
       {has900Streaming && <StreamingBox logos="watch+powertop" />}
-      {/* Bottom block: price + CTA + footer (Figma Frame 33: gap 5, naturally compact) */}
-      <div className="flex flex-col mt-auto" style={{ gap: 5 }}>
+      {/*
+        Layout split:
+        - WITH streaming: price+cta+footer share one mt-auto block (gap 5) — compact
+        - WITHOUT streaming (Figma 6310:414): price gets marginTop 44, cta block gets marginTop 45
+      */}
+      <div
+        className={hasStreaming ? "flex flex-col mt-auto" : "flex flex-col"}
+        style={{ gap: hasStreaming ? 5 : 0, marginTop: hasStreaming ? undefined : 44 }}
+      >
         {/* Price block — 3-col grid keeps the big numeral optically centered */}
         <div
           className="grid items-end justify-center"
@@ -334,6 +343,7 @@ export default function PlanCard({
             gap: 8,
             width: "100%",
             height: 40,
+            marginTop: hasStreaming ? undefined : 45,
             borderRadius: 8,
             border: `1.5px solid ${COLORS.white}`,
             color: COLORS.white,
