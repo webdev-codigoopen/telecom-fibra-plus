@@ -43,6 +43,7 @@ router.get("/clicks/cities", async (_req, res) => {
       .select({
         name: planClicksTable.planPrice,
         total: sql<number>`cast(count(*) as int)`,
+        interests: sql<number>`cast(count(*) filter (where ${planClicksTable.source} = 'interest') as int)`,
       })
       .from(planClicksTable)
       .where(eq(planClicksTable.planSpeed, "city"))

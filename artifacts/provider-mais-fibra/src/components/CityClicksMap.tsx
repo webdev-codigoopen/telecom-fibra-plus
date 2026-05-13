@@ -26,7 +26,7 @@ const CITY_COORDS: CityCoord[] = [
   { name: "Correntina", lat: -13.3431, lon: -44.6364 },
 ];
 
-export type CityClickEntry = { name: string; total: number };
+export type CityClickEntry = { name: string; total: number; interests?: number };
 
 type StatRow = {
   planSpeed: string;
@@ -106,7 +106,9 @@ function previousWindow(current: Window): Window | null {
   return { since: prevSince.toISOString(), until: prevUntil.toISOString() };
 }
 
-async function fetchCityTotals(baseUrl: string, adminKey: string, win: Window): Promise<Map<string, number>> {
+type CityTotals = { total: number; interests: number };
+
+async function fetchCityTotals(baseUrl: string, adminKey: string, win: Window): Promise<Map<string, CityTotals>> {
   const params = new URLSearchParams();
   if (win.since) params.set("since", win.since);
   if (win.until) params.set("until", win.until);
@@ -115,10 +117,13 @@ async function fetchCityTotals(baseUrl: string, adminKey: string, win: Window): 
   const res = await fetch(url, { headers: { "X-Admin-Key": adminKey } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data: StatRow[] = await res.json();
-  const totals = new Map<string, number>();
+  const totals = new Map<string, CityTotals>();
   for (const row of data) {
     if (row.planSpeed !== "city") continue;
-    totals.set(row.planPrice, (totals.get(row.planPrice) ?? 0) + row.total);
+    const cur = totals.get(row.planPrice) ?? { total: 0, interests: 0 };
+    cur.total += row.total;
+    if (row.source === "interest") cur.interests += row.total;
+    totals.set(row.planPrice, cur);
   }
   return totals;
 }
@@ -221,7 +226,13 @@ export default function CityClicksMap(props: Props) {
     Promise.all([currentPromise, prevPromise, conversionPromise])
       .then(([currentTotals, prevResult, conversionMap]) => {
         if (myReqId !== reqIdRef.current) return;
-        setEntries(Array.from(currentTotals.entries()).map(([name, total]) => ({ name, total })));
+        setEntries(
+          Array.from(currentTotals.entries()).map(([name, t]) => ({
+            name,
+            total: t.total,
+            interests: t.interests,
+          })),
+        );
         setConversion(conversionMap);
         if (!prevResult.ok) {
           setPrevEntries(null);
@@ -229,7 +240,13 @@ export default function CityClicksMap(props: Props) {
           return;
         }
         if (prevResult.totals) {
-          setPrevEntries(Array.from(prevResult.totals.entries()).map(([name, total]) => ({ name, total })));
+          setPrevEntries(
+            Array.from(prevResult.totals.entries()).map(([name, t]) => ({
+              name,
+              total: t.total,
+              interests: t.interests,
+            })),
+          );
         } else {
           setPrevEntries(null);
         }
@@ -249,6 +266,14 @@ export default function CityClicksMap(props: Props) {
   const clickMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of effectiveEntries) m.set(c.name, c.total);
+    return m;
+  }, [effectiveEntries]);
+
+  const interestsMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of effectiveEntries) {
+      if (c.interests && c.interests > 0) m.set(c.name, c.interests);
+    }
     return m;
   }, [effectiveEntries]);
 
@@ -413,11 +438,17 @@ export default function CityClicksMap(props: Props) {
     ? CITY_COORDS.find((c) => c.name === hovered) ?? null
     : null;
   const hoveredTotal = hoveredCity ? clickMap.get(hoveredCity.name) ?? 0 : 0;
+  const hoveredInterests = hoveredCity ? interestsMap.get(hoveredCity.name) ?? 0 : 0;
+  const hoveredClicks = Math.max(0, hoveredTotal - hoveredInterests);
   const hoveredDelta = hoveredCity ? deltaFor(hoveredCity.name) : null;
   const hoveredConv = hoveredCity ? conversion.get(hoveredCity.name) ?? null : null;
+  const tooltipHasBreakdown = hoveredInterests > 0;
   const hoveredPos = hoveredCity ? project(hoveredCity.lat, hoveredCity.lon) : null;
   const tooltipHeight =
-    36 + (hoveredDelta ? 16 : 0) + (hoveredConv && (hoveredConv.previews > 0 || hoveredConv.signups > 0) ? 16 : 0);
+    36 +
+    (tooltipHasBreakdown ? 28 : 0) +
+    (hoveredDelta ? 16 : 0) +
+    (hoveredConv && (hoveredConv.previews > 0 || hoveredConv.signups > 0) ? 16 : 0);
 
   function formatDelta(d: { abs: number; pct: number | null; prev: number; current: number }): string {
     if (d.current === 0 && d.prev === 0) return "Sem cliques nos dois períodos";
@@ -492,6 +523,23 @@ export default function CityClicksMap(props: Props) {
                 mais
               </span>
             </>
+          )}
+          {interestsMap.size > 0 && (
+            <span
+              className="inline-flex items-center gap-1"
+              title="Cidades com pessoas que cadastraram interesse em /demanda"
+            >
+              <span
+                className="inline-block rounded-full"
+                style={{
+                  width: 14,
+                  height: 14,
+                  background: "transparent",
+                  border: "2px dashed #95EB1D",
+                }}
+              />
+              interesse cadastrado
+            </span>
           )}
         </div>
       </div>
@@ -653,6 +701,8 @@ export default function CityClicksMap(props: Props) {
                   : ""
               : "";
             const isSelected = selectedCity === city.name;
+            const interestsCount = interestsMap.get(city.name) ?? 0;
+            const hasInterests = interestsCount > 0;
             return (
               <g
                 key={city.name}
@@ -675,6 +725,17 @@ export default function CityClicksMap(props: Props) {
                     strokeWidth={3}
                   />
                 )}
+                {hasInterests && (
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={r + 3}
+                    fill="none"
+                    stroke="#95EB1D"
+                    strokeWidth={2.5}
+                    strokeDasharray="3 2"
+                  />
+                )}
                 <circle cx={x} cy={y} r={r} fill={fill} opacity={opacity} />
                 <circle cx={x} cy={y} r={3} fill="#0D0D0D" />
                 <text
@@ -688,6 +749,28 @@ export default function CityClicksMap(props: Props) {
                 >
                   {city.name}
                 </text>
+                {hasInterests && (
+                  <g pointerEvents="none">
+                    <circle
+                      cx={x + r * 0.75}
+                      cy={y - r * 0.75}
+                      r={9}
+                      fill="#95EB1D"
+                      stroke="#0A1995"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={x + r * 0.75}
+                      y={y - r * 0.75 + 3}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontWeight="800"
+                      fill="#0A1995"
+                    >
+                      {interestsCount > 99 ? "99+" : interestsCount}
+                    </text>
+                  </g>
+                )}
                 {showBadge && (
                   <text
                     x={x}
@@ -730,12 +813,33 @@ export default function CityClicksMap(props: Props) {
                 fill="#A8B0C0"
                 fontSize="10"
               >
-                {hoveredTotal} {hoveredTotal === 1 ? "clique" : "cliques"}
+                {hoveredTotal} {hoveredTotal === 1 ? "registro" : "registros"} no total
               </text>
+              {tooltipHasBreakdown && (
+                <>
+                  <text
+                    x={Math.min(VIEW_W - 200, Math.max(8, hoveredPos.x + 14)) + 10}
+                    y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + 44}
+                    fill="#A8B0C0"
+                    fontSize="10"
+                  >
+                    • {hoveredClicks} {hoveredClicks === 1 ? "clique" : "cliques"}
+                  </text>
+                  <text
+                    x={Math.min(VIEW_W - 200, Math.max(8, hoveredPos.x + 14)) + 10}
+                    y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + 58}
+                    fill="#95EB1D"
+                    fontSize="10"
+                    fontWeight="600"
+                  >
+                    • {hoveredInterests} {hoveredInterests === 1 ? "interesse cadastrado" : "interesses cadastrados"}
+                  </text>
+                </>
+              )}
               {hoveredDelta && (
                 <text
                   x={Math.min(VIEW_W - 200, Math.max(8, hoveredPos.x + 14)) + 10}
-                  y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + 45}
+                  y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + 45 + (tooltipHasBreakdown ? 28 : 0)}
                   fill={
                     hoveredDelta.abs > 0
                       ? "#7CE0A0"
@@ -752,7 +856,7 @@ export default function CityClicksMap(props: Props) {
               {hoveredConv && (hoveredConv.previews > 0 || hoveredConv.signups > 0) && (
                 <text
                   x={Math.min(VIEW_W - 200, Math.max(8, hoveredPos.x + 14)) + 10}
-                  y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + (hoveredDelta ? 60 : 45)}
+                  y={Math.max(8, hoveredPos.y - tooltipHeight - 4) + (hoveredDelta ? 60 : 45) + (tooltipHasBreakdown ? 28 : 0)}
                   fill="#FFD66B"
                   fontSize="10"
                   fontWeight="600"
