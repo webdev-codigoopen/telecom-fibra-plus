@@ -159,6 +159,56 @@ async function fetchCityConversion(
 
 type ColorMode = "volume" | "growth" | "conversion";
 
+type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
+
+const CONVERSION_SCALE_STORAGE_PREFIX = "pmf:mapConversionScale";
+const DEFAULT_TARGET_PCT = 10;
+
+function hashAdminKey(adminKey: string | undefined): string {
+  if (!adminKey) return "anon";
+  // Lightweight non-cryptographic hash — only used to scope the storage key
+  // per admin identity so different admins on the same browser don't share
+  // their preferred conversion scale. Not used for security.
+  let h = 5381;
+  for (let i = 0; i < adminKey.length; i++) {
+    h = ((h << 5) + h + adminKey.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+function storageKeyFor(adminKey: string | undefined): string {
+  return `${CONVERSION_SCALE_STORAGE_PREFIX}:${hashAdminKey(adminKey)}`;
+}
+
+function loadConversionScale(adminKey: string | undefined): ConversionScale {
+  if (typeof window === "undefined") return { mode: "auto" };
+  try {
+    const raw = window.localStorage.getItem(storageKeyFor(adminKey));
+    if (!raw) return { mode: "auto" };
+    const parsed = JSON.parse(raw) as Partial<ConversionScale> & { targetPct?: unknown };
+    if (parsed?.mode === "target") {
+      const n = Number(parsed.targetPct);
+      if (Number.isFinite(n) && n > 0 && n <= 100) {
+        return { mode: "target", targetPct: n };
+      }
+      return { mode: "target", targetPct: DEFAULT_TARGET_PCT };
+    }
+    if (parsed?.mode === "auto") return { mode: "auto" };
+  } catch {
+    // ignore
+  }
+  return { mode: "auto" };
+}
+
+function saveConversionScale(adminKey: string | undefined, scale: ConversionScale) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(storageKeyFor(adminKey), JSON.stringify(scale));
+  } catch {
+    // ignore
+  }
+}
+
 function conversionColor(rate: number): string {
   // rate in [0, 1]. Red (low) -> Yellow (mid) -> Green (high).
   const clamped = Math.max(0, Math.min(1, rate));
@@ -198,7 +248,24 @@ export default function CityClicksMap(props: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [colorMode, setColorMode] = useState<ColorMode>("volume");
+  const [conversionScale, setConversionScale] = useState<ConversionScale>(() => loadConversionScale(adminKey));
+  const [targetInput, setTargetInput] = useState<string>(() => {
+    const s = loadConversionScale(adminKey);
+    return s.mode === "target" ? String(s.targetPct) : String(DEFAULT_TARGET_PCT);
+  });
   const reqIdRef = useRef(0);
+
+  useEffect(() => {
+    // Reload preferences when the admin identity changes (e.g. different
+    // admin signs in within the same browser).
+    const next = loadConversionScale(adminKey);
+    setConversionScale(next);
+    setTargetInput(next.mode === "target" ? String(next.targetPct) : String(DEFAULT_TARGET_PCT));
+  }, [adminKey]);
+
+  useEffect(() => {
+    saveConversionScale(adminKey, conversionScale);
+  }, [adminKey, conversionScale]);
 
   useEffect(() => {
     if (!isAdminMode || !adminKey || !baseUrl) return;
@@ -353,6 +420,28 @@ export default function CityClicksMap(props: Props) {
   const effectiveColorMode: ColorMode =
     colorMode === "growth" && !hasComparison ? "volume" : colorMode;
 
+  const observedMaxRate = useMemo(() => {
+    let max = 0;
+    for (const c of conversion.values()) {
+      if (c.previews > 0) {
+        const r = c.signups / c.previews;
+        if (r > max) max = r;
+      }
+    }
+    return max;
+  }, [conversion]);
+
+  const scaleMaxRate = useMemo(() => {
+    if (conversionScale.mode === "target") {
+      return Math.max(0.0001, Math.min(1, conversionScale.targetPct / 100));
+    }
+    // auto: fit to highest observed rate; fall back to 1 if no data
+    return observedMaxRate > 0 ? observedMaxRate : 1;
+  }, [conversionScale, observedMaxRate]);
+
+  const scaleMaxPct = scaleMaxRate * 100;
+  const formatPct = (n: number) => (n >= 10 ? n.toFixed(0) : n.toFixed(1));
+
   const exportRangeLabel = useMemo(() => {
     if (!isAdminMode) return null;
     const win = rangeToWindow(range, customFrom, customTo);
@@ -496,15 +585,20 @@ export default function CityClicksMap(props: Props) {
             <>
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(0), opacity: 0.85 }} />
-                conversão baixa
+                0%
               </span>
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(0.5), opacity: 0.85 }} />
-                média
+                {formatPct(scaleMaxPct / 2)}%
               </span>
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: conversionColor(1), opacity: 0.85 }} />
-                alta
+                {formatPct(scaleMaxPct)}%
+                {conversionScale.mode === "auto"
+                  ? observedMaxRate > 0
+                    ? " (máx. observado)"
+                    : " (sem dados)"
+                  : " (meta)"}
               </span>
               <span className="inline-flex items-center gap-1">
                 <span className="inline-block rounded-full" style={{ width: 12, height: 12, background: "#B0B5C3", opacity: 0.6 }} />
@@ -645,6 +739,84 @@ export default function CityClicksMap(props: Props) {
             );
           })}
         </div>
+        {effectiveColorMode === "conversion" && (
+          <div
+            className="inline-flex items-center gap-2 rounded-lg border border-[#E0E3EB] bg-white px-2 py-1"
+            data-testid="conversion-scale-controls"
+          >
+            <span className="text-[10px] font-semibold text-[#7A7F8C] uppercase tracking-wide">
+              Escala
+            </span>
+            <div className="inline-flex rounded-md border border-[#E0E3EB] p-0.5" role="group" aria-label="Escala da conversão">
+              {(["auto", "target"] as const).map((m) => {
+                const active = conversionScale.mode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      if (m === "auto") {
+                        setConversionScale({ mode: "auto" });
+                      } else {
+                        const n = Number(targetInput);
+                        const target =
+                          Number.isFinite(n) && n > 0 && n <= 100 ? n : DEFAULT_TARGET_PCT;
+                        setTargetInput(String(target));
+                        setConversionScale({ mode: "target", targetPct: target });
+                      }
+                    }}
+                    className={`px-2 py-0.5 text-[11px] font-semibold rounded transition-colors ${
+                      active
+                        ? "bg-[#0040FF] text-white"
+                        : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                    }`}
+                    aria-pressed={active}
+                    data-testid={`conversion-scale-${m}`}
+                  >
+                    {m === "auto" ? "Auto" : "Meta"}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="inline-flex items-center gap-1 text-[11px] text-[#2A2D38]">
+              <input
+                type="number"
+                min={0.1}
+                max={100}
+                step={0.5}
+                value={targetInput}
+                disabled={conversionScale.mode !== "target"}
+                onChange={(e) => {
+                  setTargetInput(e.target.value);
+                  const n = Number(e.target.value);
+                  if (Number.isFinite(n) && n > 0 && n <= 100) {
+                    setConversionScale({ mode: "target", targetPct: n });
+                  }
+                }}
+                onBlur={() => {
+                  const n = Number(targetInput);
+                  if (!Number.isFinite(n) || n <= 0 || n > 100) {
+                    setTargetInput(String(DEFAULT_TARGET_PCT));
+                    if (conversionScale.mode === "target") {
+                      setConversionScale({ mode: "target", targetPct: DEFAULT_TARGET_PCT });
+                    }
+                  }
+                }}
+                className={`w-14 border border-[#E0E3EB] rounded px-1.5 py-0.5 text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 ${
+                  conversionScale.mode !== "target" ? "bg-[#F5F7FA] text-[#B0B5C3]" : "bg-white"
+                }`}
+                aria-label="Meta de conversão (%)"
+                data-testid="conversion-scale-target-input"
+              />
+              <span className="text-[#7A7F8C]">%</span>
+            </label>
+            <span className="text-[10px] text-[#7A7F8C]">
+              {conversionScale.mode === "auto"
+                ? `máx. observado: ${formatPct(observedMaxRate * 100)}%`
+                : "verde = meta atingida"}
+            </span>
+          </div>
+        )}
       </div>
       )}
       <div className="relative w-full overflow-hidden rounded-lg" style={{ background: "#F5F7FA" }}>
@@ -683,7 +855,8 @@ export default function CityClicksMap(props: Props) {
                 opacity = 0.4;
               } else {
                 const rate = conv.signups / conv.previews;
-                fill = conversionColor(rate);
+                const normalized = scaleMaxRate > 0 ? rate / scaleMaxRate : 0;
+                fill = conversionColor(normalized);
                 opacity = 0.85;
               }
             } else {
