@@ -838,7 +838,15 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "emails" && (
-          <EmailReportSubscriptionsManager adminKey={adminKey} baseUrl={baseUrl} />
+          <div className="space-y-6">
+            <SmtpSettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
+            <EmailReportSubscriptionsManager adminKey={adminKey} baseUrl={baseUrl} />
+          </div>
         )}
 
         {!loading && activeTab === "seguranca" && (
@@ -5187,6 +5195,299 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SMTP settings — host, port, security, user, password, sender, test send
+// ---------------------------------------------------------------------------
+type SmtpSettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsProps) {
+  const [host, setHost] = useState(settings.smtp_host);
+  const [port, setPort] = useState(settings.smtp_port);
+  const [secure, setSecure] = useState(settings.smtp_secure || "auto");
+  const [user, setUser] = useState(settings.smtp_user);
+  const [password, setPassword] = useState(settings.smtp_password);
+  const [showPwd, setShowPwd] = useState(false);
+  const [fromEmail, setFromEmail] = useState(settings.smtp_from_email);
+  const [fromName, setFromName] = useState(settings.smtp_from_name);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [testTo, setTestTo] = useState(settings.interest_notification_email || "");
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    setHost(settings.smtp_host);
+    setPort(settings.smtp_port);
+    setSecure(settings.smtp_secure || "auto");
+    setUser(settings.smtp_user);
+    setPassword(settings.smtp_password);
+    setFromEmail(settings.smtp_from_email);
+    setFromName(settings.smtp_from_name);
+  }, [
+    settings.smtp_host,
+    settings.smtp_port,
+    settings.smtp_secure,
+    settings.smtp_user,
+    settings.smtp_password,
+    settings.smtp_from_email,
+    settings.smtp_from_name,
+  ]);
+
+  const dirty =
+    host.trim() !== settings.smtp_host ||
+    port.trim() !== settings.smtp_port ||
+    secure !== (settings.smtp_secure || "auto") ||
+    user.trim() !== settings.smtp_user ||
+    password !== settings.smtp_password ||
+    fromEmail.trim() !== settings.smtp_from_email ||
+    fromName.trim() !== settings.smtp_from_name;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({
+          smtp_host: host.trim(),
+          smtp_port: port.trim(),
+          smtp_secure: secure,
+          smtp_user: user.trim(),
+          smtp_password: password,
+          smtp_from_email: fromEmail.trim(),
+          smtp_from_name: fromName.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const detail = body?.details?.fieldErrors
+          ? Object.entries(body.details.fieldErrors)
+              .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+              .join(" · ")
+          : null;
+        throw new Error(detail || body?.error || `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleTest() {
+    if (!testTo.trim()) {
+      setTestMsg({ ok: false, text: "Informe um e-mail para enviar o teste." });
+      return;
+    }
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings/smtp/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({ to: testTo.trim() }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTestMsg({ ok: false, text: body?.error || `HTTP ${res.status}` });
+        return;
+      }
+      setTestMsg({ ok: true, text: `E-mail de teste enviado para ${testTo.trim()}.` });
+    } catch (err) {
+      setTestMsg({ ok: false, text: err instanceof Error ? err.message : "Falha de rede." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6" data-testid="smtp-settings">
+      <header className="mb-4">
+        <h2 className="font-bold text-[#0D0D0D] text-base">Servidor de e-mail (SMTP)</h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Conecte uma caixa de e-mail real para o site enviar mensagens de contato, notificações
+          de novos cadastros e relatórios automáticos. Dica: no Hostinger/cPanel, crie a conta
+          (ex.: <code>contato@seudominio.com.br</code>) e copie host, porta, usuário e senha.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] md:col-span-2">
+            <span>Servidor (host)</span>
+            <input
+              type="text"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              placeholder="smtp.hostinger.com"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-host"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Porta</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={port}
+              onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="465"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-port"
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Segurança</span>
+            <select
+              value={secure}
+              onChange={(e) => setSecure(e.target.value)}
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-secure"
+            >
+              <option value="auto">Automática (SSL na 465, STARTTLS nas demais)</option>
+              <option value="true">SSL/TLS (porta 465)</option>
+              <option value="false">STARTTLS (porta 587/25)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Usuário</span>
+            <input
+              type="text"
+              autoComplete="off"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+              placeholder="contato@seudominio.com.br"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-user"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Senha</span>
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full border border-[#E0E3EB] rounded-md px-3 py-2 pr-16 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                data-testid="smtp-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#0040FF] hover:underline"
+              >
+                {showPwd ? "ocultar" : "mostrar"}
+              </button>
+            </div>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Remetente — nome</span>
+            <input
+              type="text"
+              value={fromName}
+              onChange={(e) => setFromName(e.target.value)}
+              placeholder="Provider Mais Fibra"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-from-name"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Remetente — e-mail</span>
+            <input
+              type="email"
+              value={fromEmail}
+              onChange={(e) => setFromEmail(e.target.value)}
+              placeholder="contato@seudominio.com.br"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-from-email"
+            />
+          </label>
+        </div>
+
+        {errorMsg && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="submit"
+            disabled={!dirty || saving}
+            className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            data-testid="smtp-save"
+          >
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-emerald-600">Salvo.</span>
+          )}
+        </div>
+      </form>
+
+      <div className="mt-6 pt-5 border-t border-[#E0E3EB]">
+        <h3 className="text-sm font-bold text-[#0D0D0D] mb-2">Enviar e-mail de teste</h3>
+        <p className="text-xs text-[#7A7F8C] mb-3">
+          Use as configurações já salvas para tentar uma entrega real. Se algo estiver errado, a
+          mensagem de erro indicará o que ajustar (host, porta, usuário ou senha).
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[260px]">
+            <span>Enviar para</span>
+            <input
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder="seu-email@exemplo.com"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="smtp-test-to"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void handleTest()}
+            disabled={testing || dirty}
+            className="text-sm font-semibold px-4 py-2 rounded-md border border-[#0040FF] text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40 disabled:cursor-not-allowed"
+            data-testid="smtp-test-send"
+            title={dirty ? "Salve as mudanças antes de testar" : ""}
+          >
+            {testing ? "Enviando…" : "Enviar teste"}
+          </button>
+        </div>
+        {testMsg && (
+          <div
+            className={`mt-3 rounded-md border px-3 py-2 text-xs ${
+              testMsg.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            }`}
+          >
+            {testMsg.text}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

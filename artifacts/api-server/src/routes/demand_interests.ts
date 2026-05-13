@@ -195,7 +195,7 @@ async function notifyAdminOfNewInterest(payload: {
     const enabled = (map.get("interest_notification_enabled") ?? "false") === "true";
     const to = (map.get("interest_notification_email") ?? "").trim();
     if (!enabled || !to) return;
-    if (!isEmailConfigured()) {
+    if (!(await isEmailConfigured())) {
       logger.warn(
         { to },
         "Interest notification skipped: SMTP not configured",

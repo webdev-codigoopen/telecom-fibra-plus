@@ -40,7 +40,7 @@ export async function tick(now: Date = new Date()): Promise<void> {
     );
     if (due.length === 0) return;
 
-    if (!isEmailConfigured()) {
+    if (!(await isEmailConfigured())) {
       logger.warn(
         { dueCount: due.length },
         "Email not configured (set SMTP_HOST/PORT/USER/PASS/FROM); skipping scheduled email reports.",

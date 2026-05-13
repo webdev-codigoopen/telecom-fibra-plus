@@ -1,0 +1,995 @@
+# 🛡️ Prompt de Segurança em Camadas — Provider Mais Fibra
+> **Stack:** React + Vite · TypeScript · Node.js · Drizzle ORM · PostgreSQL · Replit
+> **Escopo:** Site público + Painel admin simples
+> **Objetivo:** Fechar todas as portas de invasão comuns em projetos desse porte
+
+---
+
+## 🗺️ Mapa de Ameaças — O que este projeto atrai
+
+| Ameaça | Vetor | Risco |
+|---|---|---|
+| SQL Injection | Formulários, query params | 🔴 Crítico |
+| Brute Force Login | Painel admin | 🔴 Crítico |
+| XSS (Cross-Site Scripting) | Campos de texto, IPTV/planos editáveis | 🔴 Crítico |
+| CSRF | Formulário de contato, painel | 🔴 Crítico |
+| Credential Stuffing | Login do admin | 🔴 Crítico |
+| Rate Limiting / DDoS | API pública, formulário WhatsApp | 🟡 Alto |
+| Path Traversal | Upload de arquivos, rotas | 🟡 Alto |
+| Clickjacking | iframes embutidos | 🟡 Alto |
+| Exposição de env vars | Replit, build Vite | 🟡 Alto |
+| Bot / Spam | Formulário de contato | 🟡 Alto |
+| Sessão sequestrada | JWT/Cookie do admin | 🟡 Alto |
+| Enumeração de usuários | Mensagens de erro verbosas | 🟢 Médio |
+| Dependências vulneráveis | npm packages | 🟢 Médio |
+
+---
+
+## CAMADA 1 — Banco de Dados (Drizzle ORM + PostgreSQL)
+
+### Objetivo: Eliminar SQL Injection e limitar danos em caso de comprometimento
+
+#### 1.1 — NUNCA usar query raw com interpolação de string
+
+```ts
+// ❌ VULNERÁVEL — SQL Injection direto
+const user = await db.execute(
+  `SELECT * FROM users WHERE email = '${email}'`
+)
+
+// ✅ SEGURO — Drizzle parametriza automaticamente
+const user = await db
+  .select()
+  .from(users)
+  .where(eq(users.email, email))
+  .limit(1)
+```
+
+#### 1.2 — Se precisar de raw SQL, usar placeholders
+
+```ts
+// ✅ Raw SQL seguro com Drizzle
+import { sql } from 'drizzle-orm'
+
+const result = await db.execute(
+  sql`SELECT * FROM planos WHERE id = ${planId} AND ativo = true`
+)
+// Drizzle sanitiza ${planId} — nunca concatene strings
+```
+
+#### 1.3 — Usuário do banco com permissões mínimas (Principle of Least Privilege)
+
+```sql
+-- Rodar no PostgreSQL do Replit
+-- Criar usuário separado para a aplicação (não usar o superuser)
+CREATE USER app_mais_fibra WITH PASSWORD 'senha_forte_aqui';
+
+-- Conceder apenas o necessário
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_mais_fibra;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_mais_fibra;
+
+-- NUNCA conceder DROP, CREATE, ALTER, TRUNCATE
+-- NUNCA usar o usuário postgres/root na connection string da app
+```
+
+#### 1.4 — Connection string apenas em variável de ambiente
+
+```ts
+// server/db.ts
+import { drizzle } from 'drizzle-orm/node-postgres'
+import { Pool } from 'pg'
+
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL não definida. Abortando.')
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }, // Replit exige isso
+  max: 10,                            // Limita conexões simultâneas
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+})
+
+export const db = drizzle(pool)
+```
+
+#### 1.5 — Validação de input com Zod ANTES de qualquer query
+
+```ts
+// server/schemas/plano.schema.ts
+import { z } from 'zod'
+
+export const planoSchema = z.object({
+  nome:     z.string().min(1).max(100).trim(),
+  preco:    z.number().positive().max(9999.99),
+  velocidade: z.number().int().positive().max(10000),
+  ativo:    z.boolean(),
+  descricao: z.string().max(500).trim().optional(),
+})
+
+export type PlanoInput = z.infer<typeof planoSchema>
+
+// server/routes/admin.ts
+import { planoSchema } from '../schemas/plano.schema'
+
+app.put('/api/admin/planos/:id', requireAuth, async (req, res) => {
+  // Valida e sanitiza ANTES de qualquer operação
+  const parsed = planoSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Dados inválidos', details: parsed.error.flatten() })
+  }
+
+  // Só chega aqui se os dados forem válidos
+  await db.update(planos)
+    .set(parsed.data)
+    .where(eq(planos.id, parseInt(req.params.id)))
+
+  res.json({ ok: true })
+})
+```
+
+### ✅ Checklist Camada 1
+- [ ] Zero uso de template strings em queries
+- [ ] Zod schema em TODA rota que recebe dados
+- [ ] Usuário DB com permissões mínimas
+- [ ] DATABASE_URL em variável de ambiente, nunca no código
+
+---
+
+## CAMADA 2 — Autenticação do Painel Admin
+
+### Objetivo: Bloquear brute force, credential stuffing e sessões sequestradas
+
+#### 2.1 — Instalar dependências
+
+```bash
+pnpm add bcryptjs jsonwebtoken express-rate-limit
+pnpm add -D @types/bcryptjs @types/jsonwebtoken
+```
+
+#### 2.2 — Hash de senha com bcrypt (nunca MD5, SHA1 ou texto puro)
+
+```ts
+// server/utils/auth.ts
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+
+const SALT_ROUNDS = 12 // nunca abaixo de 10
+
+export async function hashPassword(plaintext: string): Promise<string> {
+  return bcrypt.hash(plaintext, SALT_ROUNDS)
+}
+
+export async function verifyPassword(plaintext: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(plaintext, hash)
+}
+
+export function generateToken(payload: { adminId: number }): string {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET não definido')
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: '8h',     // Expira em 8 horas
+    issuer: 'mais-fibra',
+    audience: 'admin-panel',
+  })
+}
+
+export function verifyToken(token: string) {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET não definido')
+  return jwt.verify(token, process.env.JWT_SECRET, {
+    issuer: 'mais-fibra',
+    audience: 'admin-panel',
+  })
+}
+```
+
+#### 2.3 — Middleware de autenticação
+
+```ts
+// server/middleware/requireAuth.ts
+import { Request, Response, NextFunction } from 'express'
+import { verifyToken } from '../utils/auth'
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Não autorizado' })
+  }
+
+  const token = authHeader.split(' ')[1]
+  try {
+    const decoded = verifyToken(token)
+    ;(req as any).admin = decoded
+    next()
+  } catch {
+    // Mensagem genérica — não revelar se o token expirou ou é inválido
+    return res.status(401).json({ error: 'Não autorizado' })
+  }
+}
+```
+
+#### 2.4 — Rate limiting no login (bloqueia brute force)
+
+```ts
+// server/middleware/rateLimiter.ts
+import rateLimit from 'express-rate-limit'
+
+// Para a rota de login — muito restritivo
+export const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5,                    // máximo 5 tentativas por IP
+  message: { error: 'Muitas tentativas. Aguarde 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // Não conta login bem-sucedido
+})
+
+// Para a API pública (formulário de contato, etc.)
+export const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 30,             // 30 requisições por minuto por IP
+  message: { error: 'Muitas requisições. Tente novamente em 1 minuto.' },
+})
+
+// Para o painel admin em geral
+export const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  message: { error: 'Limite de requisições atingido.' },
+})
+```
+
+#### 2.5 — Rota de login com delay anti-timing attack
+
+```ts
+// server/routes/auth.ts
+import { loginLimiter } from '../middleware/rateLimiter'
+import { verifyPassword, generateToken } from '../utils/auth'
+
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+  const { email, password } = req.body
+
+  // Sempre buscar usuário para evitar timing attack
+  // (tempo de resposta idêntico para email válido e inválido)
+  const admin = await db
+    .select()
+    .from(admins)
+    .where(eq(admins.email, email?.toLowerCase()?.trim()))
+    .limit(1)
+
+  const fakeHash = '$2a$12$invalidhashtopreventtimingattack000000000000000000000'
+  const hash = admin[0]?.passwordHash ?? fakeHash
+
+  const valid = await verifyPassword(password ?? '', hash)
+
+  if (!valid || !admin[0]) {
+    // Mensagem idêntica para email inexistente e senha errada
+    // Não revelar qual dos dois está errado (enumeração de usuários)
+    return res.status(401).json({ error: 'Credenciais inválidas' })
+  }
+
+  if (!admin[0].ativo) {
+    return res.status(403).json({ error: 'Conta desativada' })
+  }
+
+  const token = generateToken({ adminId: admin[0].id })
+
+  // Logar tentativa bem-sucedida
+  console.info(`[AUTH] Login admin ID ${admin[0].id} — IP: ${req.ip}`)
+
+  res.json({ token, expiresIn: '8h' })
+})
+```
+
+#### 2.6 — JWT_SECRET forte gerado via script
+
+```bash
+# Rodar UMA VEZ para gerar o secret e salvar no Replit Secrets
+node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
+```
+
+Salvar o resultado em `JWT_SECRET` nas variáveis de ambiente do Replit — nunca no código.
+
+### ✅ Checklist Camada 2
+- [ ] Senhas com bcrypt, salt rounds ≥ 12
+- [ ] JWT com secret de 64 bytes aleatórios
+- [ ] Rate limit: máximo 5 tentativas de login por 15 min
+- [ ] Mensagem de erro idêntica para email/senha errados
+- [ ] Token expira em 8h
+- [ ] `JWT_SECRET` apenas em variável de ambiente
+
+---
+
+## CAMADA 3 — Headers HTTP de Segurança
+
+### Objetivo: Bloquear XSS, Clickjacking, sniffing e ataques via browser
+
+#### 3.1 — Instalar e configurar Helmet
+
+```bash
+pnpm add helmet
+```
+
+```ts
+// server/index.ts
+import helmet from 'helmet'
+
+app.use(helmet({
+  // Content Security Policy — define de onde podem vir scripts, estilos, imagens
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:     ["'self'"],
+      scriptSrc:      ["'self'"],           // Sem inline scripts no admin
+      styleSrc:       ["'self'", "'unsafe-inline'"], // Tailwind precisa de inline
+      imgSrc:         ["'self'", "data:", "https:"],
+      fontSrc:        ["'self'", "https://fonts.gstatic.com"],
+      connectSrc:     ["'self'", "https://api.whatsapp.com"],
+      frameSrc:       ["'none'"],           // Bloqueia iframes de terceiros
+      objectSrc:      ["'none'"],
+      baseUri:        ["'self'"],
+      formAction:     ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+
+  // Bloqueia Clickjacking
+  frameguard: { action: 'deny' },
+
+  // Força HTTPS por 1 ano
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+
+  // Impede sniffing de MIME type
+  noSniff: true,
+
+  // Remove header X-Powered-By (não revelar que usa Express)
+  hidePoweredBy: true,
+
+  // Referrer policy
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+
+  // Bloqueia acesso a features de browser desnecessárias
+  permittedCrossDomainPolicies: false,
+
+  // Cross-Origin headers
+  crossOriginEmbedderPolicy: false, // Manter false se usar imagens externas
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-site' },
+}))
+```
+
+#### 3.2 — CORS configurado por lista branca
+
+```ts
+// server/middleware/cors.ts
+import cors from 'cors'
+
+const ALLOWED_ORIGINS = [
+  'https://www.providermaisfiibra.com.br',
+  'https://providermaisfiibra.com.br',
+  // Adicionar domínio do Replit durante desenvolvimento:
+  process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '',
+].filter(Boolean)
+
+export const corsMiddleware = cors({
+  origin: (origin, callback) => {
+    // Permitir requests sem origin (mobile apps, Postman em dev)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error(`Origin não permitida: ${origin}`))
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400, // Cache do preflight por 24h
+})
+```
+
+### ✅ Checklist Camada 3
+- [ ] `helmet()` aplicado antes de todas as rotas
+- [ ] CSP bloqueia scripts inline no painel admin
+- [ ] CORS com lista branca de origins
+- [ ] Header `X-Powered-By` removido
+- [ ] Testar em: https://securityheaders.com
+
+---
+
+## CAMADA 4 — Proteção contra XSS e CSRF
+
+### Objetivo: Impedir injeção de scripts e requisições forjadas
+
+#### 4.1 — Sanitizar TODO input do usuário com DOMPurify (frontend)
+
+```bash
+pnpm add dompurify isomorphic-dompurify
+pnpm add -D @types/dompurify
+```
+
+```tsx
+// src/utils/sanitize.ts
+import DOMPurify from 'isomorphic-dompurify'
+
+export function sanitizeHTML(dirty: string): string {
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: [],    // Remove TODAS as tags HTML
+    ALLOWED_ATTR: [],
+  })
+}
+
+export function sanitizeText(input: string): string {
+  return input
+    .replace(/[<>'"]/g, c => ({ '<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[c] || c)
+    .trim()
+    .slice(0, 1000) // Limita tamanho máximo
+}
+```
+
+#### 4.2 — No backend: validar e sanitizar com Zod + strip
+
+```ts
+// Zod remove campos não esperados automaticamente com .strict()
+const contactSchema = z.object({
+  nome:      z.string().min(2).max(100).trim(),
+  whatsapp:  z.string().regex(/^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/, 'WhatsApp inválido'),
+  cidade:    z.string().min(2).max(100).trim(),
+  mensagem:  z.string().max(500).trim().optional(),
+}).strict() // Rejeita qualquer campo extra — evita mass assignment
+```
+
+#### 4.3 — CSRF Token para o painel admin
+
+```bash
+pnpm add csurf  # ou alternativa moderna:
+pnpm add csrf-csrf
+```
+
+```ts
+// server/middleware/csrf.ts — usando csrf-csrf (moderna, sem cookies de sessão)
+import { doubleCsrf } from 'csrf-csrf'
+
+const { generateToken, doubleCsrfProtection } = doubleCsrf({
+  getSecret: () => process.env.CSRF_SECRET!,
+  cookieName: '__Host-psifi.x-csrf-token',
+  cookieOptions: {
+    sameSite: 'strict',
+    secure: true,
+    httpOnly: true,
+  },
+  size: 64,
+  ignoredMethods: ['GET', 'HEAD', 'OPTIONS'],
+})
+
+export { generateToken as generateCsrfToken, doubleCsrfProtection }
+```
+
+```ts
+// server/routes/auth.ts — endpoint para o frontend buscar o token
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: generateCsrfToken(req, res) })
+})
+
+// Aplicar proteção em TODAS as rotas mutantes do admin
+app.use('/api/admin', doubleCsrfProtection, requireAuth, adminLimiter)
+```
+
+```tsx
+// src/hooks/useAdminApi.ts — buscar CSRF token antes de mutations
+import { useEffect, useState } from 'react'
+
+export function useAdminApi() {
+  const [csrfToken, setCsrfToken] = useState('')
+
+  useEffect(() => {
+    fetch('/api/csrf-token', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setCsrfToken(d.csrfToken))
+  }, [])
+
+  async function adminFetch(url: string, options: RequestInit = {}) {
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-csrf-token': csrfToken,
+        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+        ...options.headers,
+      },
+    })
+  }
+
+  return { adminFetch }
+}
+```
+
+### ✅ Checklist Camada 4
+- [ ] DOMPurify sanitizando inputs no frontend
+- [ ] Zod `.strict()` em schemas do backend
+- [ ] CSRF token em todas as mutations do admin
+- [ ] Sem `innerHTML` ou `dangerouslySetInnerHTML` com conteúdo de usuário
+
+---
+
+## CAMADA 5 — Proteção de Rotas e Painel Admin
+
+### Objetivo: Isolar completamente o painel do site público
+
+#### 5.1 — Rota do admin não indexável e com prefixo não óbvio
+
+```ts
+// ❌ Óbvio — bots tentam esses caminhos primeiro
+// /admin /administrator /painel /dashboard /wp-admin /login
+
+// ✅ Prefixo não óbvio (troque pelo seu)
+// /gestao-mf ou /painel-mf ou /area-restrita-pmf
+
+// server/index.ts
+const ADMIN_PATH = process.env.ADMIN_PATH || '/gestao-mf'
+app.use(ADMIN_PATH, doubleCsrfProtection, requireAuth, adminLimiter, adminRouter)
+```
+
+```tsx
+// src/router — meta tag noindex no painel
+<Helmet>
+  <meta name="robots" content="noindex, nofollow" />
+</Helmet>
+```
+
+#### 5.2 — Proteção de rota no frontend
+
+```tsx
+// src/components/ProtectedRoute.tsx
+import { Navigate, useLocation } from 'wouter'
+
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('adminToken')
+  const [location] = useLocation()
+
+  if (!token) {
+    // Redireciona para login sem revelar a URL tentada
+    return <Navigate to="/gestao-mf/login" replace />
+  }
+
+  // Verificar expiração do JWT no client (decode sem verificar assinatura)
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.exp * 1000 < Date.now()) {
+      localStorage.removeItem('adminToken')
+      return <Navigate to="/gestao-mf/login" replace />
+    }
+  } catch {
+    localStorage.removeItem('adminToken')
+    return <Navigate to="/gestao-mf/login" replace />
+  }
+
+  return <>{children}</>
+}
+```
+
+#### 5.3 — Limitar operações do admin ao mínimo necessário
+
+```ts
+// server/routes/admin.ts
+// Apenas as operações que o painel realmente precisa
+
+// ✅ Permitido: alterar planos, textos, imagens
+router.get('/planos',       requireAuth, getPlanos)
+router.put('/planos/:id',   requireAuth, updatePlano)
+
+// ✅ Permitido: ver mensagens de contato
+router.get('/mensagens',    requireAuth, getMensagens)
+router.delete('/mensagens/:id', requireAuth, deleteMensagem)
+
+// ❌ Nunca expor: dump do banco, lista de usuários, logs do servidor
+// Essas rotas NÃO DEVEM EXISTIR na API
+```
+
+#### 5.4 — Log de ações no painel
+
+```ts
+// server/middleware/auditLog.ts
+import { Request, Response, NextFunction } from 'express'
+
+export function auditLog(req: Request, res: Response, next: NextFunction) {
+  const original = res.json.bind(res)
+  res.json = (body) => {
+    if (res.statusCode < 400) {
+      console.info(JSON.stringify({
+        type: 'ADMIN_ACTION',
+        method: req.method,
+        path: req.path,
+        adminId: (req as any).admin?.adminId,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        timestamp: new Date().toISOString(),
+      }))
+    }
+    return original(body)
+  }
+  next()
+}
+
+// Aplicar em todas as rotas admin
+app.use('/api/admin', requireAuth, auditLog)
+```
+
+### ✅ Checklist Camada 5
+- [ ] Caminho do admin não é `/admin` ou `/login`
+- [ ] Rota do admin com `noindex, nofollow`
+- [ ] Frontend redireciona para login se token expirado
+- [ ] Log de todas as ações do painel
+- [ ] Admin só tem acesso às operações necessárias
+
+---
+
+## CAMADA 6 — Proteção de Formulários Públicos (Anti-Bot/Spam)
+
+### Objetivo: Bloquear bots no formulário de contato sem prejudicar usuários reais
+
+#### 6.1 — Honeypot (método mais eficaz, sem impacto no UX)
+
+```tsx
+// src/components/ContatoForm.tsx
+// Campo invisível para humanos, mas visível para bots
+// Se preenchido = bot
+
+function ContatoForm() {
+  const [honeypot, setHoneypot] = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    // Bot preencheu o campo oculto — descartar silenciosamente
+    if (honeypot) {
+      // Simula sucesso para não alertar o bot
+      setSubmitted(true)
+      return
+    }
+
+    // Continua o envio normal...
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Campo honeypot — invisível para humanos */}
+      <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0 }}
+           aria-hidden="true">
+        <label htmlFor="website">Não preencha este campo</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={honeypot}
+          onChange={e => setHoneypot(e.target.value)}
+        />
+      </div>
+
+      {/* Campos reais do formulário */}
+      {/* ... */}
+    </form>
+  )
+}
+```
+
+#### 6.2 — Timestamp de preenchimento (bots preenchem instantaneamente)
+
+```tsx
+// src/components/ContatoForm.tsx
+const [formStartTime] = useState(() => Date.now())
+
+async function handleSubmit(e: React.FormEvent) {
+  const timeSpent = Date.now() - formStartTime
+
+  // Formulário preenchido em menos de 3 segundos = suspeito
+  if (timeSpent < 3000) {
+    setSubmitted(true) // Silencioso
+    return
+  }
+  // ...
+}
+```
+
+#### 6.3 — Rate limit no endpoint de contato
+
+```ts
+// server/middleware/rateLimiter.ts
+export const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 3,                    // máximo 3 mensagens por IP por hora
+  message: { error: 'Muitas mensagens enviadas. Tente novamente em 1 hora.' },
+  skipSuccessfulRequests: false,
+})
+
+// server/routes/contact.ts
+app.post('/api/contato', contactLimiter, async (req, res) => {
+  const parsed = contactSchema.safeParse(req.body)
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'Dados inválidos' })
+  }
+  // processar...
+})
+```
+
+#### 6.4 — Verificação de honeypot também no backend
+
+```ts
+// server/routes/contact.ts
+app.post('/api/contato', contactLimiter, async (req, res) => {
+  // Campo honeypot preenchido = bot
+  if (req.body.website) {
+    // Resposta 200 falsa para não alertar o bot
+    return res.json({ ok: true })
+  }
+
+  // Validar timestamp (enviado pelo frontend)
+  const timeSpent = Date.now() - (req.body._t ?? 0)
+  if (timeSpent < 2000) {
+    return res.json({ ok: true }) // Silencioso
+  }
+
+  // Continua processamento real...
+})
+```
+
+### ✅ Checklist Camada 6
+- [ ] Honeypot no formulário de contato
+- [ ] Validação de tempo mínimo de preenchimento
+- [ ] Rate limit: máximo 3 contatos/hora por IP
+- [ ] Verificação de honeypot no backend também
+
+---
+
+## CAMADA 7 — Variáveis de Ambiente e Segredos
+
+### Objetivo: Nenhum segredo no código ou no repositório
+
+#### 7.1 — .env.example com placeholders (nunca valores reais)
+
+```bash
+# .env.example — commitar este arquivo (sem valores reais)
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+JWT_SECRET=gerar_com_crypto_randomBytes_64
+CSRF_SECRET=gerar_com_crypto_randomBytes_32
+ADMIN_PATH=/gestao-mf
+NODEMAILER_HOST=smtp.gmail.com
+NODEMAILER_USER=seu@email.com
+NODEMAILER_PASS=app_password_aqui
+NODE_ENV=production
+```
+
+```bash
+# .gitignore — garantir que .env nunca vai para o repositório
+.env
+.env.local
+.env.production
+.env.*.local
+```
+
+#### 7.2 — Validação de variáveis obrigatórias na inicialização
+
+```ts
+// server/config/env.ts
+const REQUIRED_ENV_VARS = [
+  'DATABASE_URL',
+  'JWT_SECRET',
+  'CSRF_SECRET',
+  'NODE_ENV',
+] as const
+
+export function validateEnv() {
+  const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v])
+  if (missing.length > 0) {
+    console.error(`❌ Variáveis de ambiente obrigatórias ausentes: ${missing.join(', ')}`)
+    process.exit(1) // Para o servidor imediatamente
+  }
+  console.info('✅ Variáveis de ambiente validadas')
+}
+
+// server/index.ts — primeira linha
+import { validateEnv } from './config/env'
+validateEnv()
+```
+
+#### 7.3 — Vite: nunca expor variáveis do server no frontend
+
+```ts
+// vite.config.ts
+// Variáveis VITE_* ficam expostas no bundle do frontend
+// NUNCA fazer: VITE_JWT_SECRET, VITE_DATABASE_URL, VITE_ADMIN_PASSWORD
+
+// ✅ Correto — apenas variáveis que o frontend PODE conhecer
+// VITE_API_URL=https://www.providermaisfiibra.com.br/api
+// VITE_WHATSAPP_NUMBER=5577998444757
+```
+
+### ✅ Checklist Camada 7
+- [ ] `.env` no `.gitignore`
+- [ ] `.env.example` com placeholders no repositório
+- [ ] Servidor não inicia sem variáveis obrigatórias
+- [ ] Nenhuma variável secreta com prefixo `VITE_`
+
+---
+
+## CAMADA 8 — Segurança de Dependências
+
+### Objetivo: Evitar vulnerabilidades conhecidas em pacotes npm
+
+#### 8.1 — Audit automático no pnpm
+
+```bash
+# Verificar vulnerabilidades nas dependências atuais
+pnpm audit
+
+# Corrigir automaticamente o que for possível
+pnpm audit --fix
+
+# Verificar pacotes desatualizados
+pnpm outdated
+```
+
+#### 8.2 — Script de segurança no package.json
+
+```json
+// package.json (raiz do monorepo)
+{
+  "scripts": {
+    "security:check": "pnpm audit --audit-level=high",
+    "security:fix":   "pnpm audit --fix",
+    "preinstall":     "pnpm audit --audit-level=critical || true"
+  }
+}
+```
+
+#### 8.3 — Lockfile commitado (nunca deletar pnpm-lock.yaml)
+
+```bash
+# O lockfile garante que o deploy usa as mesmas versões auditadas
+# Nunca adicionar pnpm-lock.yaml ao .gitignore
+```
+
+#### 8.4 — Verificar pacotes suspeitos antes de instalar
+
+```bash
+# Antes de instalar qualquer novo pacote:
+# 1. Verificar na npmjs.com — downloads semanais, última atualização, mantenedores
+# 2. Buscar vulnerabilidades: https://snyk.io/advisor/
+# 3. Preferir pacotes com > 1M downloads/semana e atualização < 6 meses
+```
+
+### ✅ Checklist Camada 8
+- [ ] `pnpm audit` zerado em vulnerabilidades high/critical
+- [ ] `pnpm-lock.yaml` commitado no repositório
+- [ ] Script `security:check` no CI/CD
+
+---
+
+## CAMADA 9 — Configurações do Replit
+
+### Objetivo: Fechar vulnerabilidades específicas do ambiente Replit
+
+#### 9.1 — Nunca commitar secrets no Replit
+
+```
+✅ Usar: Replit Secrets (painel lateral → Secrets)
+❌ Nunca usar: comentários no código, console.log de variáveis sensíveis
+```
+
+#### 9.2 — Restringir acesso ao banco pelo IP (se possível)
+
+No PostgreSQL do Replit, a conexão já é restrita ao ambiente interno. Mas se migrar para Neon, Supabase ou outro serviço externo:
+- Adicionar o IP do Replit na whitelist do banco
+- Nunca deixar o banco com acesso `0.0.0.0/0` (aberto para o mundo)
+
+#### 9.3 — Desativar modo debug em produção
+
+```ts
+// server/index.ts
+if (process.env.NODE_ENV === 'production') {
+  // Não expor stack traces nos erros
+  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error('[ERROR]', err.message, err.stack)
+    res.status(500).json({ error: 'Erro interno do servidor' })
+    // Nunca: res.json({ error: err.message, stack: err.stack })
+  })
+}
+```
+
+#### 9.4 — Health check sem informações sensíveis
+
+```ts
+// ✅ Health check simples
+app.get('/health', (_req, res) => res.json({ ok: true }))
+
+// ❌ Nunca expor versões, variáveis ou detalhes da infra
+// app.get('/health', (_req, res) => res.json({ node: process.version, db: DB_URL, env: process.env }))
+```
+
+### ✅ Checklist Camada 9
+- [ ] Todos os secrets no painel Replit Secrets
+- [ ] `NODE_ENV=production` configurado no Replit
+- [ ] Error handler sem stack trace em produção
+- [ ] Health check sem dados sensíveis
+
+---
+
+## 🔐 Ordem de Implementação Recomendada
+
+| Prioridade | Camada | Tempo estimado | Impacto |
+|---|---|---|---|
+| 1 | Camada 7 (Env vars) | 15 min | 🔴 Crítico |
+| 2 | Camada 1 (Banco + Zod) | 1h | 🔴 Crítico |
+| 3 | Camada 2 (Auth + Rate limit) | 2h | 🔴 Crítico |
+| 4 | Camada 3 (Headers Helmet) | 30 min | 🔴 Crítico |
+| 5 | Camada 4 (XSS + CSRF) | 1h | 🔴 Crítico |
+| 6 | Camada 5 (Rotas Admin) | 1h | 🟡 Alto |
+| 7 | Camada 6 (Anti-bot) | 45 min | 🟡 Alto |
+| 8 | Camada 8 (Dependências) | 15 min | 🟢 Médio |
+| 9 | Camada 9 (Replit) | 20 min | 🟢 Médio |
+
+---
+
+## 📊 Checklist Final de Segurança
+
+### Banco de Dados
+- [ ] Zero interpolação de strings em queries
+- [ ] Zod valida TODOS os inputs antes de qualquer query
+- [ ] Usuário DB com permissão mínima (não superuser)
+- [ ] DATABASE_URL apenas em variável de ambiente
+
+### Autenticação
+- [ ] Senha com bcrypt (salt ≥ 12)
+- [ ] JWT_SECRET de 64 bytes aleatórios
+- [ ] Máximo 5 tentativas de login / 15 min por IP
+- [ ] Mensagem de erro genérica (não revela se email existe)
+- [ ] Token expira em 8h
+
+### Headers e Transporte
+- [ ] `helmet()` instalado e configurado
+- [ ] CORS com lista branca
+- [ ] HTTPS em produção (Replit fornece automaticamente)
+- [ ] Header `X-Powered-By` removido
+- [ ] Testar em securityheaders.com — score A ou A+
+
+### Formulários e Inputs
+- [ ] DOMPurify sanitizando inputs
+- [ ] Honeypot em todos os formulários públicos
+- [ ] Rate limit no endpoint de contato
+- [ ] Zod `.strict()` rejeita campos inesperados
+
+### Admin
+- [ ] Caminho do admin não é `/admin`
+- [ ] Painel com `noindex, nofollow`
+- [ ] CSRF token em mutations
+- [ ] Log de auditoria de todas as ações
+- [ ] Rotas admin expostas apenas ao necessário
+
+### Ambiente
+- [ ] `.env` no `.gitignore`
+- [ ] Nenhuma variável secreta com prefixo `VITE_`
+- [ ] `pnpm audit` sem high/critical
+- [ ] Error handler sem stack trace em produção
+
+---
+
+## 🧰 Ferramentas de Validação
+
+| Ferramenta | O que verifica | URL |
+|---|---|---|
+| Security Headers | Headers HTTP | https://securityheaders.com |
+| Mozilla Observatory | Configuração geral | https://observatory.mozilla.org |
+| Snyk | Dependências vulneráveis | https://snyk.io/advisor |
+| Google Rich Results | JSON-LD válido | https://search.google.com/test/rich-results |
+| SSL Labs | Certificado HTTPS | https://www.ssllabs.com/ssltest |
+| Have I Been Pwned API | Senhas comprometidas | https://haveibeenpwned.com/API/v3 |
+
+---
+
+*Guia de Segurança · Provider Mais Fibra · Versão 1.0 · Maio 2026*
+*Stack: React + Vite · TypeScript · Node.js · Drizzle ORM · PostgreSQL · Replit*

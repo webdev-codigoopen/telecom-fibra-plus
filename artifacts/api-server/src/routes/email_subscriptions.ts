@@ -56,7 +56,7 @@ router.get(
         .from(emailReportSubscriptionsTable)
         .where(eq(emailReportSubscriptionsTable.reportType, "city_comparison"))
         .orderBy(asc(emailReportSubscriptionsTable.createdAt));
-      res.json({ items: rows, emailConfigured: isEmailConfigured() });
+      res.json({ items: rows, emailConfigured: await isEmailConfigured() });
     } catch (err) {
       logger.error({ err }, "Failed to list email subscriptions");
       res.status(500).json({ error: "Failed to list email subscriptions" });
@@ -176,10 +176,10 @@ router.post(
       res.status(400).json({ error: "Invalid id" });
       return;
     }
-    if (!isEmailConfigured()) {
+    if (!(await isEmailConfigured())) {
       res.status(503).json({
         error:
-          "Envio de email não configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS e SMTP_FROM.",
+          "Servidor de e-mail (SMTP) não configurado. Preencha no painel, aba 'Relatórios por email'.",
       });
       return;
     }

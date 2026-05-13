@@ -22,6 +22,13 @@ export type AppSettings = {
   google_places_id: string;
   reviews_min_rating: string;
   reviews_show_count: string;
+  smtp_host: string;
+  smtp_port: string;
+  smtp_secure: string;
+  smtp_user: string;
+  smtp_password: string;
+  smtp_from_email: string;
+  smtp_from_name: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -48,6 +55,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   google_places_id: "",
   reviews_min_rating: "4",
   reviews_show_count: "6",
+  smtp_host: "",
+  smtp_port: "",
+  smtp_secure: "auto",
+  smtp_user: "",
+  smtp_password: "",
+  smtp_from_email: "",
+  smtp_from_name: "",
 };
 
 let cache: AppSettings | null = null;

@@ -45,6 +45,14 @@ export const SETTING_DEFAULTS = {
   google_places_id: "",
   reviews_min_rating: "4",
   reviews_show_count: "6",
+  // SMTP (envio de e-mail)
+  smtp_host: "",
+  smtp_port: "",
+  smtp_secure: "auto", // 'auto' | 'true' | 'false'
+  smtp_user: "",
+  smtp_password: "",
+  smtp_from_email: "",
+  smtp_from_name: "",
 } as const;
 
 const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
@@ -61,6 +69,9 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "meta_capi_token",
   "meta_capi_test_event_code",
   "google_places_api_key",
+  "smtp_password",
+  "smtp_user",
+  "smtp_host",
 ]);
 
 function rowsToObject(
@@ -127,6 +138,22 @@ const settingsBodySchema = z
       .trim()
       .regex(/^([1-9]|1[0-2])$/, "Entre 1 e 12")
       .optional(),
+    smtp_host: z.string().trim().max(200).optional(),
+    smtp_port: z
+      .string()
+      .trim()
+      .regex(/^$|^([1-9][0-9]{0,4})$/, "Porta inválida (1-65535)")
+      .optional(),
+    smtp_secure: z.enum(["auto", "true", "false"]).optional(),
+    smtp_user: z.string().trim().max(200).optional(),
+    smtp_password: z.string().max(300).optional(),
+    smtp_from_email: z
+      .string()
+      .trim()
+      .max(200)
+      .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "E-mail inválido")
+      .optional(),
+    smtp_from_name: z.string().trim().max(120).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No settings provided" });
 
@@ -140,7 +167,9 @@ router.put("/settings", requireAdminKey, async (req, res) => {
   }
   try {
     const entries = Object.entries(parsed.data) as Array<[string, string]>;
+    let touchedSmtp = false;
     for (const [key, value] of entries) {
+      if (key.startsWith("smtp_")) touchedSmtp = true;
       await db
         .insert(appSettingsTable)
         .values({ key, value })
@@ -149,10 +178,48 @@ router.put("/settings", requireAdminKey, async (req, res) => {
           set: { value, updatedAt: sql`now()` },
         });
     }
+    if (touchedSmtp) {
+      const { invalidateEmailCache } = await import("../lib/sendEmail");
+      invalidateEmailCache();
+    }
     const rows = await db.select().from(appSettingsTable);
     res.json(rowsToObject(rows, { includePrivate: true }));
   } catch {
     res.status(500).json({ error: "Failed to update settings" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// SMTP test: tries to deliver a real e-mail with the currently saved settings
+// ---------------------------------------------------------------------------
+const smtpTestSchema = z.object({
+  to: z.string().trim().email("E-mail de destino inválido"),
+});
+
+router.post("/settings/smtp/test", requireAdminKey, async (req, res) => {
+  const parsed = smtpTestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "E-mail inválido" });
+    return;
+  }
+  try {
+    const { sendEmail, verifySmtp, invalidateEmailCache } = await import("../lib/sendEmail");
+    invalidateEmailCache();
+    const v = await verifySmtp();
+    if (!v.ok) {
+      res.status(400).json({ error: `Falha ao conectar no SMTP: ${v.error}` });
+      return;
+    }
+    await sendEmail({
+      to: parsed.data.to,
+      subject: "Teste de e-mail — Provider Mais Fibra",
+      html: `<p>Este é um e-mail de teste enviado pelo painel.</p><p>Se você recebeu, o servidor de e-mail está configurado corretamente.</p>`,
+      text: "Este é um e-mail de teste enviado pelo painel. Se você recebeu, o servidor de e-mail está configurado corretamente.",
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    res.status(500).json({ error: msg });
   }
 });
 

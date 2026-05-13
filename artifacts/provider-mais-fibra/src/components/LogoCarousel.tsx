@@ -158,7 +158,22 @@ export default function LogoCarousel({
   logos,
 }: Props) {
   const list = useMemo(() => logos ?? ALL_LOGOS, [logos]);
-  const pausedRef = useRef(false);
+  // Start paused; only release when the whole page (incl. images, fonts) has
+  // finished loading. Avoids the carousel "lurching" while heavy assets are
+  // still streaming in.
+  const pausedRef = useRef(true);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (document.readyState === "complete") {
+      pausedRef.current = false;
+      return;
+    }
+    const onLoad = () => {
+      pausedRef.current = false;
+    };
+    window.addEventListener("load", onLoad, { once: true });
+    return () => window.removeEventListener("load", onLoad);
+  }, []);
 
   return (
     <>
