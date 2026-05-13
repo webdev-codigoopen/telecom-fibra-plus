@@ -144,10 +144,7 @@ export default function PlanCard({
   const whatsappUrl = cachedLocation
     ? buildPlanWhatsappHref(plan.speed, cachedLocation, shareUrl, settings)
     : fallbackUrl;
-  const ctaLabel =
-    cachedLocation && !cachedLocation.isCovered
-      ? "CONSULTAR DISPONIBILIDADE"
-      : "ASSINE JÁ";
+  const ctaLabel = "ASSINE JÁ";
   const [reais, centavos] = plan.price.split(",");
 
   const allBrands = useStreamingBrands();
