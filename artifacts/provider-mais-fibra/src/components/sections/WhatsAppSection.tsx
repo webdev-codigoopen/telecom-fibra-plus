@@ -122,20 +122,35 @@ export default function WhatsAppSection() {
             flex-direction: column !important;
             gap: 32px !important;
             padding-top: 40px !important;
-            padding-bottom: 40px !important;
+            padding-bottom: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            max-width: 100% !important;
           }
-          .atendimento-left, .atendimento-right {
+          .atendimento-left {
             width: 100% !important;
             max-width: 619px !important;
             padding-top: 0 !important;
             padding-bottom: 0 !important;
-          }
-          .atendimento-left {
+            padding-left: 20px !important;
+            padding-right: 20px !important;
             align-items: center !important;
             text-align: center !important;
+            box-sizing: border-box !important;
           }
           .atendimento-left img {
             align-self: center !important;
+          }
+          .atendimento-right {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .atendimento-right img {
+            width: 100% !important;
+            height: auto !important;
+            display: block !important;
           }
         }
       `}</style>
