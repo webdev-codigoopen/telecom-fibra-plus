@@ -16,7 +16,9 @@ import {
   type AppSettings,
   DEFAULT_SETTINGS,
   refreshAppSettings,
+  useAppSettings,
 } from "../hooks/useAppSettings";
+import { loadRecaptcha, getRecaptchaToken } from "../lib/recaptcha";
 import {
   ResponsiveContainer,
   BarChart,
@@ -244,6 +246,19 @@ export default function Admin() {
   const [cleanupRunMsg, setCleanupRunMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const publicSettings = useAppSettings();
+  const recaptchaEnabled = publicSettings.recaptcha_enabled === "true";
+  const recaptchaSiteKey = publicSettings.recaptcha_site_key;
+
+  // Lazy-load reCAPTCHA on the login screen so a token is ready at submit.
+  useEffect(() => {
+    if (!authed && recaptchaEnabled && recaptchaSiteKey) {
+      loadRecaptcha(recaptchaSiteKey).catch(() => {
+        /* server will reject without a valid token */
+      });
+    }
+  }, [authed, recaptchaEnabled, recaptchaSiteKey]);
 
   const fetchAppSettingsAdmin = useCallback(async () => {
     try {
@@ -689,6 +704,14 @@ export default function Admin() {
       if (requires2fa) {
         if (useRecovery && recoveryInput.trim()) body["recoveryCode"] = recoveryInput.trim();
         else if (totpInput.trim()) body["totpCode"] = totpInput.trim();
+      }
+      if (recaptchaEnabled && recaptchaSiteKey) {
+        try {
+          body["recaptchaToken"] = await getRecaptchaToken(recaptchaSiteKey, "admin_login");
+        } catch {
+          setError("Não foi possível carregar a verificação anti-robô. Recarregue a página.");
+          return;
+        }
       }
       const res = await adminFetch(`${baseUrl}/api/auth/login`, {
         method: "POST",

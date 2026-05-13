@@ -72,46 +72,7 @@ type FormState = {
 
 type FormErrors = Partial<Record<keyof FormState, string | null>>;
 
-const RECAPTCHA_SCRIPT_ID = "recaptcha-v3-script";
-
-function loadRecaptcha(siteKey: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return reject(new Error("no window"));
-    const w = window as unknown as { grecaptcha?: { ready: (cb: () => void) => void } };
-    if (w.grecaptcha) {
-      w.grecaptcha.ready(() => resolve());
-      return;
-    }
-    const existing = document.getElementById(RECAPTCHA_SCRIPT_ID);
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("script error")), {
-        once: true,
-      });
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = RECAPTCHA_SCRIPT_ID;
-    s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
-    s.async = true;
-    s.defer = true;
-    s.onload = () => {
-      const ww = window as unknown as { grecaptcha?: { ready: (cb: () => void) => void } };
-      if (ww.grecaptcha) ww.grecaptcha.ready(() => resolve());
-      else reject(new Error("grecaptcha missing"));
-    };
-    s.onerror = () => reject(new Error("script load failed"));
-    document.head.appendChild(s);
-  });
-}
-
-async function getRecaptchaToken(siteKey: string, action: string): Promise<string> {
-  const w = window as unknown as {
-    grecaptcha?: { execute: (key: string, opts: { action: string }) => Promise<string> };
-  };
-  if (!w.grecaptcha) throw new Error("recaptcha not ready");
-  return w.grecaptcha.execute(siteKey, { action });
-}
+import { loadRecaptcha, getRecaptchaToken } from "../lib/recaptcha";
 
 export default function Contato() {
   const settings = useAppSettings();

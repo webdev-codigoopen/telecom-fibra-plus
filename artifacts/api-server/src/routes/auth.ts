@@ -22,6 +22,7 @@ import {
 } from "../lib/totp";
 import { getLockoutMs, recordLoginAttempt } from "../lib/lockout";
 import { logger } from "../lib/logger";
+import { loadRecaptchaConfig, verifyRecaptcha } from "../lib/recaptcha";
 import { issueCsrfToken } from "../lib/csrf";
 import { db, adminAuditLogTable } from "@workspace/db";
 import { and, desc, eq, gte, like, sql } from "drizzle-orm";
@@ -57,6 +58,7 @@ const loginSchema = z
     password: z.string().min(1).max(200),
     totpCode: z.string().trim().max(20).optional(),
     recoveryCode: z.string().trim().max(40).optional(),
+    recaptchaToken: z.string().trim().max(4000).optional(),
   })
   .strict();
 
@@ -66,8 +68,27 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
     res.status(400).json({ error: "Credenciais inválidas." });
     return;
   }
-  const { email, password, totpCode, recoveryCode } = parsed.data;
+  const { email, password, totpCode, recoveryCode, recaptchaToken } = parsed.data;
   const ip = clientIp(req);
+
+  // reCAPTCHA v3 — only enforced if enabled in app_settings.
+  const cfg = await loadRecaptchaConfig();
+  if (cfg.enabled && cfg.secret) {
+    const verdict = await verifyRecaptcha(
+      recaptchaToken ?? "",
+      cfg.secret,
+      "admin_login",
+      cfg.minScore,
+      ip,
+    );
+    if (!verdict.ok) {
+      logger.warn({ email, ip, reason: verdict.reason }, "auth: reCAPTCHA rejected");
+      res.status(400).json({
+        error: "Verificação anti-robô falhou. Recarregue a página e tente novamente.",
+      });
+      return;
+    }
+  }
 
   // Per-account lockout check.
   const lockMs = await getLockoutMs(email);
