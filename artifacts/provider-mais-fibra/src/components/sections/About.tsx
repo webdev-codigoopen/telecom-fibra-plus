@@ -74,9 +74,7 @@ export default function About() {
                 color: COLOR_BLUE,
               }}
             >
-              Conectando o Oeste da
-              <br />
-              Bahia com{" "}
+              Conectando o Oeste da Bahia com{" "}
               <span style={{ fontWeight: 700, color: COLOR_GREEN }}>
                 Fibra de Qualidade
               </span>

@@ -382,3 +382,13 @@ img, video, svg, canvas, picture {
     text-align: revert !important;
   }
 }
+
+/* Títulos: distribui linhas para evitar palavras órfãs (widow/orphan).
+   `text-wrap: balance` é suportado em Chrome 114+, Safari 17.4+, Firefox 121+.
+   Em navegadores antigos a regra é ignorada (degradação graciosa). */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+p, li {
+  text-wrap: pretty;
+}
