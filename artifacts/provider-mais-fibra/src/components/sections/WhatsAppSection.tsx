@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import logoHorizontalWhite from "@assets/logo_provider_atendimento_317x55.svg";
-import atendimentoImage from "@assets/atendiment_1778601554742.png";
+import atendimentoImage from "@assets/atendiment_1778601554742.webp";
 
 export default function WhatsAppSection() {
   return (
@@ -47,6 +47,10 @@ export default function WhatsAppSection() {
           <img
             src={logoHorizontalWhite}
             alt="Provider Mais Fibra"
+            width={317}
+            height={55}
+            loading="lazy"
+            decoding="async"
             style={{ width: 317, height: 55, display: "block", objectFit: "contain", alignSelf: "flex-start" }}
           />
 
@@ -98,6 +102,10 @@ export default function WhatsAppSection() {
           <img
             src={atendimentoImage}
             alt="Atendimento via WhatsApp"
+            width={619}
+            height={464}
+            loading="lazy"
+            decoding="async"
             style={{
               width: "100%",
               height: "auto",

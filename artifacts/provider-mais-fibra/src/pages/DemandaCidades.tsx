@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, X, CheckCircle2 } from "lucide-react";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
-import CityClicksMap, { type CityClickEntry } from "@/components/CityClicksMap";
+import type { CityClickEntry } from "@/components/CityClicksMap";
+
+const CityClicksMap = lazy(() => import("@/components/CityClicksMap"));
 
 const SUGGESTED_CITIES = [
   "Barreiras",
@@ -206,7 +208,11 @@ export default function DemandaCidades() {
                 {error}
               </div>
             )}
-            {!loading && !error && <CityClicksMap clicks={entries} />}
+            {!loading && !error && (
+              <Suspense fallback={<div style={{ minHeight: 320 }} aria-busy="true" />}>
+                <CityClicksMap clicks={entries} />
+              </Suspense>
+            )}
             <div className="mt-8 text-center">
               <p className="text-[#2A2D38] text-sm mb-3">
                 Sua cidade ou bairro ainda não aparece? Ajude a colocar no mapa.

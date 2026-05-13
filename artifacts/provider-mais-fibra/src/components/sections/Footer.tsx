@@ -131,6 +131,10 @@ export default function Footer() {
             <img
               src={logoVerticalWhite}
               alt="Provider Mais Fibra"
+              width={125}
+              height={64}
+              loading="lazy"
+              decoding="async"
               style={{ width: 125, height: 64, objectFit: "contain", display: "block" }}
             />
             <p

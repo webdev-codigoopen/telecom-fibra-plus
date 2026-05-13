@@ -1,12 +1,32 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { HelmetProvider } from "react-helmet-async";
-import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
-import QuemSomos from "@/pages/QuemSomos";
-import Contato from "@/pages/Contato";
-import OndeEstamos from "@/pages/OndeEstamos";
-import DemandaCidades from "@/pages/DemandaCidades";
-import Admin from "@/pages/Admin";
+
+const NotFound = lazy(() => import("@/pages/not-found"));
+const QuemSomos = lazy(() => import("@/pages/QuemSomos"));
+const Contato = lazy(() => import("@/pages/Contato"));
+const OndeEstamos = lazy(() => import("@/pages/OndeEstamos"));
+const DemandaCidades = lazy(() => import("@/pages/DemandaCidades"));
+const Admin = lazy(() => import("@/pages/Admin"));
+
+function RouteFallback() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F5F6FA",
+      }}
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <span style={{ color: "#122AD5", fontWeight: 600 }}>Carregando…</span>
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -26,7 +46,9 @@ function App() {
   return (
     <HelmetProvider>
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Router />
+        <Suspense fallback={<RouteFallback />}>
+          <Router />
+        </Suspense>
       </WouterRouter>
     </HelmetProvider>
   );

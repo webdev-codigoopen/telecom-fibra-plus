@@ -51,6 +51,33 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 300,
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+        manualChunks(id) {
+          if (id.includes("node_modules/recharts")) return "recharts";
+          if (id.includes("node_modules/framer-motion")) return "framer-motion";
+          if (id.includes("node_modules/lucide-react")) return "lucide";
+          if (id.includes("node_modules/@radix-ui")) return "radix";
+          if (id.includes("node_modules/react-dom")) return "react-dom";
+          if (
+            id.includes("node_modules/react/") ||
+            id.endsWith("node_modules/react") ||
+            id.includes("node_modules/scheduler")
+          )
+            return "react";
+          if (id.includes("node_modules/wouter")) return "wouter";
+          if (id.includes("node_modules/react-helmet-async")) return "helmet";
+          if (id.includes("node_modules/date-fns")) return "date-fns";
+          if (id.includes("node_modules/@tanstack")) return "tanstack";
+          if (id.includes("node_modules")) return "vendor";
+        },
+      },
+    },
   },
   server: {
     port,

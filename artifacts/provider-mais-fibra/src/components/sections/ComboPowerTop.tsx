@@ -1,4 +1,4 @@
-import bgIptv from "@assets/bg-sessao-iptv_1778611391057.png";
+import bgIptv from "@assets/bg-sessao-iptv_1778611391057.webp";
 import img900 from "@assets/iptv/iptv-900.svg";
 import imgWatchPowerTop from "@assets/iptv/iptv-watch-powertop.svg";
 import imgPlus from "@assets/iptv/iptv-plus.svg";

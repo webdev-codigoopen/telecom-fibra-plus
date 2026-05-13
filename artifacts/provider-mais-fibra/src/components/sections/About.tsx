@@ -37,6 +37,8 @@ export default function About() {
             className="block h-auto w-full max-w-[539px]"
             width={539}
             height={611}
+            loading="lazy"
+            decoding="async"
           />
         </motion.div>
 
@@ -58,6 +60,8 @@ export default function About() {
               style={{ height: 56 }}
               width={326}
               height={56}
+              loading="lazy"
+              decoding="async"
             />
             <h2
               className="m-0"
