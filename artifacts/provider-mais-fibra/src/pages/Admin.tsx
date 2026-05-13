@@ -1235,7 +1235,7 @@ export default function Admin() {
                   </div>
                 </div>
               )}
-              {crawlerPreviews.bots > 0 && (
+              {(crawlerPreviews.humans > 0 || crawlerPreviews.bots > 0) && (
                 <div
                   className="rounded-xl border px-4 py-3 mb-3 flex items-center gap-3 flex-wrap"
                   style={{ background: "#F5F7FA", borderColor: "#E0E3EB", borderStyle: "dashed" }}
@@ -1256,12 +1256,34 @@ export default function Admin() {
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-baseline gap-2 flex-wrap">
                       <span className="text-2xl font-black tabular-nums text-[#2A2D38]">
-                        {crawlerPreviews.bots}
+                        {crawlerPreviews.humans.toLocaleString("pt-BR")}
                       </span>
                       <span className="text-sm font-semibold text-[#2A2D38]">
-                        {crawlerPreviews.bots === 1
-                          ? "pré-visualização gerada para robôs"
-                          : "pré-visualizações geradas para robôs"}
+                        {crawlerPreviews.humans === 1 ? "pré-visualização" : "pré-visualizações"}
+                      </span>
+                      <span className="text-sm text-[#7A7F8C]" aria-hidden="true">·</span>
+                      <span className="text-sm font-semibold tabular-nums text-[#2A2D38]">
+                        {crawlerPreviews.bots.toLocaleString("pt-BR")}
+                      </span>
+                      <span
+                        className="text-sm text-[#2A2D38] inline-flex items-center gap-1"
+                        title="Detecção de robôs: ao vivo pelo User-Agent na página de compartilhamento e, retroativamente, pelo backfill que reclassifica rajadas de acessos como bot."
+                      >
+                        {crawlerPreviews.bots === 1 ? "robô filtrado" : "robôs filtrados"}
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="w-3.5 h-3.5 text-[#7A7F8C]"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 16v-4" />
+                          <path d="M12 8h.01" />
+                        </svg>
                       </span>
                       <span
                         className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -1271,8 +1293,8 @@ export default function Admin() {
                       </span>
                     </div>
                     <p className="text-[11px] text-[#7A7F8C] mt-0.5">
-                      Quantas vezes o WhatsApp/Facebook buscou a página de compartilhamento para montar a prévia rica no período.{" "}
-                      <span className="italic">Não conta como pré-visualização humana</span> e não entra na conversão.
+                      Pré-visualizações reais (humanas) já descontam os acessos do WhatsApp/Facebook que apenas geram a prévia rica.{" "}
+                      <span className="italic">Robôs filtrados</span> são identificados ao vivo pelo User-Agent e, em registros antigos, por um backfill que reclassifica rajadas suspeitas como <code className="text-[10px]">whatsapp-share-bot</code>.
                     </p>
                   </div>
                 </div>
