@@ -1,5 +1,5 @@
 import { backfillShareBotClicks } from "@workspace/scripts/backfill-share-bot-clicks";
-import { db, appSettingsTable } from "@workspace/db";
+import { db, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -41,6 +41,26 @@ async function persistStatus(status: BotCleanupStatus): Promise<void> {
     logger.error(
       { err },
       "[bot-click-backfill] failed to persist run status",
+    );
+  }
+  try {
+    await db.insert(botCleanupRunsTable).values({
+      startedAt: new Date(status.startedAt),
+      finishedAt: new Date(status.finishedAt),
+      durationMs: status.durationMs,
+      ok: status.ok,
+      rowsRelabeled: status.rowsRelabeled,
+      rowsRelabeledByUserAgent: status.rowsRelabeledByUserAgent,
+      burstGroupsFound: status.burstGroupsFound,
+      windowSeconds: status.windowSeconds,
+      minBurst: status.minBurst,
+      useUserAgent: status.useUserAgent,
+      error: status.error,
+    });
+  } catch (err) {
+    logger.error(
+      { err },
+      "[bot-click-backfill] failed to append run history",
     );
   }
 }

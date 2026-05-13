@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, planClicksTable, appSettingsTable } from "@workspace/db";
+import { db, planClicksTable, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
 import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 import {
@@ -288,8 +288,56 @@ router.get("/clicks/preview-health", requireAdminKey, async (_req, res) => {
   }
 });
 
-router.get("/clicks/cleanup-status", requireAdminKey, async (_req, res) => {
+router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
   try {
+    const limitParam = typeof req.query["historyLimit"] === "string"
+      ? Number.parseInt(req.query["historyLimit"], 10)
+      : NaN;
+    const historyLimit = Number.isFinite(limitParam)
+      ? Math.min(50, Math.max(1, limitParam))
+      : 7;
+
+    const historyRows = await db
+      .select()
+      .from(botCleanupRunsTable)
+      .orderBy(desc(botCleanupRunsTable.finishedAt))
+      .limit(historyLimit);
+
+    const history = historyRows.map((r) => ({
+      id: r.id,
+      startedAt: r.startedAt.toISOString(),
+      finishedAt: r.finishedAt.toISOString(),
+      durationMs: r.durationMs,
+      ok: r.ok,
+      rowsRelabeled: r.rowsRelabeled,
+      rowsRelabeledByUserAgent: r.rowsRelabeledByUserAgent,
+      burstGroupsFound: r.burstGroupsFound,
+      windowSeconds: r.windowSeconds,
+      minBurst: r.minBurst,
+      useUserAgent: r.useUserAgent,
+      error: r.error,
+    }));
+
+    if (history.length > 0) {
+      const latest = history[0]!;
+      const status: BotCleanupStatus = {
+        startedAt: latest.startedAt,
+        finishedAt: latest.finishedAt,
+        durationMs: latest.durationMs,
+        ok: latest.ok,
+        rowsRelabeled: latest.rowsRelabeled,
+        rowsRelabeledByUserAgent: latest.rowsRelabeledByUserAgent,
+        burstGroupsFound: latest.burstGroupsFound,
+        windowSeconds: latest.windowSeconds,
+        minBurst: latest.minBurst,
+        useUserAgent: latest.useUserAgent,
+        error: latest.error,
+      };
+      res.json({ status, recordedAt: latest.finishedAt, history });
+      return;
+    }
+
+    // Fallback: legacy single-row state in app_settings (pre-history rollout)
     const rows = await db
       .select()
       .from(appSettingsTable)
@@ -297,7 +345,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (_req, res) => {
       .limit(1);
     const row = rows[0];
     if (!row) {
-      res.json({ status: null });
+      res.json({ status: null, history: [] });
       return;
     }
     let status: BotCleanupStatus | null = null;
@@ -306,7 +354,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (_req, res) => {
     } catch {
       status = null;
     }
-    res.json({ status, recordedAt: row.updatedAt });
+    res.json({ status, recordedAt: row.updatedAt, history: [] });
   } catch {
     res.status(500).json({ error: "Failed to fetch cleanup status" });
   }

@@ -57,20 +57,24 @@ function resolveLogoUrl(url: string): string {
 const PLAN_IMAGE_ASPECT = 16 / 9;
 const PLAN_IMAGE_MAX_WIDTH = 1200;
 
+type CleanupRunRecord = {
+  id?: number;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  ok: boolean;
+  rowsRelabeled: number;
+  rowsRelabeledByUserAgent: number;
+  burstGroupsFound: number;
+  windowSeconds: number;
+  minBurst: number;
+  useUserAgent: boolean;
+  error: string | null;
+};
+
 type CleanupStatusResponse = {
-  status: {
-    startedAt: string;
-    finishedAt: string;
-    durationMs: number;
-    ok: boolean;
-    rowsRelabeled: number;
-    rowsRelabeledByUserAgent: number;
-    burstGroupsFound: number;
-    windowSeconds: number;
-    minBurst: number;
-    useUserAgent: boolean;
-    error: string | null;
-  } | null;
+  status: CleanupRunRecord | null;
+  history?: CleanupRunRecord[];
   recordedAt?: string;
 };
 
@@ -657,9 +661,15 @@ export default function Admin() {
         status: CleanupStatusResponse["status"];
       };
       if (data.status) {
-        setCleanupStatus({
-          status: data.status,
-          recordedAt: new Date().toISOString(),
+        const newRun = data.status;
+        setCleanupStatus((prev) => {
+          const prevHistory = prev?.history ?? [];
+          const nextHistory = [newRun, ...prevHistory].slice(0, 7);
+          return {
+            status: newRun,
+            recordedAt: new Date().toISOString(),
+            history: nextHistory,
+          };
         });
         if (data.status.ok) {
           const rows = data.status.rowsRelabeled;
@@ -1950,6 +1960,92 @@ export default function Admin() {
                             </p>
                           )}
                         </>
+                      )}
+                      {cleanupStatus.history && cleanupStatus.history.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-[#E0E3EB]">
+                          <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
+                            <span className="text-[11px] font-semibold text-[#2A2D38]">
+                              Histórico recente ({cleanupStatus.history.length}{" "}
+                              {cleanupStatus.history.length === 1 ? "execução" : "execuções"})
+                            </span>
+                            <span className="text-[10px] text-[#7A7F8C]">
+                              Linhas reclassificadas por execução
+                            </span>
+                          </div>
+                          {(() => {
+                            const runs = [...cleanupStatus.history].reverse();
+                            const maxRows = Math.max(1, ...runs.map((r) => r.rowsRelabeled));
+                            return (
+                              <>
+                                <div className="flex items-end gap-1 h-12 mb-2" aria-label="Sparkline de linhas reclassificadas por execução">
+                                  {runs.map((r, idx) => {
+                                    const heightPct = r.ok
+                                      ? Math.max(6, Math.round((r.rowsRelabeled / maxRows) * 100))
+                                      : 100;
+                                    const color = !r.ok
+                                      ? "#C73838"
+                                      : r.rowsRelabeled > 0
+                                        ? "#0AAE67"
+                                        : "#A1A6B0";
+                                    const when = new Date(r.finishedAt).toLocaleString("pt-BR");
+                                    return (
+                                      <div
+                                        key={r.id ?? `${r.finishedAt}-${idx}`}
+                                        className="flex-1 rounded-t-sm min-w-[6px]"
+                                        style={{
+                                          height: `${heightPct}%`,
+                                          background: color,
+                                          opacity: r.ok ? 0.85 : 1,
+                                        }}
+                                        title={
+                                          r.ok
+                                            ? `${when}: ${r.rowsRelabeled.toLocaleString("pt-BR")} reclassificadas em ${r.burstGroupsFound.toLocaleString("pt-BR")} rajadas`
+                                            : `${when}: falhou${r.error ? ` — ${r.error}` : ""}`
+                                        }
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <ul className="text-[11px] text-[#2A2D38] space-y-0.5">
+                                  {cleanupStatus.history.slice(0, 7).map((r, idx) => (
+                                    <li
+                                      key={r.id ?? `${r.finishedAt}-${idx}`}
+                                      className="flex items-center gap-2 flex-wrap"
+                                    >
+                                      <span
+                                        className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                        style={{
+                                          background: !r.ok
+                                            ? "#C73838"
+                                            : r.rowsRelabeled > 0
+                                              ? "#0AAE67"
+                                              : "#A1A6B0",
+                                        }}
+                                        aria-hidden="true"
+                                      />
+                                      <span className="text-[#7A7F8C]">
+                                        {new Date(r.finishedAt).toLocaleString("pt-BR")}
+                                      </span>
+                                      <span className="ml-auto">
+                                        {r.ok ? (
+                                          <>
+                                            <strong>{r.rowsRelabeled.toLocaleString("pt-BR")}</strong>{" "}
+                                            reclassif. ·{" "}
+                                            <strong>{r.burstGroupsFound.toLocaleString("pt-BR")}</strong>{" "}
+                                            rajadas ·{" "}
+                                            {Math.max(1, Math.round(r.durationMs / 1000))}s
+                                          </>
+                                        ) : (
+                                          <span className="text-[#7A1A1A]">falhou</span>
+                                        )}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            );
+                          })()}
+                        </div>
                       )}
                     </div>
                   </div>
