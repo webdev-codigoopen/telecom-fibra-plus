@@ -187,17 +187,12 @@ export default function ComboPowerTop() {
         target="_blank"
         rel="noopener noreferrer"
         data-testid="combo-cta"
-        className="inline-flex items-center justify-center transition-colors duration-200 hover:bg-white/10 active:bg-white/20"
+        className="inline-flex items-center justify-center transition-colors duration-200 hover:bg-white/10 active:bg-white/20 h-10 px-5 rounded-lg text-[14px] leading-[20px] whitespace-nowrap"
         style={{
-          height: 55,
-          paddingLeft: 40,
-          paddingRight: 40,
-          borderRadius: 20,
           border: "1px solid #fff",
           color: "#fff",
           fontFamily: FONT_BODY,
           fontWeight: 700,
-          fontSize: 18,
           textDecoration: "none",
         }}
       >
