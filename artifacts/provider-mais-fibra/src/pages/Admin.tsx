@@ -196,6 +196,13 @@ export default function Admin() {
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
   const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [previewHealth, setPreviewHealth] = useState<{
+    humanPreviews24h: number;
+    botPreviews24h: number;
+    lastHumanPreviewAt: string | null;
+    lastBotFetchAt: string | null;
+  } | null>(null);
+  const [previewHealthDismissed, setPreviewHealthDismissed] = useState(false);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -472,13 +479,14 @@ export default function Admin() {
       tsParams.set("bucket", range === "today" ? "hour" : "day");
       const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
 
-      const [statsRes, sourcesRes, prevRes, tsRes] = await Promise.all([
+      const [statsRes, sourcesRes, prevRes, tsRes, healthRes] = await Promise.all([
         fetch(url, { headers: { "X-Admin-Key": key } }),
         fetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
         hasPrevious
           ? fetch(prevUrl, { headers: { "X-Admin-Key": key } })
           : Promise.resolve(null),
         fetch(tsUrl, { headers: { "X-Admin-Key": key } }),
+        fetch(`${baseUrl}/api/clicks/preview-health`, { headers: { "X-Admin-Key": key } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -497,6 +505,23 @@ export default function Admin() {
       if (tsRes.ok) {
         const data: TimeseriesRow[] = await tsRes.json();
         setTimeseries(data);
+      }
+      if (healthRes.ok) {
+        const data = (await healthRes.json()) as {
+          humanPreviews24h: number;
+          botPreviews24h: number;
+          lastHumanPreviewAt: string | null;
+          lastBotFetchAt: string | null;
+        };
+        setPreviewHealth((prev) => {
+          const wasWarning =
+            prev != null && prev.humanPreviews24h > 0 && prev.botPreviews24h === 0;
+          const isWarning = data.humanPreviews24h > 0 && data.botPreviews24h === 0;
+          if (isWarning && !wasWarning) {
+            setPreviewHealthDismissed(false);
+          }
+          return data;
+        });
       }
     } catch {
     } finally {
@@ -1235,6 +1260,74 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+              {previewHealth &&
+                !previewHealthDismissed &&
+                previewHealth.humanPreviews24h > 0 &&
+                previewHealth.botPreviews24h === 0 && (
+                  <div
+                    className="rounded-xl border px-4 py-3 mb-3 flex items-start gap-3 flex-wrap"
+                    style={{ background: "#FFF4E5", borderColor: "#F0B070" }}
+                    role="alert"
+                  >
+                    <div
+                      className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
+                      style={{ background: "#C77700" }}
+                      aria-hidden="true"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-[#7A4A00]">
+                          A pré-visualização do WhatsApp pode estar quebrada
+                        </span>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: "#F0B070", color: "#5A3500" }}
+                        >
+                          Últimas 24h
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#5A3500] mt-1 leading-relaxed">
+                        Houve{" "}
+                        <strong>
+                          {previewHealth.humanPreviews24h.toLocaleString("pt-BR")}{" "}
+                          {previewHealth.humanPreviews24h === 1
+                            ? "abertura humana"
+                            : "aberturas humanas"}
+                        </strong>{" "}
+                        da página de compartilhamento, mas{" "}
+                        <strong>nenhuma busca de robô</strong> (WhatsApp/Facebook) foi
+                        registrada. Isso normalmente significa que a prévia rica não está
+                        sendo gerada — verifique as meta tags, a imagem de compartilhamento
+                        e se o crawler não está bloqueado.
+                        {previewHealth.lastBotFetchAt && (
+                          <>
+                            {" "}Última busca de robô:{" "}
+                            <strong>
+                              {new Date(previewHealth.lastBotFetchAt).toLocaleString("pt-BR")}
+                            </strong>
+                            .
+                          </>
+                        )}
+                        {!previewHealth.lastBotFetchAt && (
+                          <> Nenhuma busca de robô já foi registrada.</>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewHealthDismissed(true)}
+                      className="text-[11px] font-semibold text-[#7A4A00] underline hover:no-underline self-start"
+                    >
+                      Dispensar
+                    </button>
+                  </div>
+                )}
               {(crawlerPreviews.humans > 0 || crawlerPreviews.bots > 0) && (
                 <div
                   className="rounded-xl border px-4 py-3 mb-3 flex items-center gap-3 flex-wrap"

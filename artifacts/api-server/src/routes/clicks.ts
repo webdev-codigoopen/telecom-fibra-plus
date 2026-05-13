@@ -246,6 +246,35 @@ router.get("/clicks/cities-conversion", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/preview-health", requireAdminKey, async (_req, res) => {
+  try {
+    const now = new Date();
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const isHumanPreview = sql`(${planClicksTable.source} = 'whatsapp-share' or ${planClicksTable.source} like 'whatsapp-share:%')`;
+    const isBotPreview = sql`${planClicksTable.source} like 'whatsapp-share-bot%'`;
+
+    const [counts] = await db
+      .select({
+        humanPreviews24h: sql<number>`cast(count(*) filter (where ${isHumanPreview} and ${planClicksTable.clickedAt} >= ${since24h}) as int)`,
+        botPreviews24h: sql<number>`cast(count(*) filter (where ${isBotPreview} and ${planClicksTable.clickedAt} >= ${since24h}) as int)`,
+        lastHumanPreviewAt: sql<string | null>`max(${planClicksTable.clickedAt}) filter (where ${isHumanPreview})`,
+        lastBotFetchAt: sql<string | null>`max(${planClicksTable.clickedAt}) filter (where ${isBotPreview})`,
+      })
+      .from(planClicksTable);
+
+    res.json({
+      humanPreviews24h: counts?.humanPreviews24h ?? 0,
+      botPreviews24h: counts?.botPreviews24h ?? 0,
+      lastHumanPreviewAt: counts?.lastHumanPreviewAt ?? null,
+      lastBotFetchAt: counts?.lastBotFetchAt ?? null,
+      checkedAt: now.toISOString(),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch preview health" });
+  }
+});
+
 router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
   try {
     const rows = await db
