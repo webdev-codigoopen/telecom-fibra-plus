@@ -68,8 +68,8 @@ export default function About() {
               style={{
                 fontFamily: FONT_MONTSERRAT,
                 fontWeight: 500,
-                fontSize: 32,
-                lineHeight: "40px",
+                fontSize: "clamp(1.75rem, 4.5vw + 0.5rem, 2rem)",
+                lineHeight: 1.25,
                 letterSpacing: "-0.36px",
                 color: COLOR_BLUE,
               }}
