@@ -162,11 +162,20 @@ router.post("/auth/2fa/setup", requireAdmin, async (req, res) => {
     res.status(404).json({ error: "Usuário não encontrado." });
     return;
   }
+  // Refuse to overwrite an active 2FA configuration: doing so would
+  // effectively disable the second factor without going through the
+  // password-protected /auth/2fa/disable flow.
+  if (user.totpEnabled) {
+    res.status(409).json({ error: "2FA já está ativo. Desative primeiro (exige senha) para reconfigurar." });
+    return;
+  }
   const secret = generateTotpSecret();
   const otpauth = buildOtpauthUrl(user.email, secret);
   const qr = await buildQrDataUrl(otpauth);
-  // Stash the candidate secret on the user row but do NOT enable yet.
-  await setUserTotp(user.id, { totpSecret: secret, totpEnabled: false });
+  // Stash the candidate secret on the user row. totp_enabled stays false
+  // (and was already false — we just refused above if it wasn't) until
+  // /auth/2fa/enable verifies a valid code.
+  await setUserTotp(user.id, { totpSecret: secret });
   res.json({ secret, otpauth, qr });
 });
 
