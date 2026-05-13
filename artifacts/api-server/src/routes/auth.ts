@@ -21,13 +21,22 @@ function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }
 
-// Tight per-IP rate limit for the login endpoint specifically.
+// Tight rate limit for the login endpoint specifically. Keyed by IP + email
+// so an attacker can't burn through a single account by rotating IPs in the
+// same window, and a single IP can't try many accounts cheaply either.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 5,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  keyGenerator: (req) => {
+    const ipPart = ipKeyGenerator(req.ip ?? "unknown");
+    const body = (req.body ?? {}) as { email?: unknown };
+    const emailPart = typeof body.email === "string"
+      ? body.email.trim().toLowerCase().slice(0, 254)
+      : "anon";
+    return `${ipPart}|${emailPart}`;
+  },
   message: { error: "Muitas tentativas. Aguarde 15 minutos." },
 });
 
