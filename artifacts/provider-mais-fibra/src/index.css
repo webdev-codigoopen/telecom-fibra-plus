@@ -284,3 +284,80 @@ html {
 /* Hide scrollbar utility for horizontal carousels */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ──────────────────────────────────────────────────────────
+   Responsividade & UX mobile — regras globais (mobile-first)
+   ────────────────────────────────────────────────────────── */
+
+/* Safe-area variables (iPhone notch / Android gesture bar) */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Evita scroll horizontal acidental causado por elementos largos */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Tap highlight discreto + scroll suave no iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Inputs/textarea/select: 16px mínimo evita zoom automático no iOS;
+   altura mínima 44px atende guidelines da Apple/Material para toque. */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+}
+
+/* Mídia responsiva por padrão (não vaza do container) */
+img, video, svg, canvas, picture {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Foco visível para teclado (não interfere no clique de mouse) */
+:focus-visible {
+  outline: 2px solid #95EB1D;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Reduz animações para usuários com prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Botão flutuante WhatsApp: respeita safe-area no mobile */
+.whatsapp-float-anchor {
+  bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  right: calc(1.5rem + env(safe-area-inset-right, 0px));
+}
+@media (max-width: 480px) {
+  .whatsapp-float-anchor {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    right: 1rem;
+  }
+}
