@@ -270,6 +270,10 @@ export default function AppSection() {
           .appsection-cards {
             grid-template-columns: 1fr !important;
           }
+          .appsection-cards > div {
+            align-items: center !important;
+            text-align: center !important;
+          }
           .appsection-cta {
             flex-direction: column !important;
           }
