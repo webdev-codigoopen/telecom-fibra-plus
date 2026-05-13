@@ -148,8 +148,10 @@ export default function PlanCard({
   const [reais, centavos] = plan.price.split(",");
 
   const allBrands = useStreamingBrands();
-  const inclusionsSet = new Set(plan.inclusions);
-  const activeBrands = allBrands.filter((b) => inclusionsSet.has(b.name));
+  const brandByName = new Map(allBrands.map((b) => [b.name, b]));
+  const activeBrands = plan.inclusions
+    .map((name) => brandByName.get(name))
+    .filter((b): b is (typeof allBrands)[number] => Boolean(b));
   const hasStreaming = activeBrands.length > 0;
 
   // Figma:
