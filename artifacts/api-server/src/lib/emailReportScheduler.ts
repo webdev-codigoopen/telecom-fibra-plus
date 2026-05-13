@@ -10,6 +10,7 @@ import {
   reportToHtml,
   type Frequency,
 } from "./cityComparisonReport";
+import { checkAndSendPreviewHealthAlert } from "./previewHealthAlert";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 
@@ -27,6 +28,12 @@ export async function tick(now: Date = new Date()): Promise<void> {
   if (runningTick) return;
   runningTick = true;
   try {
+    try {
+      await checkAndSendPreviewHealthAlert(now);
+    } catch (err) {
+      logger.error({ err }, "Preview-health alert check failed");
+    }
+
     const subs = await db
       .select()
       .from(emailReportSubscriptionsTable)
