@@ -65,7 +65,7 @@ export default function OndeEstamos() {
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a Provider
-                <span style={{ color: "#95EB1D" }}> Mais Fibra</span> está
+                <span style={{ color: "#95EB1D" }} className="font-semibold text-[#95eb1d]"> Mais Fibra</span> está
               </h1>
               <p className="text-white/70 text-lg mb-8">
                 Presentes em <strong className="text-white">{cities.length} cidades</strong> do Oeste da Bahia com fibra óptica 100%
