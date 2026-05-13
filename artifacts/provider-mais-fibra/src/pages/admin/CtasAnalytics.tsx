@@ -8,7 +8,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { Target, MousePointerClick, Smartphone } from "lucide-react";
+import { Target, MousePointerClick, TrendingUp } from "lucide-react";
 import { adminFetch } from "../../lib/adminFetch";
 import { colorForSource } from "../../lib/sourceColors";
 
@@ -39,14 +39,6 @@ function isShareBot(s: string): boolean {
 }
 function isPlanRow(planSpeed: string): boolean {
   return planSpeed !== "city";
-}
-
-function deviceFromSource(_source: string): string {
-  // No UA-derived device data is exposed in /clicks/stats; we infer
-  // device class from origin only when meaningful (e.g. mobile vs.
-  // desktop CTAs are not separately tagged today). We fall back to a
-  // single bucket and let the topCities/funnel cover origin/conversion.
-  return "todos";
 }
 
 export default function CtasAnalytics({ adminKey, baseUrl, since, until }: Props) {
@@ -139,17 +131,6 @@ export default function CtasAnalytics({ adminKey, baseUrl, since, until }: Props
       .slice(0, 8);
   }, [cities]);
 
-  const deviceBreakdown = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const s of stats) {
-      if (!isPlanRow(s.planSpeed)) continue;
-      if (isShareBot(s.source)) continue;
-      const d = deviceFromSource(s.source);
-      map.set(d, (map.get(d) ?? 0) + s.total);
-    }
-    return Array.from(map.entries()).map(([label, total]) => ({ label, total }));
-  }, [stats]);
-
   if (loading) {
     return <div style={{ padding: 24, color: "var(--as-text3)" }}>Carregando CTAs…</div>;
   }
@@ -181,10 +162,10 @@ export default function CtasAnalytics({ adminKey, baseUrl, since, until }: Props
         />
         <KpiCard
           accent="var(--as-amber)"
-          icon={<Smartphone size={12} color="var(--as-amber)" />}
-          label="Dispositivos"
-          value={deviceBreakdown.length > 0 ? deviceBreakdown.length.toString() : "—"}
-          sub="categorias detectadas"
+          icon={<TrendingUp size={12} color="var(--as-amber)" />}
+          label="Plano #1"
+          value={topPlans[0]?.label.split(" · ")[0] ?? "—"}
+          sub={topPlans[0] ? `${topPlans[0].total.toLocaleString("pt-BR")} cliques` : "Sem dados"}
         />
       </div>
 
