@@ -224,15 +224,6 @@ export default function OndeEstamos() {
                   <MessageCircle size={18} />
                   Verificar Cobertura
                 </a>
-                <Link
-                  href="/demanda"
-                  data-testid="link-demanda-onde-estamos"
-                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base transition-all duration-200 hover:scale-105"
-                  style={{ background: "#95EB1D", color: "#0D0E14" }}
-                >
-                  <MapPin size={18} />
-                  Ver mapa público de demanda
-                </Link>
               </div>
             </motion.div>
           </div>
