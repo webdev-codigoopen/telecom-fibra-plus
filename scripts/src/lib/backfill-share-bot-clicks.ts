@@ -12,6 +12,12 @@ export interface BackfillOptions {
   minBurst?: number;
   dryRun?: boolean;
   useUserAgent?: boolean;
+  /**
+   * Optional override for the bot-UA regex pattern. When omitted, falls back
+   * to the historical hardcoded list. The API server passes the admin-managed
+   * combined pattern from the bot_ua_patterns table.
+   */
+  botUaPattern?: string;
   logger?: BackfillLogger;
 }
 
@@ -34,7 +40,7 @@ export interface BackfillResult {
   rowsRelabeledByUserAgent: number;
 }
 
-const BOT_UA_SQL_PATTERN =
+const DEFAULT_BOT_UA_SQL_PATTERN =
   "facebookexternalhit|facebookcatalog|facebot|twitterbot|slackbot|slack-imgproxy|linkedinbot|discordbot|telegrambot|skypeuripreview|pinterest|embedly|quora link preview|vkshare|w3c_validator|redditbot|applebot|bingpreview|googlebot|google-inspectiontool|googleother|yandexbot|duckduckbot|baiduspider|petalbot|chatgpt-user|gptbot|oai-searchbot|perplexitybot|claudebot|anthropic-ai|bytespider";
 
 const DEFAULT_WINDOW_SECONDS = 1;
@@ -64,6 +70,7 @@ export async function backfillShareBotClicks(
   const minBurst = opts.minBurst ?? DEFAULT_MIN_BURST;
   const dryRun = opts.dryRun ?? false;
   const useUserAgent = opts.useUserAgent ?? false;
+  const botUaPattern = opts.botUaPattern ?? DEFAULT_BOT_UA_SQL_PATTERN;
   const log = opts.logger ?? consoleLogger();
 
   if (!Number.isInteger(windowSeconds) || windowSeconds < 1) {
@@ -82,7 +89,7 @@ export async function backfillShareBotClicks(
   // a row is bot-flagged if its UA matches a known crawler, OR if it is a
   // bare WhatsApp link-preview UA (no browser engine).
   const uaBotPredicate = sql`(
-    pc.user_agent ~* ${BOT_UA_SQL_PATTERN}
+    pc.user_agent ~* ${botUaPattern}
     or (
       pc.user_agent ~* '\\mWhatsApp/[0-9.]+'
       and pc.user_agent !~* 'Mozilla|AppleWebKit|Chrome|Safari'
@@ -90,7 +97,7 @@ export async function backfillShareBotClicks(
   )`;
   // Same predicate but unaliased, for the dryRun count query below.
   const uaBotPredicateUnaliased = sql`(
-    user_agent ~* ${BOT_UA_SQL_PATTERN}
+    user_agent ~* ${botUaPattern}
     or (
       user_agent ~* '\\mWhatsApp/[0-9.]+'
       and user_agent !~* 'Mozilla|AppleWebKit|Chrome|Safari'

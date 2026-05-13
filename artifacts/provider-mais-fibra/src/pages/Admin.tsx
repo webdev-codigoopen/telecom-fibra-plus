@@ -1195,6 +1195,7 @@ export default function Admin() {
               baseUrl={baseUrl}
               onChange={fetchAppSettingsAdmin}
             />
+            <BotUaPatternsPanel adminKey={adminKey} baseUrl={baseUrl} />
           </div>
         )}
 
@@ -8414,3 +8415,285 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
   );
 }
 
+
+type BotUaPatternRow = {
+  id: number;
+  pattern: string;
+  label: string;
+  enabled: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type PreviewResult = {
+  total: number;
+  matched: number;
+  wouldFlip: number;
+  sampleUserAgent: string | null;
+};
+
+function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
+  const [rows, setRows] = useState<BotUaPatternRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [newPattern, setNewPattern] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as BotUaPatternRow[];
+      setRows(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar padrões.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function toggle(row: BotUaPatternRow) {
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns/${row.id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${adminKey}`, "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ enabled: !row.enabled }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `HTTP ${res.status}`);
+      }
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao atualizar.");
+    }
+  }
+
+  async function editPattern(row: BotUaPatternRow) {
+    const next = window.prompt("Editar padrão regex:", row.pattern);
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === row.pattern) return;
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns/${row.id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${adminKey}`, "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pattern: trimmed }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `HTTP ${res.status}`);
+      }
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao salvar.");
+    }
+  }
+
+  async function remove(row: BotUaPatternRow) {
+    if (!window.confirm(`Remover padrão "${row.label || row.pattern}"?`)) return;
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns/${row.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminKey}` },
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `HTTP ${res.status}`);
+      }
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao remover.");
+    }
+  }
+
+  async function runPreview() {
+    if (!newPattern.trim()) return;
+    setPreviewing(true);
+    setPreview(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns/preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}`, "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ pattern: newPattern.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setPreview(data as PreviewResult);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao avaliar padrão.");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function create() {
+    if (!newPattern.trim()) return;
+    setCreating(true);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}`, "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          pattern: newPattern.trim(),
+          label: newLabel.trim(),
+          enabled: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setNewPattern("");
+      setNewLabel("");
+      setPreview(null);
+      await load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao criar padrão.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6" data-testid="bot-ua-patterns">
+      <header className="mb-4">
+        <h2 className="text-lg font-bold text-[#0D0D0D]">Padrões de bots (User-Agent)</h2>
+        <p className="text-sm text-[#7A7F8C]">
+          Expressões regulares (case-insensitive) que classificam um clique como bot. Aplicam-se imediatamente à
+          detecção em tempo real e às visualizações de bots vs humanos. O padrão WhatsApp link-preview "puro"
+          é tratado por uma heurística embutida.
+        </p>
+      </header>
+
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-md px-3 py-2 mb-3 text-sm">{err}</div>
+      )}
+
+      <div className="overflow-x-auto mb-6">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-[#7A7F8C] border-b border-[#E0E3EB]">
+              <th className="py-2 pr-3">Status</th>
+              <th className="py-2 pr-3">Rótulo</th>
+              <th className="py-2 pr-3">Padrão</th>
+              <th className="py-2 pr-3">Origem</th>
+              <th className="py-2 pr-3 text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && !loading && (
+              <tr>
+                <td colSpan={5} className="py-6 text-center text-[#7A7F8C]">Nenhum padrão.</td>
+              </tr>
+            )}
+            {rows.map((r) => (
+              <tr key={r.id} className="border-b border-[#F0F2F7]" data-testid={`bot-ua-row-${r.id}`}>
+                <td className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => toggle(r)}
+                    className={`px-2 py-0.5 rounded text-xs font-semibold ${r.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                    data-testid={`bot-ua-toggle-${r.id}`}
+                  >
+                    {r.enabled ? "Ativo" : "Desativado"}
+                  </button>
+                </td>
+                <td className="py-2 pr-3 text-[#0D0D0D]">{r.label || "—"}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#0D0D0D] break-all max-w-[420px]">{r.pattern}</td>
+                <td className="py-2 pr-3 text-xs text-[#7A7F8C]">{r.isDefault ? "Padrão" : "Personalizado"}</td>
+                <td className="py-2 pr-3 text-right whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => editPattern(r)}
+                    className="text-xs text-[#122AD5] hover:underline mr-3"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(r)}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Remover
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="border-t border-[#E0E3EB] pt-4">
+        <h3 className="text-sm font-bold text-[#0D0D0D] mb-3">Adicionar novo padrão</h3>
+        <div className="grid gap-3 md:grid-cols-2 mb-3">
+          <input
+            type="text"
+            placeholder="Rótulo (ex: MeuCrawler)"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            className="px-3 py-2 text-sm border border-[#E0E3EB] rounded-md"
+            data-testid="bot-ua-new-label"
+          />
+          <input
+            type="text"
+            placeholder="Regex (ex: meucrawler|outro-bot)"
+            value={newPattern}
+            onChange={(e) => { setNewPattern(e.target.value); setPreview(null); }}
+            className="px-3 py-2 text-sm border border-[#E0E3EB] rounded-md font-mono"
+            data-testid="bot-ua-new-pattern"
+          />
+        </div>
+        <div className="flex flex-wrap gap-3 items-center">
+          <button
+            type="button"
+            onClick={runPreview}
+            disabled={!newPattern.trim() || previewing}
+            className="px-4 py-1.5 text-sm font-semibold rounded-md border border-[#122AD5] text-[#122AD5] hover:bg-[#122AD5]/5 disabled:opacity-60"
+            data-testid="bot-ua-preview"
+          >
+            {previewing ? "Avaliando..." : "Pré-visualizar impacto"}
+          </button>
+          <button
+            type="button"
+            onClick={create}
+            disabled={!newPattern.trim() || creating}
+            className="px-4 py-1.5 text-sm font-semibold rounded-md bg-[#122AD5] text-white hover:bg-[#0F22B5] disabled:opacity-60"
+            data-testid="bot-ua-create"
+          >
+            {creating ? "Salvando..." : "Adicionar padrão"}
+          </button>
+        </div>
+        {preview && (
+          <div className="mt-4 bg-[#F7F8FB] border border-[#E0E3EB] rounded-md p-3 text-sm text-[#0D0D0D]" data-testid="bot-ua-preview-result">
+            <div><strong>{preview.matched.toLocaleString("pt-BR")}</strong> cliques existentes correspondem ao padrão.</div>
+            <div className="text-[#7A7F8C]">
+              Destes, <strong className="text-[#0D0D0D]">{preview.wouldFlip.toLocaleString("pt-BR")}</strong> mudariam de "humano" para "bot" ao salvar.
+            </div>
+            {preview.sampleUserAgent && (
+              <div className="mt-2 text-xs text-[#7A7F8C]">
+                Exemplo de UA: <span className="font-mono break-all">{preview.sampleUserAgent}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}

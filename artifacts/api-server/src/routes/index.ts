@@ -12,6 +12,7 @@ import contactRouter from "./contact";
 import reviewsRouter from "./reviews";
 import faqRouter from "./faq";
 import mapTargetsRouter from "./map_targets";
+import botUaPatternsRouter from "./bot_ua_patterns";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(contactRouter);
 router.use(reviewsRouter);
 router.use(faqRouter);
 router.use(mapTargetsRouter);
+router.use(botUaPatternsRouter);
 
 export default router;

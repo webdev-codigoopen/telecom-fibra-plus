@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { seedFirstAdminIfMissing } from "./lib/auth";
 import { startEmailReportScheduler } from "./lib/emailReportScheduler";
 import { startBotClickBackfillScheduler } from "./lib/botClickBackfillScheduler";
+import { initBotUaPatterns } from "./lib/botUaPatterns";
 
 const rawPort = process.env["PORT"];
 
@@ -49,16 +50,22 @@ if (process.env["NODE_ENV"] === "production") {
   }
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
+// Warm caches that affect bot detection BEFORE we accept traffic, so the
+// first share-page hit can't slip through with an empty pattern set.
+initBotUaPatterns()
+  .catch((e) => logger.error({ err: e }, "initBotUaPatterns failed"))
+  .finally(() => {
+    app.listen(port, (err) => {
+      if (err) {
+        logger.error({ err }, "Error listening on port");
+        process.exit(1);
+      }
 
-  logger.info({ port }, "Server listening");
-  seedFirstAdminIfMissing().catch((e) =>
-    logger.error({ err: e }, "seedFirstAdminIfMissing failed"),
-  );
-  startEmailReportScheduler();
-  startBotClickBackfillScheduler();
-});
+      logger.info({ port }, "Server listening");
+      seedFirstAdminIfMissing().catch((e) =>
+        logger.error({ err: e }, "seedFirstAdminIfMissing failed"),
+      );
+      startEmailReportScheduler();
+      startBotClickBackfillScheduler();
+    });
+  });

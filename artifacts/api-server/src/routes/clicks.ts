@@ -8,29 +8,41 @@ import {
   runBotClickBackfillTick,
 } from "../lib/botClickBackfillScheduler";
 import { extractClientIp, hashIp, lookupGeo, countryNameFor } from "../lib/geoip";
+import { getCombinedUaPattern } from "../lib/botUaPatterns";
 
 const router: IRouter = Router();
-
-const BOT_UA_SQL_PATTERN =
-  "facebookexternalhit|facebookcatalog|facebot|twitterbot|slackbot|slack-imgproxy|linkedinbot|discordbot|telegrambot|skypeuripreview|pinterest|embedly|quora link preview|vkshare|w3c_validator|redditbot|applebot|bingpreview|googlebot|google-inspectiontool|googleother|yandexbot|duckduckbot|baiduspider|petalbot|chatgpt-user|gptbot|oai-searchbot|perplexitybot|claudebot|anthropic-ai|bytespider";
 
 // Mirrors isBotUserAgent() in routes/plans.ts and the backfill script.
 // A click is bot-flagged if EITHER the live UA matches a known crawler / bare
 // WhatsApp link-preview UA, OR the source was already labeled as a bot
-// (whatsapp-share-bot*) by the backfill cleanup.
-const isBotSqlExpr = sql<boolean>`(
-  ${planClicksTable.source} like 'whatsapp-share-bot%'
-  or (
-    ${planClicksTable.userAgent} is not null
-    and (
-      ${planClicksTable.userAgent} ~* ${BOT_UA_SQL_PATTERN}
+// (whatsapp-share-bot*) by the backfill cleanup. Built dynamically so admin
+// edits to the crawler-UA list take effect immediately.
+function buildIsBotSqlExpr(): SQL<boolean> {
+  const combined = getCombinedUaPattern();
+  if (combined) {
+    return sql<boolean>`(
+      ${planClicksTable.source} like 'whatsapp-share-bot%'
       or (
-        ${planClicksTable.userAgent} ~* '\\mWhatsApp/[0-9.]+'
-        and ${planClicksTable.userAgent} !~* 'Mozilla|AppleWebKit|Chrome|Safari'
+        ${planClicksTable.userAgent} is not null
+        and (
+          ${planClicksTable.userAgent} ~* ${combined}
+          or (
+            ${planClicksTable.userAgent} ~* '\\mWhatsApp/[0-9.]+'
+            and ${planClicksTable.userAgent} !~* 'Mozilla|AppleWebKit|Chrome|Safari'
+          )
+        )
       )
+    )`;
+  }
+  return sql<boolean>`(
+    ${planClicksTable.source} like 'whatsapp-share-bot%'
+    or (
+      ${planClicksTable.userAgent} is not null
+      and ${planClicksTable.userAgent} ~* '\\mWhatsApp/[0-9.]+'
+      and ${planClicksTable.userAgent} !~* 'Mozilla|AppleWebKit|Chrome|Safari'
     )
-  )
-)`;
+  )`;
+}
 
 router.post("/clicks", async (req, res) => {
   const { planSpeed, planPrice, source, city } = req.body ?? {};
@@ -404,6 +416,7 @@ router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
 
 router.get("/clicks/bot-summary", requireAdminKey, async (req, res) => {
   try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
     const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
@@ -463,6 +476,7 @@ router.get("/clicks/bot-summary", requireAdminKey, async (req, res) => {
 
 router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
   try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
     const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
@@ -547,6 +561,7 @@ router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
 
 router.get("/clicks/recent", requireAdminKey, async (req, res) => {
   try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
     const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
@@ -627,6 +642,7 @@ router.get("/clicks/recent", requireAdminKey, async (req, res) => {
 
 router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
   try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
     const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0

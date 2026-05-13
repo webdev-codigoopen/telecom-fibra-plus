@@ -5,6 +5,7 @@ export * from "./plan_streaming_brands";
 export * from "./demand_interests";
 export * from "./app_settings";
 export * from "./bot_cleanup_runs";
+export * from "./bot_ua_patterns";
 export * from "./email_report_subscriptions";
 export * from "./reviews";
 export * from "./admin_users";

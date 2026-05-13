@@ -6,6 +6,7 @@ import {
   checkAndAlertIfStale,
   notifyOnBotCleanupFailure,
 } from "./botCleanupAlert";
+import { getCombinedUaPattern } from "./botUaPatterns";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 5 * 60 * 1000; // wait 5 min after boot before first run
@@ -102,8 +103,10 @@ export async function runBotClickBackfillTick(
     );
   }
   try {
+    const adminPattern = getCombinedUaPattern();
     const result = await backfillShareBotClicks({
       useUserAgent: true,
+      ...(adminPattern ? { botUaPattern: adminPattern } : {}),
       logger: {
         info: (obj, msg) => {
           if (typeof obj === "string") logger.info(obj);

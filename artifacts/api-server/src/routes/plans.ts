@@ -10,6 +10,7 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 import { stripHtml } from "../lib/sanitize";
+import { matchesEnabledPattern } from "../lib/botUaPatterns";
 
 const router: IRouter = Router();
 
@@ -18,12 +19,14 @@ router.get("/plans/admin/verify", requireAdminKey, (_req, res) => {
   res.json({ ok: true });
 });
 
-const CRAWLER_UA_PATTERN =
-  /facebookexternalhit|facebookcatalog|facebot|twitterbot|slackbot|slack-imgproxy|linkedinbot|discordbot|telegrambot|skypeuripreview|pinterest(?:bot)?|embedly|quora link preview|vkshare|w3c_validator|redditbot|applebot|bingpreview|googlebot|google-inspectiontool|googleother|yandexbot|duckduckbot|baiduspider|petalbot|chatgpt-user|gptbot|oai-searchbot|perplexitybot|claudebot|anthropic-ai|bytespider/i;
-
 function isBotUserAgent(ua: string | undefined): boolean {
   if (!ua) return false;
-  if (CRAWLER_UA_PATTERN.test(ua)) return true;
+  // Admin-managed crawler UA list (cached). Mirrors the SQL semantics in
+  // routes/clicks.ts so the live share-page record and the admin views agree.
+  if (matchesEnabledPattern(ua)) return true;
+  // Bare WhatsApp link-preview UA — kept as a built-in heuristic because it
+  // requires a NOT condition (no browser engine) that doesn't fit the simple
+  // "OR list of patterns" model managed by admins.
   if (/\bWhatsApp\/[\d.]+/i.test(ua) && !/Mozilla|AppleWebKit|Chrome|Safari/i.test(ua)) {
     return true;
   }
