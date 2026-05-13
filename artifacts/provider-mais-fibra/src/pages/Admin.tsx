@@ -1073,6 +1073,12 @@ export default function Admin() {
               adminKey={adminKey}
               baseUrl={baseUrl}
             />
+            <QuietHoursSettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
             <WhatsappNotifySettings
               settings={appSettings}
               adminKey={adminKey}
@@ -5049,6 +5055,198 @@ function InterestNotificationSettings({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+type QuietHoursSettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function QuietHoursSettings({
+  settings,
+  adminKey,
+  baseUrl,
+  onChange,
+}: QuietHoursSettingsProps) {
+  const [enabled, setEnabled] = useState(settings.quiet_hours_enabled === "true");
+  const [start, setStart] = useState(settings.quiet_hours_start || "22:00");
+  const [end, setEnd] = useState(settings.quiet_hours_end || "08:00");
+  const [muteWeekends, setMuteWeekends] = useState(
+    settings.quiet_hours_weekends === "true",
+  );
+  const [digestEnabled, setDigestEnabled] = useState(
+    settings.quiet_hours_digest_enabled === "true",
+  );
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnabled(settings.quiet_hours_enabled === "true");
+    setStart(settings.quiet_hours_start || "22:00");
+    setEnd(settings.quiet_hours_end || "08:00");
+    setMuteWeekends(settings.quiet_hours_weekends === "true");
+    setDigestEnabled(settings.quiet_hours_digest_enabled === "true");
+  }, [
+    settings.quiet_hours_enabled,
+    settings.quiet_hours_start,
+    settings.quiet_hours_end,
+    settings.quiet_hours_weekends,
+    settings.quiet_hours_digest_enabled,
+  ]);
+
+  const dirty =
+    enabled !== (settings.quiet_hours_enabled === "true") ||
+    start !== (settings.quiet_hours_start || "22:00") ||
+    end !== (settings.quiet_hours_end || "08:00") ||
+    muteWeekends !== (settings.quiet_hours_weekends === "true") ||
+    digestEnabled !== (settings.quiet_hours_digest_enabled === "true");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          quiet_hours_enabled: enabled ? "true" : "false",
+          quiet_hours_start: start,
+          quiet_hours_end: end,
+          quiet_hours_weekends: muteWeekends ? "true" : "false",
+          quiet_hours_digest_enabled: digestEnabled ? "true" : "false",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const windowDescription =
+    start === end
+      ? "Janela vazia (início igual ao fim)."
+      : start < end
+        ? `Silêncio das ${start} às ${end} (mesmo dia).`
+        : `Silêncio das ${start} às ${end} do dia seguinte (passa da meia-noite).`;
+
+  return (
+    <section
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      data-testid="quiet-hours-settings"
+    >
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">
+          Silêncio de notificações (quiet hours)
+        </h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Defina uma janela diária em que os emails e mensagens de WhatsApp de
+          novos interesses não serão enviados — os cadastros continuam sendo
+          salvos normalmente no painel. Horários no fuso de São Paulo.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="flex items-center gap-3 text-sm text-[#0D0D0D]">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            className="h-4 w-4 accent-[#0040FF]"
+            data-testid="quiet-hours-enabled"
+          />
+          <span>Ativar silêncio de notificações</span>
+        </label>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Início</span>
+            <input
+              type="time"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              disabled={!enabled}
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 disabled:opacity-50"
+              data-testid="quiet-hours-start"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Fim</span>
+            <input
+              type="time"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              disabled={!enabled}
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 disabled:opacity-50"
+              data-testid="quiet-hours-end"
+            />
+          </label>
+        </div>
+        <p className="text-[11px] text-[#7A7F8C] -mt-2">{windowDescription}</p>
+
+        <label className="flex items-center gap-3 text-sm text-[#0D0D0D]">
+          <input
+            type="checkbox"
+            checked={muteWeekends}
+            onChange={(e) => setMuteWeekends(e.target.checked)}
+            disabled={!enabled}
+            className="h-4 w-4 accent-[#0040FF] disabled:opacity-50"
+            data-testid="quiet-hours-weekends"
+          />
+          <span>Silenciar o fim de semana inteiro (sábado e domingo)</span>
+        </label>
+
+        <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
+          <input
+            type="checkbox"
+            checked={digestEnabled}
+            onChange={(e) => setDigestEnabled(e.target.checked)}
+            disabled={!enabled}
+            className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
+            data-testid="quiet-hours-digest-enabled"
+          />
+          <span>
+            Ao terminar o silêncio, enviar um email de resumo com os interesses
+            recebidos no período (para os destinatários cadastrados como
+            "instantâneo").
+          </span>
+        </label>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+            data-testid="quiet-hours-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-emerald-700">Salvo.</span>
+          )}
+        </div>
+      </form>
     </section>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from "./cityComparisonReport";
 import { checkAndSendPreviewHealthAlert } from "./previewHealthAlert";
 import { sendDueInterestDigest } from "./interestDigest";
+import { tickQuietHours } from "./quietHours";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 
@@ -39,6 +40,12 @@ export async function tick(now: Date = new Date()): Promise<void> {
       await sendDueInterestDigest(now);
     } catch (err) {
       logger.error({ err }, "Interest digest check failed");
+    }
+
+    try {
+      await tickQuietHours(now);
+    } catch (err) {
+      logger.error({ err }, "Quiet hours tick failed");
     }
 
     const subs = await db

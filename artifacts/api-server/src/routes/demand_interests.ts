@@ -4,6 +4,7 @@ import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailRepor
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { isWhatsappNotifyEnabled, sendWhatsappNotification } from "../lib/sendWhatsapp";
+import { shouldNotifyNow } from "../lib/quietHours";
 import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 
@@ -173,6 +174,16 @@ async function notifyAdminOfNewInterest(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
+    // Quiet hours: skip sending. The DB row was already saved upstream and the
+    // configured digest (if enabled) will surface this lead at the end of the
+    // window.
+    if (!(await shouldNotifyNow(payload.createdAt))) {
+      logger.info(
+        { city: payload.city },
+        "Interest email notification suppressed by quiet hours",
+      );
+      return;
+    }
     // Collect all enabled "instant" recipients from the subscriptions table.
     const subs = await db
       .select({
@@ -276,6 +287,13 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
 }): Promise<void> {
   try {
     if (!(await isWhatsappNotifyEnabled())) return;
+    if (!(await shouldNotifyNow(payload.createdAt))) {
+      logger.info(
+        { city: payload.city },
+        "Interest WhatsApp notification suppressed by quiet hours",
+      );
+      return;
+    }
     const link = whatsappLink(payload.whatsapp);
     const display = formatWhatsappDisplay(payload.whatsapp);
     const timestampDisplay = new Intl.DateTimeFormat("pt-BR", {

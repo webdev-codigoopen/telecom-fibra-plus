@@ -18,6 +18,16 @@ export const SETTING_DEFAULTS = {
   interest_notification_enabled: "false",
   interest_notification_frequency: "instant",
   interest_digest_last_sent_at: "",
+  // Quiet hours — mute lead notifications during off-hours.
+  // Times are HH:MM in America/Sao_Paulo. start>end means overnight window.
+  quiet_hours_enabled: "false",
+  quiet_hours_start: "22:00",
+  quiet_hours_end: "08:00",
+  quiet_hours_weekends: "false",
+  quiet_hours_digest_enabled: "false",
+  // Internal state — set by the server, not editable from the PUT endpoint.
+  quiet_hours_active_since: "",
+  quiet_hours_digest_last_sent_at: "",
   // WhatsApp lead notification (Meta Cloud API)
   whatsapp_notify_enabled: "false",
   whatsapp_notify_to: "",
@@ -63,6 +73,13 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_enabled",
   "interest_notification_frequency",
   "interest_digest_last_sent_at",
+  "quiet_hours_enabled",
+  "quiet_hours_start",
+  "quiet_hours_end",
+  "quiet_hours_weekends",
+  "quiet_hours_digest_enabled",
+  "quiet_hours_active_since",
+  "quiet_hours_digest_last_sent_at",
   "whatsapp_notify_enabled",
   "whatsapp_notify_to",
   "whatsapp_notify_phone_number_id",
@@ -117,6 +134,19 @@ const settingsBodySchema = z
       .optional(),
     interest_notification_enabled: z.enum(["true", "false"]).optional(),
     interest_notification_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
+    quiet_hours_enabled: z.enum(["true", "false"]).optional(),
+    quiet_hours_start: z
+      .string()
+      .trim()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use o formato HH:MM (00:00–23:59).")
+      .optional(),
+    quiet_hours_end: z
+      .string()
+      .trim()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use o formato HH:MM (00:00–23:59).")
+      .optional(),
+    quiet_hours_weekends: z.enum(["true", "false"]).optional(),
+    quiet_hours_digest_enabled: z.enum(["true", "false"]).optional(),
     whatsapp_notify_enabled: z.enum(["true", "false"]).optional(),
     whatsapp_notify_to: z
       .string()
