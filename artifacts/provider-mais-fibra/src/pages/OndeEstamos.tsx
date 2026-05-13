@@ -187,7 +187,9 @@ export default function OndeEstamos() {
                       <p className="text-[10px] font-bold text-[#B0B5C3] uppercase tracking-wide mb-1.5">
                         Telefones
                       </p>
-                      <ul className="flex flex-col gap-1 mb-3">
+                      <ul
+                        className={`${city.phones.length >= 4 ? "grid grid-cols-2 gap-x-3" : "flex flex-col"} gap-1 mb-3`}
+                      >
                         {city.phones.map((p, idx) => (
                           <li key={p}>
                             <a
