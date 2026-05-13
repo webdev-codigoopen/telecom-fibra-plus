@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { colorForSource } from "../lib/sourceColors";
+import { adminFetch } from "../lib/adminFetch";
 
 type CityCoord = { name: string; lat: number; lon: number };
 
@@ -160,7 +161,6 @@ type ColorMode = "volume" | "growth" | "conversion";
 type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
 
 const CONVERSION_SCALE_STORAGE_PREFIX = "pmf:mapConversionScale";
-const PER_CITY_TARGETS_STORAGE_PREFIX = "pmf:mapPerCityTargets";
 const DEFAULT_TARGET_PCT = 10;
 const BELOW_TARGET_MIN_PREVIEWS = 5;
 
@@ -182,37 +182,45 @@ function storageKeyFor(adminKey: string | undefined): string {
   return `${CONVERSION_SCALE_STORAGE_PREFIX}:${hashAdminKey(adminKey)}`;
 }
 
-function perCityStorageKeyFor(adminKey: string | undefined): string {
-  return `${PER_CITY_TARGETS_STORAGE_PREFIX}:${hashAdminKey(adminKey)}`;
-}
-
-function loadPerCityTargets(adminKey: string | undefined): PerCityTargets {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(perCityStorageKeyFor(adminKey));
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: PerCityTargets = {};
-    for (const [k, v] of Object.entries(parsed)) {
-      const n = Number(v);
-      if (typeof k === "string" && k && Number.isFinite(n) && n > 0 && n <= 100) {
-        out[k] = n;
-      }
+function sanitizeTargets(input: unknown): PerCityTargets {
+  if (!input || typeof input !== "object") return {};
+  const out: PerCityTargets = {};
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    const n = Number(v);
+    if (typeof k === "string" && k && Number.isFinite(n) && n > 0 && n <= 100) {
+      out[k] = n;
     }
-    return out;
-  } catch {
-    return {};
   }
+  return out;
 }
 
-function savePerCityTargets(adminKey: string | undefined, targets: PerCityTargets) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(perCityStorageKeyFor(adminKey), JSON.stringify(targets));
-  } catch {
-    // ignore
-  }
+async function fetchPerCityTargets(
+  baseUrl: string,
+  adminKey: string | undefined,
+): Promise<PerCityTargets> {
+  const res = await adminFetch(`${baseUrl}/api/admin/map-per-city-targets`, {
+    headers: adminKey ? { Authorization: `Bearer ${adminKey}` } : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { targets?: unknown };
+  return sanitizeTargets(data.targets);
+}
+
+async function persistPerCityTargets(
+  baseUrl: string,
+  adminKey: string | undefined,
+  targets: PerCityTargets,
+): Promise<PerCityTargets> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (adminKey) headers.Authorization = `Bearer ${adminKey}`;
+  const res = await adminFetch(`${baseUrl}/api/admin/map-per-city-targets`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ targets }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { targets?: unknown };
+  return sanitizeTargets(data.targets);
 }
 
 function loadConversionScale(adminKey: string | undefined): ConversionScale {
@@ -288,10 +296,15 @@ export default function CityClicksMap(props: Props) {
     const s = loadConversionScale(adminKey);
     return s.mode === "target" ? String(s.targetPct) : String(DEFAULT_TARGET_PCT);
   });
-  const [perCityTargets, setPerCityTargets] = useState<PerCityTargets>(() => loadPerCityTargets(adminKey));
+  const [perCityTargets, setPerCityTargets] = useState<PerCityTargets>({});
+  const [perCityTargetsError, setPerCityTargetsError] = useState<string | null>(null);
   const [showPerCityEditor, setShowPerCityEditor] = useState(false);
   const [perCityDrafts, setPerCityDrafts] = useState<Record<string, string>>({});
   const reqIdRef = useRef(0);
+  const targetsReqIdRef = useRef(0);
+  const targetsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetsSaveSeqRef = useRef(0);
+  const targetsHydratedRef = useRef(false);
 
   useEffect(() => {
     // Reload preferences when the admin identity changes (e.g. different
@@ -299,7 +312,6 @@ export default function CityClicksMap(props: Props) {
     const next = loadConversionScale(adminKey);
     setConversionScale(next);
     setTargetInput(next.mode === "target" ? String(next.targetPct) : String(DEFAULT_TARGET_PCT));
-    setPerCityTargets(loadPerCityTargets(adminKey));
     setPerCityDrafts({});
   }, [adminKey]);
 
@@ -307,9 +319,55 @@ export default function CityClicksMap(props: Props) {
     saveConversionScale(adminKey, conversionScale);
   }, [adminKey, conversionScale]);
 
+  // Load per-city targets from the server. These are shared across all
+  // admins, so changes made on one device show up everywhere.
   useEffect(() => {
-    savePerCityTargets(adminKey, perCityTargets);
-  }, [adminKey, perCityTargets]);
+    if (!isAdminMode || !baseUrl) return;
+    const myReq = ++targetsReqIdRef.current;
+    targetsHydratedRef.current = false;
+    setPerCityTargetsError(null);
+    fetchPerCityTargets(baseUrl, adminKey)
+      .then((targets) => {
+        if (myReq !== targetsReqIdRef.current) return;
+        setPerCityTargets(targets);
+        targetsHydratedRef.current = true;
+      })
+      .catch(() => {
+        if (myReq !== targetsReqIdRef.current) return;
+        setPerCityTargetsError("Não foi possível carregar as metas por cidade.");
+        targetsHydratedRef.current = true;
+      });
+  }, [isAdminMode, baseUrl, adminKey]);
+
+  // Persist per-city targets to the server (debounced, optimistic).
+  // We only save after the initial load has hydrated state, so the empty
+  // initial value doesn't overwrite real saved data.
+  useEffect(() => {
+    if (!isAdminMode || !baseUrl) return;
+    if (!targetsHydratedRef.current) return;
+    if (targetsSaveTimerRef.current) clearTimeout(targetsSaveTimerRef.current);
+    const snapshot = perCityTargets;
+    targetsSaveTimerRef.current = setTimeout(() => {
+      const seq = ++targetsSaveSeqRef.current;
+      persistPerCityTargets(baseUrl, adminKey, snapshot)
+        .then(() => {
+          if (seq !== targetsSaveSeqRef.current) return;
+          setPerCityTargetsError(null);
+        })
+        .catch(() => {
+          if (seq !== targetsSaveSeqRef.current) return;
+          setPerCityTargetsError(
+            "Falha ao salvar as metas por cidade. Tente novamente.",
+          );
+        });
+    }, 400);
+    return () => {
+      if (targetsSaveTimerRef.current) {
+        clearTimeout(targetsSaveTimerRef.current);
+        targetsSaveTimerRef.current = null;
+      }
+    };
+  }, [isAdminMode, baseUrl, perCityTargets]);
 
   function targetPctForCity(name: string): number | null {
     const override = perCityTargets[name];
@@ -951,6 +1009,17 @@ export default function CityClicksMap(props: Props) {
               <p className="text-[11px] text-[#7A7F8C]">
                 Defina uma meta de conversão (%) para cada cidade. Cidades sem meta usam a escala global ({conversionScale.mode === "target" ? `meta ${formatPct(conversionScale.targetPct)}%` : "Auto"}).
               </p>
+              <p className="text-[10px] text-[#7A7F8C] mt-0.5">
+                As metas são compartilhadas entre todos os administradores e dispositivos.
+              </p>
+              {perCityTargetsError && (
+                <p
+                  className="text-[10px] text-[#C92020] mt-1"
+                  data-testid="per-city-targets-error"
+                >
+                  {perCityTargetsError}
+                </p>
+              )}
             </div>
             {Object.keys(perCityTargets).length > 0 && (
               <button

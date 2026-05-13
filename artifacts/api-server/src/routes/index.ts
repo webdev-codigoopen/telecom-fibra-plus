@@ -11,6 +11,7 @@ import emailSubscriptionsRouter from "./email_subscriptions";
 import contactRouter from "./contact";
 import reviewsRouter from "./reviews";
 import faqRouter from "./faq";
+import mapTargetsRouter from "./map_targets";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(emailSubscriptionsRouter);
 router.use(contactRouter);
 router.use(reviewsRouter);
 router.use(faqRouter);
+router.use(mapTargetsRouter);
 
 export default router;
