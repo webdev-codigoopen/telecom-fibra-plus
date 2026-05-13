@@ -2022,6 +2022,53 @@ function CityTrendPanel({
   const showExtremes =
     effectiveViewMode === "total" && hasComparison && showComparison;
 
+  const visibleSources = useMemo(
+    () => sortedSources.filter(({ source }) => !hiddenSources.has(source)),
+    [sortedSources, hiddenSources],
+  );
+
+  const sourceSpike = useMemo(() => {
+    if (effectiveViewMode !== "source" || visibleSources.length === 0) return null;
+    if (!points || points.length === 0) return null;
+    let best: { bucket: string; label: string; source: string; value: number; color: string } | null = null;
+    for (const p of points) {
+      for (const { source, color } of visibleSources) {
+        const v = p.bySource[source] ?? 0;
+        if (v <= 0) continue;
+        if (!best || v > best.value) {
+          best = { bucket: p.bucket, label: p.label, source, value: v, color };
+        }
+      }
+    }
+    return best;
+  }, [effectiveViewMode, visibleSources, points]);
+
+  const renderSourceDot = (source: string, color: string) => (dotProps: {
+    cx?: number;
+    cy?: number;
+    payload?: { bucket?: string };
+  }) => {
+    const { cx, cy, payload } = dotProps;
+    if (cx == null || cy == null || !payload) return <g />;
+    const isSpike =
+      sourceSpike != null &&
+      sourceSpike.source === source &&
+      payload.bucket === sourceSpike.bucket;
+    if (isSpike) {
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={6}
+          fill={color}
+          stroke="#FFFFFF"
+          strokeWidth={2}
+        />
+      );
+    }
+    return <circle cx={cx} cy={cy} r={2} fill={color} />;
+  };
+
   const renderTotalDot = (dotProps: {
     cx?: number;
     cy?: number;
@@ -2217,20 +2264,18 @@ function CityTrendPanel({
                 contentStyle={{ fontSize: 12, borderRadius: 6 }}
                 labelStyle={{ fontWeight: 600 }}
               />
-              {sortedSources
-                .filter(({ source }) => !hiddenSources.has(source))
-                .map(({ source, color }) => (
-                  <Line
-                    key={source}
-                    type="monotone"
-                    dataKey={source}
-                    stroke={color}
-                    strokeWidth={2}
-                    dot={{ r: 2, fill: color }}
-                    activeDot={{ r: 4 }}
-                    isAnimationActive={false}
-                  />
-                ))}
+              {visibleSources.map(({ source, color }) => (
+                <Line
+                  key={source}
+                  type="monotone"
+                  dataKey={source}
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={renderSourceDot(source, color)}
+                  activeDot={{ r: 4 }}
+                  isAnimationActive={false}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -2269,6 +2314,19 @@ function CityTrendPanel({
               ({formatExtremeDelta(topLoss.delta)} vs. anterior)
             </span>
           )}
+        </p>
+      )}
+      {effectiveViewMode === "source" && sourceSpike && (
+        <p
+          className="mt-2 text-[11px] text-[#5C4500]"
+          data-testid="city-trend-source-spike-caption"
+        >
+          <span
+            className="inline-block rounded-full mr-1 align-middle"
+            style={{ width: 8, height: 8, background: sourceSpike.color }}
+          />
+          Pico: <strong>{sourceSpike.label}</strong> · {sourceSpike.source} ({sourceSpike.value}{" "}
+          {sourceSpike.value === 1 ? "clique" : "cliques"})
         </p>
       )}
       {effectiveViewMode === "source" && sortedSources.length > 0 && (
