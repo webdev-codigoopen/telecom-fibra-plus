@@ -149,6 +149,32 @@ async function fetchInterestsSince(since: Date | null): Promise<
   return filtered.orderBy(asc(demandInterestsTable.createdAt));
 }
 
+export async function sendInterestDigestToSubscription(
+  sub: {
+    id: number;
+    email: string;
+    frequency: string;
+    lastSentAt: Date | null;
+  },
+  now: Date = new Date(),
+): Promise<{ count: number }> {
+  if (sub.frequency !== "daily" && sub.frequency !== "weekly") {
+    throw new Error(
+      `Cannot send interest digest for frequency "${sub.frequency}" (must be daily or weekly).`,
+    );
+  }
+  const frequency: DigestFrequency = sub.frequency;
+  const lastSentAt = sub.lastSentAt ?? null;
+  const rows = await fetchInterestsSince(lastSentAt);
+  const { subject, html, text } = buildDigestEmail(frequency, rows, lastSentAt, now);
+  await sendEmail({ to: sub.email, subject, html, text });
+  await db
+    .update(emailReportSubscriptionsTable)
+    .set({ lastSentAt: now, updatedAt: now })
+    .where(eq(emailReportSubscriptionsTable.id, sub.id));
+  return { count: rows.length };
+}
+
 export async function sendDueInterestDigest(now: Date = new Date()): Promise<void> {
   // Fetch all enabled digest subscriptions (daily/weekly).
   const subs = await db

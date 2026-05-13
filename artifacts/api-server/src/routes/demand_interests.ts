@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailReportSubscriptionsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
+import { sendInterestDigestToSubscription } from "../lib/interestDigest";
 import { isWhatsappNotifyEnabled, sendWhatsappNotification } from "../lib/sendWhatsapp";
 import { shouldNotifyNow } from "../lib/quietHours";
 import { logger } from "../lib/logger";
@@ -548,5 +549,63 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
     res.status(500).json({ error: "Failed to export interests" });
   }
 });
+
+router.post(
+  "/demand/interests/digest/:id/send-now",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
+    if (!(await isEmailConfigured())) {
+      res.status(503).json({
+        error:
+          "Servidor de e-mail (SMTP) não configurado. Preencha no painel, aba 'Relatórios por email'.",
+      });
+      return;
+    }
+    try {
+      const [sub] = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          ),
+        );
+      if (!sub) {
+        res.status(404).json({ error: "Destinatário não encontrado." });
+        return;
+      }
+      if (sub.frequency !== "daily" && sub.frequency !== "weekly") {
+        res.status(400).json({
+          error:
+            "Esse destinatário está configurado como instantâneo. Mude para diário ou semanal para enviar um resumo.",
+        });
+        return;
+      }
+      const now = new Date();
+      const { count } = await sendInterestDigestToSubscription(
+        {
+          id: sub.id,
+          email: sub.email,
+          frequency: sub.frequency,
+          lastSentAt: sub.lastSentAt ?? null,
+        },
+        now,
+      );
+      res.json({ ok: true, count, lastSentAt: now.toISOString() });
+    } catch (err) {
+      logger.error({ err }, "Failed to send interest digest now");
+      res.status(500).json({
+        error:
+          "Falha ao enviar resumo de teste. Verifique as credenciais SMTP e tente novamente.",
+      });
+    }
+  },
+);
 
 export default router;

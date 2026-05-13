@@ -6252,6 +6252,39 @@ function InterestNotificationSettings({
     }
   }
 
+  async function sendDigestNow(sub: InterestRecipient) {
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/demand/interests/digest/${sub.id}/send-now`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${adminKey}` },
+        },
+      );
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        count?: number;
+      };
+      if (!res.ok) {
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      const n = data.count ?? 0;
+      setFeedback(
+        `Resumo enviado para ${sub.email} (${n} cadastro${n === 1 ? "" : "s"}).`,
+      );
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível enviar o resumo.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function remove(sub: InterestRecipient) {
     if (!confirm(`Remover ${sub.email}?`)) return;
     setBusyId(sub.id);
@@ -6439,6 +6472,22 @@ function InterestNotificationSettings({
                       >
                         {sub.enabled ? "Pausar" : "Ativar"}
                       </button>
+                      {(sub.frequency === "daily" || sub.frequency === "weekly") && (
+                        <button
+                          type="button"
+                          onClick={() => void sendDigestNow(sub)}
+                          disabled={busyId === sub.id || !emailConfigured}
+                          title={
+                            emailConfigured
+                              ? "Enviar resumo agora para testar"
+                              : "Configure o SMTP para enviar"
+                          }
+                          className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
+                          data-testid={`interest-notification-send-now-${sub.id}`}
+                        >
+                          Enviar resumo agora
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => void remove(sub)}
