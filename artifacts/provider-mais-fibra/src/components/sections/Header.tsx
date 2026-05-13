@@ -240,7 +240,7 @@ export default function Header() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-menu-trigger"
-        className="header-section__mobile lg:hidden fixed top-0 right-0 overflow-y-auto transition-transform duration-300 ease-in-out"
+        className="header-section__mobile lg:hidden fixed top-0 right-0 flex flex-col transition-transform duration-300 ease-in-out"
         style={{
           width: "min(85vw, 360px)",
           height: "100vh",
@@ -252,23 +252,33 @@ export default function Header() {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        <div className="flex items-center justify-end px-4 pt-4">
+        {/* Drawer header: logo + close */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/10 flex-shrink-0">
+          <img
+            src={logoUrl}
+            alt="Provider + FIBRA"
+            className="h-7 w-auto"
+            width={264}
+            height={47}
+          />
           <button
             onClick={() => setIsOpen(false)}
             className="cursor-pointer text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
             aria-label="Fechar menu"
           >
-            <X size={24} />
+            <X size={22} />
           </button>
         </div>
-        <div className="px-4 pb-5 pt-2">
+
+        {/* Nav links — scrollable */}
+        <nav className="flex-1 overflow-y-auto px-5 py-4">
           {navLinks.map((link) => {
             const active = isActive(link);
             return (
               <button
                 key={link.label}
                 onClick={() => handleNav(link)}
-                className="w-full text-left py-3.5 px-1 text-[16px] leading-[20px] border-b border-white/10 transition-colors last:border-b-0 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
+                className="w-full text-left py-4 px-2 text-[17px] leading-[22px] border-b border-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded hover:bg-white/5"
                 style={{
                   color: active ? COLORS.active : COLORS.inactive,
                   fontFamily: FONT_NUNITO,
@@ -283,43 +293,48 @@ export default function Header() {
           {/* Aplicativo row */}
           <button
             onClick={() => handleNav({ label: "Aplicativo", href: "#app" })}
-            className="w-full text-left py-3.5 px-1 text-[16px] leading-[20px] border-b border-white/10 flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded"
+            className="w-full text-left py-4 px-2 text-[17px] leading-[22px] flex items-center justify-between outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded hover:bg-white/5"
             style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
           >
             <span>Aplicativo</span>
-            <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
-            <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
+            <span className="flex items-center gap-2">
+              <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
+              <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
+            </span>
           </button>
+        </nav>
 
-          <div className="flex items-center gap-4 pt-4 mt-1">
+        {/* Footer: social + CTA — pinned to bottom */}
+        <div className="flex-shrink-0 px-5 pt-4 pb-6 border-t border-white/10">
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              handleNav({ label: "Planos", href: "#planos" });
+            }}
+            className="w-full h-12 rounded-lg text-[15px] leading-[20px] transition-all duration-200 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] mb-4"
+            style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
+          >
+            Assine Já
+          </button>
+          <div className="flex items-center justify-center gap-6">
             <a
               href="https://wa.me/5577998444757"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="WhatsApp"
-              className="opacity-90 hover:opacity-100"
+              className="opacity-90 hover:opacity-100 p-2"
             >
-              <img src={iconWhatsApp} alt="" className="w-5 h-5" />
+              <img src={iconWhatsApp} alt="" className="w-6 h-6" />
             </a>
             <a
               href="https://instagram.com/provider.fibra"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
-              className="opacity-90 hover:opacity-100"
+              className="opacity-90 hover:opacity-100 p-2"
             >
-              <img src={iconInstagram} alt="" className="w-5 h-5" />
+              <img src={iconInstagram} alt="" className="w-6 h-6" />
             </a>
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                handleNav({ label: "Planos", href: "#planos" });
-              }}
-              className="ml-auto h-10 px-5 rounded-lg text-[14px] leading-[20px] transition-all duration-200 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9]"
-              style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
-            >
-              Assine Já
-            </button>
           </div>
         </div>
       </div>
