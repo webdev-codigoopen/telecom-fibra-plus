@@ -67,8 +67,12 @@ export default function OndeEstamos() {
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a Provider
-                <span style={{ color: "#95EB1D" }} className="font-semibold text-[#95eb1d] inline-flex items-center gap-1 align-middle">
-                  <img src={ICON_PLUS} alt="+" className="w-8 h-8" />
+                <span style={{ color: "#95EB1D", marginLeft: "8px" }} className="font-semibold text-[#95eb1d]">
+                  <img
+                    src={ICON_PLUS}
+                    alt="+"
+                    className="inline-block w-7 h-7 mr-1 align-[-0.2em]"
+                  />
                   Fibra
                 </span>{" "}
                 está
