@@ -294,6 +294,10 @@ router.get("/clicks/sources", requireAdminKey, async (_req, res) => {
 router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
     let sinceDate: Date | undefined;
     if (sinceParam) {
       const parsed = new Date(sinceParam);
@@ -303,6 +307,20 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
       }
       sinceDate = parsed;
     }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
 
     const baseSelect = db
       .select({
@@ -313,8 +331,8 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
       })
       .from(planClicksTable);
 
-    const filtered = sinceDate
-      ? baseSelect.where(gte(planClicksTable.clickedAt, sinceDate))
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
       : baseSelect;
 
     const rows = await filtered.orderBy(desc(planClicksTable.clickedAt));
@@ -339,8 +357,19 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
     const csv = `${header}\n${body}${body ? "\n" : ""}`;
 
     const stamp = new Date().toISOString().slice(0, 10);
+    let filename = `clicks-raw-${stamp}.csv`;
+    if (cityParam) {
+      const citySlug = cityParam
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "city";
+      filename = `clicks-raw-${citySlug}-${stamp}.csv`;
+    }
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="clicks-raw-${stamp}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(csv);
   } catch {
     res.status(500).json({ error: "Failed to export raw clicks" });

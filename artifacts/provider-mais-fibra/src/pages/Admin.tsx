@@ -1145,16 +1145,57 @@ export default function Admin() {
                   <button
                     onClick={async () => {
                       try {
-                        const res = await fetch(`${baseUrl}/api/clicks/export/raw`, {
-                          headers: { "X-Admin-Key": adminKey },
-                        });
+                        const params = new URLSearchParams();
+                        const stamp = new Date().toISOString().slice(0, 10);
+                        let filename = `clicks-raw-${stamp}.csv`;
+                        if (statsRange === "custom") {
+                          if (!customFrom || !customTo) {
+                            setSaveError("Selecione as datas inicial e final.");
+                            return;
+                          }
+                          const since = new Date(`${customFrom}T00:00:00`);
+                          const until = new Date(`${customTo}T00:00:00`);
+                          until.setDate(until.getDate() + 1);
+                          if (Number.isNaN(since.getTime()) || Number.isNaN(until.getTime()) || until <= since) {
+                            setSaveError("Intervalo de datas inválido.");
+                            return;
+                          }
+                          params.set("since", since.toISOString());
+                          params.set("until", until.toISOString());
+                          filename = `clicks-raw-${customFrom}_to_${customTo}.csv`;
+                        } else if (statsRange !== "all") {
+                          const since = new Date();
+                          if (statsRange === "today") {
+                            since.setHours(0, 0, 0, 0);
+                          } else {
+                            since.setDate(since.getDate() - 7);
+                          }
+                          params.set("since", since.toISOString());
+                          const rangeSlug = statsRange === "today" ? "today" : "week";
+                          filename = `clicks-raw-${rangeSlug}-${stamp}.csv`;
+                        }
+                        if (cityFilter) {
+                          params.set("city", cityFilter);
+                          const citySlug = cityFilter
+                            .toLowerCase()
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-+|-+$/g, "")
+                            .slice(0, 60) || "city";
+                          filename = filename.replace(/^clicks-raw-/, `clicks-raw-${citySlug}-`);
+                        }
+                        const qs = params.toString();
+                        const res = await fetch(
+                          `${baseUrl}/api/clicks/export/raw${qs ? `?${qs}` : ""}`,
+                          { headers: { "X-Admin-Key": adminKey } },
+                        );
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement("a");
                         a.href = url;
-                        const stamp = new Date().toISOString().slice(0, 10);
-                        a.download = `clicks-raw-${stamp}.csv`;
+                        a.download = filename;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
