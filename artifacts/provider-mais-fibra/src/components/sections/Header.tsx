@@ -255,7 +255,7 @@ export default function Header() {
                 height: "100vh",
                 background:
                   "linear-gradient(160deg, #1A38D5 0%, #122AD5 45%, #0A1A8C 100%)",
-                boxShadow: "-12px 0 40px rgba(0,0,0,0.45)",
+                boxShadow: "none",
                 zIndex: 60,
                 paddingTop: "env(safe-area-inset-top, 0px)",
                 paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -330,7 +330,6 @@ export default function Header() {
                               height: 20,
                               borderRadius: 2,
                               background: COLORS.active,
-                              boxShadow: "0 0 12px rgba(149,235,29,0.6)",
                             }}
                           />
                         )}
@@ -406,7 +405,6 @@ export default function Header() {
                     color: COLORS.ctaText,
                     fontFamily: FONT_NUNITO,
                     fontWeight: 800,
-                    boxShadow: "0 8px 24px rgba(149,235,29,0.35)",
                   }}
                 >
                   Assine Já
