@@ -369,12 +369,12 @@ img, video, svg, canvas, picture {
   }
 }
 
-/* Mobile: todos os h2 com 1.75rem e alinhados à esquerda (exceto Admin) */
+/* Mobile: todos os h2 com 1.75rem e centralizados (exceto Admin) */
 @media (max-width: 639px) {
   h2 {
     font-size: 1.75rem !important;
     line-height: 1.25 !important;
-    text-align: left !important;
+    text-align: center !important;
   }
   .admin-page h2 {
     font-size: revert !important;
