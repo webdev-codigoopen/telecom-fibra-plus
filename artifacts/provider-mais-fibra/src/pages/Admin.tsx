@@ -43,6 +43,15 @@ function apiPlanToPlan(p: ApiPlan): Plan {
   };
 }
 
+function resolveLogoUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
+  if (!base) return url;
+  if (url === base || url.startsWith(`${base}/`)) return url;
+  if (url.startsWith("/")) return `${base}${url}`;
+  return `${base}/${url}`;
+}
+
 const PLAN_IMAGE_ASPECT = 16 / 9;
 const PLAN_IMAGE_MAX_WIDTH = 1200;
 
@@ -2798,16 +2807,17 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Marcas de streaming</label>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Streamings deste plano</label>
           {streamingBrandIds.length > 0 && (
-            <div className="mb-2">
-              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Arraste para reordenar — esta é a ordem que aparece no card.</p>
+            <div className="mb-3">
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Arraste as miniaturas para reordenar — esta é a ordem que aparece no card.</p>
               <div className="flex flex-wrap gap-2">
                 {streamingBrandIds.map((id) => {
                   const brand = brandById.get(id);
                   if (!brand) return null;
                   const isDragging = brandDragId === id;
                   const isOver = brandDragOverId === id && brandDragId !== id;
+                  const logoSrc = brand.logoUrl ? resolveLogoUrl(brand.logoUrl) : null;
                   return (
                     <div
                       key={id}
@@ -2837,22 +2847,40 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
                         setBrandDragId(null);
                         setBrandDragOverId(null);
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border cursor-grab active:cursor-grabbing transition-all ${
+                      className={`relative flex flex-col items-center gap-1 p-2 rounded-lg border-2 cursor-grab active:cursor-grabbing transition-all ${
                         isDragging ? "opacity-40" : ""
-                      } ${isOver ? "ring-2 ring-[#0040FF]/40" : ""}`}
-                      style={{ background: "#0040FF", color: "white", borderColor: "#0040FF" }}
+                      } ${isOver ? "ring-2 ring-[#0040FF]/40 border-[#0040FF]" : "border-[#0040FF]/30"}`}
+                      style={{
+                        background: "linear-gradient(135deg, #2C41DA 20%, #172DD8 96%)",
+                        width: 110,
+                      }}
                       title="Arraste para reordenar"
                       aria-label={`Reordenar ${brand.name}`}
                     >
-                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 opacity-80" fill="currentColor">
-                        <circle cx="9" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/>
-                        <circle cx="15" cy="6" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="15" cy="18" r="1.3"/>
-                      </svg>
-                      <span>{brand.name}</span>
+                      <div className="w-full h-12 flex items-center justify-center px-1 bg-white/5 rounded">
+                        {logoSrc ? (
+                          <img
+                            src={logoSrc}
+                            alt={brand.name}
+                            className="max-h-10 max-w-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-white text-xs font-bold uppercase tracking-wide text-center leading-tight">
+                            {brand.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 w-full">
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 text-white/70 flex-shrink-0" fill="currentColor">
+                          <circle cx="9" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/>
+                          <circle cx="15" cy="6" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="15" cy="18" r="1.3"/>
+                        </svg>
+                        <span className="text-white text-[11px] font-semibold truncate flex-1">{brand.name}</span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => toggleBrand(id)}
-                        className="ml-1 -mr-1 w-4 h-4 inline-flex items-center justify-center rounded-full hover:bg-white/20"
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 inline-flex items-center justify-center rounded-full bg-white border border-[#E0E3EB] shadow-sm hover:bg-red-50 hover:border-red-300 text-[#2A2D38] hover:text-red-600 transition-colors"
                         aria-label={`Remover ${brand.name}`}
                         title="Remover"
                       >
@@ -2868,21 +2896,38 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
           )}
           {streamingBrands.some((b) => !streamingBrandIds.includes(b.id)) && (
             <div>
-              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Disponíveis</p>
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Disponíveis — clique para adicionar</p>
               <div className="flex flex-wrap gap-2">
                 {streamingBrands
                   .filter((b) => !streamingBrandIds.includes(b.id))
-                  .map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      onClick={() => toggleBrand(b.id)}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
-                      style={{ background: "white", color: "#2A2D38", borderColor: "#E0E3EB" }}
-                    >
-                      + {b.name}
-                    </button>
-                  ))}
+                  .map((b) => {
+                    const logoSrc = b.logoUrl ? resolveLogoUrl(b.logoUrl) : null;
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => toggleBrand(b.id)}
+                        className="flex flex-col items-center gap-1 p-2 rounded-lg border border-dashed border-[#E0E3EB] hover:border-[#0040FF]/50 hover:bg-[#0040FF]/5 transition-all"
+                        style={{ width: 110, background: "white" }}
+                        aria-label={`Adicionar ${b.name}`}
+                      >
+                        <div className="w-full h-12 flex items-center justify-center px-1 bg-[#F5F6FA] rounded">
+                          {logoSrc ? (
+                            <img
+                              src={logoSrc}
+                              alt={b.name}
+                              className="max-h-10 max-w-full object-contain"
+                            />
+                          ) : (
+                            <span className="text-[#2A2D38] text-xs font-bold uppercase tracking-wide text-center leading-tight">
+                              {b.name}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[#0040FF] text-[11px] font-semibold">+ {b.name}</span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
           )}
