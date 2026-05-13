@@ -99,20 +99,30 @@ export default function WhatsAppSection() {
           }}
           className="atendimento-right"
         >
-          <img
-            src={atendimentoImage}
-            alt="Atendimento via WhatsApp"
-            width={619}
-            height={464}
-            loading="lazy"
-            decoding="async"
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "block",
-              objectFit: "cover",
-            }}
-          />
+          <div
+            className="atendimento-image-wrap"
+            style={{ position: "relative", width: "100%", height: "100%", display: "block" }}
+          >
+            <img
+              src={atendimentoImage}
+              alt="Atendimento via WhatsApp"
+              width={619}
+              height={464}
+              loading="lazy"
+              decoding="async"
+              style={{
+                width: "100%",
+                height: "100%",
+                display: "block",
+                objectFit: "cover",
+              }}
+            />
+            <div
+              aria-hidden
+              className="atendimento-image-fade"
+              style={{ display: "none" }}
+            />
+          </div>
         </motion.div>
       </div>
 
@@ -120,12 +130,29 @@ export default function WhatsAppSection() {
         @media (max-width: 1023px) {
           .atendimento-container {
             flex-direction: column !important;
-            gap: 32px !important;
+            gap: 56px !important;
             padding-top: 40px !important;
             padding-bottom: 0 !important;
             padding-left: 0 !important;
             padding-right: 0 !important;
             max-width: 100% !important;
+          }
+          .atendimento-image-fade {
+            display: block !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            height: 80px !important;
+            background: linear-gradient(
+              to bottom,
+              #00091C 0%,
+              rgba(0, 9, 28, 0.85) 35%,
+              rgba(0, 9, 28, 0.4) 70%,
+              rgba(0, 9, 28, 0) 100%
+            ) !important;
+            pointer-events: none !important;
+            z-index: 2 !important;
           }
           .atendimento-left {
             width: 100% !important;
