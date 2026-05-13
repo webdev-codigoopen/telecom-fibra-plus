@@ -131,32 +131,6 @@ export default function QuemSomos() {
           </div>
         </section>
 
-        <section className="py-16" style={{ background: "#122AD5" }}>
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {stats.map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.4 }}
-                  className="text-center"
-                >
-                  <div
-                    className="text-4xl sm:text-5xl font-black mb-1 leading-none"
-                    style={{ color: "#95EB1D", letterSpacing: "-0.02em" }}
-                  >
-                    {stat.value}
-                    {stat.suffix && <span className="text-2xl sm:text-3xl">{stat.suffix}</span>}
-                  </div>
-                  <p className="text-white/70 text-sm font-semibold">{stat.label}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="py-20 bg-white">
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
             <motion.div
