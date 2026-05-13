@@ -16,6 +16,8 @@ const PREVIEW_HEALTH_ALERT_MIGRATED_KEY =
 type AlertState = {
   lastAlertSentAt: string | null;
   lastAlertedBotFetchAt: string | null;
+  lastRecoverySentAt: string | null;
+  recoveredIncidentKey: string | null;
 };
 
 type HealthCounts = {
@@ -33,14 +35,27 @@ async function readState(): Promise<AlertState> {
       .where(eq(appSettingsTable.key, PREVIEW_HEALTH_ALERT_STATE_KEY))
       .limit(1);
     const row = rows[0];
-    if (!row) return { lastAlertSentAt: null, lastAlertedBotFetchAt: null };
+    if (!row)
+      return {
+        lastAlertSentAt: null,
+        lastAlertedBotFetchAt: null,
+        lastRecoverySentAt: null,
+        recoveredIncidentKey: null,
+      };
     const parsed = JSON.parse(row.value) as Partial<AlertState>;
     return {
       lastAlertSentAt: parsed.lastAlertSentAt ?? null,
       lastAlertedBotFetchAt: parsed.lastAlertedBotFetchAt ?? null,
+      lastRecoverySentAt: parsed.lastRecoverySentAt ?? null,
+      recoveredIncidentKey: parsed.recoveredIncidentKey ?? null,
     };
   } catch {
-    return { lastAlertSentAt: null, lastAlertedBotFetchAt: null };
+    return {
+      lastAlertSentAt: null,
+      lastAlertedBotFetchAt: null,
+      lastRecoverySentAt: null,
+      recoveredIncidentKey: null,
+    };
   }
 }
 
@@ -252,26 +267,131 @@ function buildHtml(counts: HealthCounts, dashboardUrl: string): string {
 </html>`;
 }
 
+function buildRecoveryHtml(
+  newBotFetchAt: string | null,
+  dashboardUrl: string,
+): string {
+  const fetchTime = fmtDateTimeBR(newBotFetchAt);
+  const linkAttr = escapeHtml(dashboardUrl);
+  const linkText = escapeHtml(dashboardUrl);
+  return `<!doctype html>
+<html lang="pt-BR">
+<body style="font-family: Arial, sans-serif; color:#0D0D0D; max-width:640px; margin:0 auto; padding:24px;">
+  <h2 style="margin:0 0 8px; color:#1A7A3A;">✅ Pré-visualização do WhatsApp voltou a funcionar</h2>
+  <p style="margin:0 0 12px;">
+    Um crawler do WhatsApp/Facebook acabou de buscar a página de
+    compartilhamento, então as pré-visualizações estão sendo geradas
+    novamente. O incidente anterior foi encerrado.
+  </p>
+  <ul style="margin:0 0 16px; padding-left:20px;">
+    <li>Nova busca por crawler: <strong>${escapeHtml(fetchTime)}</strong></li>
+  </ul>
+  <p style="margin:0 0 16px;">
+    Veja o painel para acompanhar:
+    <br/>
+    <a href="${linkAttr}" style="color:#0A55C2;">${linkText}</a>
+  </p>
+  <p style="color:#7A7F8C; font-size:12px; margin-top:24px;">
+    Você está recebendo este aviso porque está cadastrado como destinatário
+    do alerta de pré-visualização do WhatsApp no painel admin (aba
+    "Relatórios por email"). Apenas um e-mail de recuperação é enviado por
+    incidente.
+  </p>
+</body>
+</html>`;
+}
+
 export type PreviewHealthAlertResult =
   | { sent: false; reason: string }
-  | { sent: true; recipients: string[]; lastBotFetchAt: string | null };
+  | {
+      sent: true;
+      kind: "alert";
+      recipients: string[];
+      lastBotFetchAt: string | null;
+    }
+  | {
+      sent: true;
+      kind: "recovery";
+      recipients: string[];
+      newBotFetchAt: string | null;
+    };
 
 export async function checkAndSendPreviewHealthAlert(
   now: Date = new Date(),
 ): Promise<PreviewHealthAlertResult> {
   const counts = await fetchHealthCounts(now);
+  const state = await readState();
+  const currentBotKey = counts.lastBotFetchAt ?? "none";
+
+  // Recovery: a previous outage was alerted, a new crawler fetch has now
+  // arrived (currentBotKey changed), and we have not yet sent a recovery
+  // email for that incident.
+  if (
+    state.lastAlertedBotFetchAt !== null &&
+    state.lastAlertedBotFetchAt !== currentBotKey &&
+    state.recoveredIncidentKey !== state.lastAlertedBotFetchAt &&
+    counts.lastBotFetchAt !== null
+  ) {
+    if (!(await isEmailConfigured())) {
+      logger.warn(
+        "Email not configured; skipping preview-health recovery email.",
+      );
+      return { sent: false, reason: "email-not-configured" };
+    }
+
+    const recipients = await fetchSubscriberEmails();
+    if (recipients.length === 0) {
+      // Mark recovery as "handled" anyway so we don't keep retrying when
+      // there are no subscribers.
+      await writeState({
+        ...state,
+        lastRecoverySentAt: state.lastRecoverySentAt,
+        recoveredIncidentKey: state.lastAlertedBotFetchAt,
+      });
+      return { sent: false, reason: "no-subscribers" };
+    }
+
+    const dashboardUrl = adminDashboardUrl();
+    const html = buildRecoveryHtml(counts.lastBotFetchAt, dashboardUrl);
+    const subject = "✅ Pré-visualização do WhatsApp voltou a funcionar";
+
+    try {
+      await sendEmail({ to: recipients, subject, html });
+    } catch (err) {
+      logger.error(
+        { err },
+        "Failed to send preview-health recovery email",
+      );
+      return { sent: false, reason: "send-failed" };
+    }
+
+    await writeState({
+      ...state,
+      lastRecoverySentAt: now.toISOString(),
+      recoveredIncidentKey: state.lastAlertedBotFetchAt,
+    });
+
+    logger.info(
+      { recipients, newBotFetchAt: counts.lastBotFetchAt },
+      "Preview-health recovery email sent",
+    );
+    return {
+      sent: true,
+      kind: "recovery",
+      recipients,
+      newBotFetchAt: counts.lastBotFetchAt,
+    };
+  }
 
   // Alert condition mirrors the dashboard banner.
   if (counts.humanPreviews24h <= 0 || counts.botPreviews24h > 0) {
     return { sent: false, reason: "condition-not-met" };
   }
 
-  const state = await readState();
   // Throttle: one alert per "gap". A gap is identified by the most recent
   // bot-fetch timestamp (or the sentinel "none" when no bot fetch ever
   // happened). Once that value changes (a new crawler hit, then a new
   // outage), the next alert can be sent.
-  const currentBotKey = counts.lastBotFetchAt ?? "none";
   if (state.lastAlertedBotFetchAt === currentBotKey) {
     return { sent: false, reason: "already-alerted-for-this-gap" };
   }
@@ -301,11 +421,18 @@ export async function checkAndSendPreviewHealthAlert(
   await writeState({
     lastAlertSentAt: now.toISOString(),
     lastAlertedBotFetchAt: currentBotKey,
+    lastRecoverySentAt: state.lastRecoverySentAt,
+    recoveredIncidentKey: state.recoveredIncidentKey,
   });
 
   logger.info(
     { recipients, lastBotFetchAt: counts.lastBotFetchAt },
     "Preview-health alert sent",
   );
-  return { sent: true, recipients, lastBotFetchAt: counts.lastBotFetchAt };
+  return {
+    sent: true,
+    kind: "alert",
+    recipients,
+    lastBotFetchAt: counts.lastBotFetchAt,
+  };
 }
