@@ -120,6 +120,7 @@ export default function Footer() {
         >
           {/* Col 1 — Brand */}
           <div
+            className="footer-brand"
             style={{
               width: 271,
               display: "flex",
@@ -374,6 +375,9 @@ export default function Footer() {
         @media (max-width: 599px) {
           .footer-container { padding-left: 24px !important; padding-right: 24px !important; }
           .footer-top > div { width: 100% !important; }
+          .footer-brand { align-items: center !important; text-align: center !important; }
+          .footer-brand p { width: 100% !important; }
+          .footer-brand > div { justify-content: center !important; }
           .footer-bottom { flex-direction: column !important; align-items: flex-start !important; }
         }
       `}</style>
