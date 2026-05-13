@@ -141,7 +141,7 @@ router.post("/demand/interest", async (req, res) => {
     });
     res.status(201).json({ ok: true });
     // Fire-and-forget admin notification email — never blocks or fails the request.
-    void notifyAdminOfNewInterest({ city, neighborhood, whatsapp });
+    void notifyAdminOfNewInterest({ city, neighborhood, whatsapp, createdAt: new Date() });
   } catch {
     res.status(500).json({ error: "Não foi possível registrar seu interesse. Tente novamente." });
   }
@@ -179,6 +179,7 @@ async function notifyAdminOfNewInterest(payload: {
   city: string;
   neighborhood: string;
   whatsapp: string;
+  createdAt: Date;
 }): Promise<void> {
   try {
     const rows = await db
@@ -203,6 +204,11 @@ async function notifyAdminOfNewInterest(payload: {
     }
     const link = whatsappLink(payload.whatsapp);
     const display = formatWhatsappDisplay(payload.whatsapp);
+    const timestampDisplay = new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: "America/Sao_Paulo",
+    }).format(payload.createdAt);
     const subject = `Novo interesse em ${payload.city} — ${payload.neighborhood}`;
     const html = `
 <!doctype html>
@@ -214,6 +220,7 @@ async function notifyAdminOfNewInterest(payload: {
 <tr><td style="padding:6px 0;color:#7A7F8C;width:120px">Cidade</td><td style="padding:6px 0;font-weight:600">${escapeHtml(payload.city)}</td></tr>
 <tr><td style="padding:6px 0;color:#7A7F8C">Bairro/Rua</td><td style="padding:6px 0">${escapeHtml(payload.neighborhood)}</td></tr>
 <tr><td style="padding:6px 0;color:#7A7F8C">WhatsApp</td><td style="padding:6px 0;font-family:monospace">${escapeHtml(display)}</td></tr>
+<tr><td style="padding:6px 0;color:#7A7F8C">Recebido em</td><td style="padding:6px 0">${escapeHtml(timestampDisplay)}</td></tr>
 </table>
 <p style="margin:20px 0 0">
   <a href="${link}" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px">
@@ -228,6 +235,7 @@ async function notifyAdminOfNewInterest(payload: {
       `Cidade: ${payload.city}`,
       `Bairro/Rua: ${payload.neighborhood}`,
       `WhatsApp: ${display}`,
+      `Recebido em: ${timestampDisplay}`,
       `Link: ${link}`,
     ].join("\n");
     await sendEmail({ to, subject, html, text });
