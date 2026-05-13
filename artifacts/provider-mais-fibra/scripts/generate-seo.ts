@@ -235,6 +235,56 @@ function demandaRoute(): RouteSpec {
   };
 }
 
+function politicaPrivacidadeRoute(): RouteSpec {
+  return {
+    path: "/politica-de-privacidade",
+    title: "Política de Privacidade — Provider Mais Fibra",
+    description:
+      "Saiba como a Provider Mais Fibra coleta, utiliza, armazena e protege seus dados pessoais, em conformidade com a LGPD.",
+    keywords: ["política de privacidade", "LGPD", "Provider Mais Fibra", "proteção de dados"],
+    changefreq: "yearly",
+    priority: 0.3,
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Política de Privacidade — Provider Mais Fibra",
+        url: `${SITE_URL}/politica-de-privacidade`,
+        inLanguage: "pt-BR",
+      },
+    ],
+    bodyHtml: `
+      <header><h1>Política de Privacidade</h1></header>
+      <p>A Provider Mais Fibra (CNPJ 28.632.900/0001-70) descreve nesta página como coleta, utiliza, armazena e protege os dados pessoais dos seus clientes, em conformidade com a Lei Geral de Proteção de Dados (LGPD).</p>
+    `,
+  };
+}
+
+function termosDeUsoRoute(): RouteSpec {
+  return {
+    path: "/termos-de-uso",
+    title: "Termos de Uso — Provider Mais Fibra",
+    description:
+      "Conheça os Termos de Uso do site e dos serviços da Provider Mais Fibra, provedor de internet 100% fibra óptica do Oeste da Bahia.",
+    keywords: ["termos de uso", "Provider Mais Fibra", "contrato de prestação de serviços"],
+    changefreq: "yearly",
+    priority: 0.3,
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        name: "Termos de Uso — Provider Mais Fibra",
+        url: `${SITE_URL}/termos-de-uso`,
+        inLanguage: "pt-BR",
+      },
+    ],
+    bodyHtml: `
+      <header><h1>Termos de Uso</h1></header>
+      <p>Estes Termos regulam o acesso ao site e a contratação dos serviços de internet e IPTV da Provider Mais Fibra (CNPJ 28.632.900/0001-70), homologada pela Anatel.</p>
+    `,
+  };
+}
+
 function buildHead(route: RouteSpec): string {
   const url = `${SITE_URL}${route.path === "/" ? "/" : route.path}`;
   const image = `${SITE_URL}/opengraph.jpg`;
@@ -328,6 +378,8 @@ async function main() {
     quemSomosRoute(),
     contatoRoute(),
     demandaRoute(),
+    politicaPrivacidadeRoute(),
+    termosDeUsoRoute(),
   ];
 
   for (const route of routes) {

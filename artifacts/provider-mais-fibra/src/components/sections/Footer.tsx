@@ -315,7 +315,12 @@ export default function Footer() {
           </p>
           <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 16 }}>
             <a
-              href="#"
+              href="/politica-de-privacidade"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/politica-de-privacidade");
+                window.scrollTo({ top: 0 });
+              }}
               style={{
                 fontFamily: BODY_FONT,
                 fontWeight: 400,
@@ -340,7 +345,12 @@ export default function Footer() {
               |
             </span>
             <a
-              href="#"
+              href="/termos-de-uso"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/termos-de-uso");
+                window.scrollTo({ top: 0 });
+              }}
               style={{
                 fontFamily: BODY_FONT,
                 fontWeight: 400,

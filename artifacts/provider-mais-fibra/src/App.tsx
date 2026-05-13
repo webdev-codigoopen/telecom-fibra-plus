@@ -9,6 +9,8 @@ const QuemSomos = lazy(() => import("@/pages/QuemSomos"));
 const Contato = lazy(() => import("@/pages/Contato"));
 const OndeEstamos = lazy(() => import("@/pages/OndeEstamos"));
 const DemandaCidades = lazy(() => import("@/pages/DemandaCidades"));
+const PoliticaPrivacidade = lazy(() => import("@/pages/PoliticaPrivacidade"));
+const TermosDeUso = lazy(() => import("@/pages/TermosDeUso"));
 const Admin = lazy(() => import("@/pages/Admin"));
 
 function RouteFallback() {
@@ -37,6 +39,8 @@ function Router() {
       <Route path="/contato" component={Contato} />
       <Route path="/onde-estamos" component={OndeEstamos} />
       <Route path="/demanda" component={DemandaCidades} />
+      <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
+      <Route path="/termos-de-uso" component={TermosDeUso} />
       <Route path="/admin" component={Admin} />
       <Route component={NotFound} />
     </Switch>
