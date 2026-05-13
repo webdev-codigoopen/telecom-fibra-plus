@@ -108,9 +108,9 @@ export default function WhatsAppSection() {
             decoding="async"
             style={{
               width: "100%",
-              height: "auto",
+              height: "100%",
               display: "block",
-              objectFit: "contain",
+              objectFit: "cover",
             }}
           />
         </motion.div>
