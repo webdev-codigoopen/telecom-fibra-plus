@@ -154,7 +154,7 @@ export default function Header() {
               Aplicativo
             </a>
             <a
-              href="https://play.google.com/store"
+              href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
               target="_blank"
               rel="noopener noreferrer"
               data-testid="header-google-play"
@@ -164,7 +164,7 @@ export default function Header() {
               <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" width={16} height={18} />
             </a>
             <a
-              href="https://www.apple.com/app-store/"
+              href="https://apps.apple.com/br/app/provider-mais-fibra/id6762133657"
               target="_blank"
               rel="noopener noreferrer"
               data-testid="header-app-store"

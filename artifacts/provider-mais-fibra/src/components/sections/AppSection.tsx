@@ -229,7 +229,9 @@ export default function AppSection() {
           </p>
 
           <a
-            href="#"
+            href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
+            target="_blank"
+            rel="noopener noreferrer"
             data-testid="app-google-play"
             aria-label="Disponível no Google Play"
             style={{ display: "inline-block", lineHeight: 0 }}
@@ -242,7 +244,9 @@ export default function AppSection() {
           </a>
 
           <a
-            href="#"
+            href="https://apps.apple.com/br/app/provider-mais-fibra/id6762133657"
+            target="_blank"
+            rel="noopener noreferrer"
             data-testid="app-apple-store"
             aria-label="Disponível na App Store"
             style={{ display: "inline-block", lineHeight: 0 }}
