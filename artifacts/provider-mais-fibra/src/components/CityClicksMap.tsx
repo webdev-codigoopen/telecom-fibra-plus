@@ -1426,6 +1426,7 @@ export default function CityClicksMap(props: Props) {
             : null
         }
         conversion={isAdminMode ? conversion : null}
+        targetPctForCity={isAdminMode ? targetPctForCity : null}
         selectedCity={selectedCity}
         onSelectCity={onSelectCity}
         exportRangeLabel={exportRangeLabel}
@@ -1441,6 +1442,7 @@ function TopCitiesList({
   totalClicks,
   deltas,
   conversion,
+  targetPctForCity,
   selectedCity,
   onSelectCity,
   exportRangeLabel,
@@ -1449,6 +1451,7 @@ function TopCitiesList({
   totalClicks: number;
   deltas: Map<string, DeltaInfo | null> | null;
   conversion: Map<string, CityConversion> | null;
+  targetPctForCity: ((name: string) => number | null) | null;
   selectedCity?: string | null;
   onSelectCity?: (city: string | null) => void;
   exportRangeLabel?: string | null;
@@ -1463,22 +1466,38 @@ function TopCitiesList({
   const conversionRows = useMemo(() => {
     if (!conversion) return [];
     return Array.from(conversion.entries())
-      .map(([name, c]) => ({
-        name,
-        previews: c.previews,
-        signups: c.signups,
-        rate: c.previews > 0 ? (c.signups / c.previews) * 100 : null,
-      }))
+      .map(([name, c]) => {
+        const rate = c.previews > 0 ? (c.signups / c.previews) * 100 : null;
+        const targetPct = targetPctForCity ? targetPctForCity(name) : null;
+        let status: "below" | "above" | "ineligible" | "no-target" = "no-target";
+        if (targetPct == null) status = "no-target";
+        else if (rate === null || c.previews < BELOW_TARGET_MIN_PREVIEWS) status = "ineligible";
+        else if (rate < targetPct) status = "below";
+        else status = "above";
+        return {
+          name,
+          previews: c.previews,
+          signups: c.signups,
+          rate,
+          targetPct,
+          status,
+        };
+      })
       .filter((r) => r.previews > 0 || r.signups > 0)
       .sort((a, b) => {
         if (b.previews !== a.previews) return b.previews - a.previews;
         return a.name.localeCompare(b.name, "pt-BR");
       });
-  }, [conversion]);
+  }, [conversion, targetPctForCity]);
 
   const totalPreviews = conversionRows.reduce((s, r) => s + r.previews, 0);
   const totalSignups = conversionRows.reduce((s, r) => s + r.signups, 0);
   const overallRate = totalPreviews > 0 ? (totalSignups / totalPreviews) * 100 : null;
+  const belowCount = conversionRows.filter((r) => r.status === "below").length;
+  const eligibleCount = conversionRows.filter(
+    (r) => r.status === "below" || r.status === "above",
+  ).length;
+  const showTargetSummary = targetPctForCity != null && eligibleCount > 0;
 
   const canExport = exportRangeLabel != null && sorted.some((e) => e.total > 0);
 
@@ -1627,6 +1646,32 @@ function TopCitiesList({
                 : "Sem previews no período"}
             </span>
           </div>
+          {showTargetSummary && (
+            <div
+              className={`mb-2 text-[11px] rounded-md px-2 py-1.5 border ${
+                belowCount > 0
+                  ? "bg-[#FFF1F1] border-[#F5C2C2] text-[#7A1F1F]"
+                  : "bg-[#EDFAF1] border-[#BFE6CB] text-[#1F5A33]"
+              }`}
+              data-testid="below-target-summary"
+            >
+              {belowCount > 0 ? (
+                <>
+                  <span className="font-semibold">{belowCount}</span>
+                  {" "}
+                  {belowCount === 1
+                    ? "cidade está abaixo da meta"
+                    : "cidades estão abaixo da meta"}
+                  {" "}
+                  <span className="text-[#7A7F8C]">
+                    (de {eligibleCount} com dados suficientes)
+                  </span>
+                </>
+              ) : (
+                <>Todas as {eligibleCount} cidades com dados suficientes estão na meta ou acima.</>
+              )}
+            </div>
+          )}
           {conversionRows.length === 0 ? (
             <p className="text-[11px] text-[#7A7F8C] italic">
               Nenhum preview do WhatsApp foi aberto a partir de uma página de cidade neste período.
@@ -1652,14 +1697,48 @@ function TopCitiesList({
                       : rate >= 20
                         ? "#0040FF"
                         : "#E03131";
+                const isBelow = r.status === "below";
+                const isAbove = r.status === "above";
+                const rowBg = isBelow
+                  ? "bg-[#FFF6F6] ring-1 ring-[#F5C2C2] px-1.5 -mx-1.5 py-0.5 rounded-md"
+                  : "";
+                let badge: React.ReactNode = null;
+                if (isBelow && r.targetPct != null && rate !== null) {
+                  const gap = r.targetPct - rate;
+                  badge = (
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[10px] font-semibold rounded px-1.5 py-0.5 bg-[#FDE2E2] text-[#C92020]"
+                      title={`Meta: ${r.targetPct.toFixed(0)}% — faltam ${gap.toFixed(1)} pontos`}
+                      data-testid="below-target-badge"
+                    >
+                      ▼ abaixo da meta
+                    </span>
+                  );
+                } else if (isAbove && r.targetPct != null) {
+                  badge = (
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[10px] font-semibold rounded px-1.5 py-0.5 bg-[#E2F5E9] text-[#00863A]"
+                      title={`Meta: ${r.targetPct.toFixed(0)}%`}
+                      data-testid="above-target-badge"
+                    >
+                      ▲ acima da meta
+                    </span>
+                  );
+                }
                 return (
-                  <li key={r.name} className="flex items-center gap-2 text-xs">
+                  <li
+                    key={r.name}
+                    className={`flex items-center gap-2 text-xs ${rowBg}`}
+                  >
                     <span className="w-5 text-right font-semibold text-[#7A7F8C] tabular-nums">
                       {idx + 1}.
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center justify-between gap-2">
-                        <span className="truncate font-semibold text-[#2A2D38]">{r.name}</span>
+                        <span className="truncate font-semibold text-[#2A2D38] flex items-center gap-1.5 min-w-0">
+                          <span className="truncate">{r.name}</span>
+                          {badge}
+                        </span>
                         <span className="tabular-nums text-[#7A7F8C] text-[11px] shrink-0 flex items-center gap-2">
                           <span>
                             {r.previews} prev · {r.signups} assin
