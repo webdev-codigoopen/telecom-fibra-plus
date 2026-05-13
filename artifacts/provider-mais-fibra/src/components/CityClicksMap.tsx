@@ -162,6 +162,7 @@ type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
 const CONVERSION_SCALE_STORAGE_PREFIX = "pmf:mapConversionScale";
 const PER_CITY_TARGETS_STORAGE_PREFIX = "pmf:mapPerCityTargets";
 const DEFAULT_TARGET_PCT = 10;
+const BELOW_TARGET_MIN_PREVIEWS = 5;
 
 type PerCityTargets = Record<string, number>;
 
@@ -491,6 +492,55 @@ export default function CityClicksMap(props: Props) {
 
   const scaleMaxPct = scaleMaxRate * 100;
   const formatPct = (n: number) => (n >= 10 ? n.toFixed(0) : n.toFixed(1));
+
+  type BelowTargetRow = {
+    name: string;
+    previews: number;
+    signups: number;
+    ratePct: number;
+    targetPct: number;
+    gapPct: number;
+    isPerCityTarget: boolean;
+  };
+
+  const belowTargetRows = useMemo<BelowTargetRow[]>(() => {
+    const rows: BelowTargetRow[] = [];
+    for (const [name, conv] of conversion.entries()) {
+      if (conv.previews < BELOW_TARGET_MIN_PREVIEWS) continue;
+      const targetPct = targetPctForCity(name);
+      if (targetPct == null) continue;
+      const ratePct = (conv.signups / conv.previews) * 100;
+      if (ratePct >= targetPct) continue;
+      rows.push({
+        name,
+        previews: conv.previews,
+        signups: conv.signups,
+        ratePct,
+        targetPct,
+        gapPct: targetPct - ratePct,
+        isPerCityTarget: perCityTargets[name] != null,
+      });
+    }
+    rows.sort((a, b) => {
+      if (b.gapPct !== a.gapPct) return b.gapPct - a.gapPct;
+      return a.name.localeCompare(b.name, "pt-BR");
+    });
+    return rows;
+    // targetPctForCity reads from conversionScale and perCityTargets, both in deps below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversion, conversionScale, perCityTargets]);
+
+  const hasAnyTarget = useMemo(() => {
+    if (conversionScale.mode === "target") return true;
+    return Object.keys(perCityTargets).length > 0;
+  }, [conversionScale, perCityTargets]);
+
+  const hasAnyEligibleCity = useMemo(() => {
+    for (const conv of conversion.values()) {
+      if (conv.previews >= BELOW_TARGET_MIN_PREVIEWS) return true;
+    }
+    return false;
+  }, [conversion]);
 
   const exportRangeLabel = useMemo(() => {
     if (!isAdminMode) return null;
@@ -1257,6 +1307,80 @@ export default function CityClicksMap(props: Props) {
           )}
         </svg>
       </div>
+      {effectiveColorMode === "conversion" && (
+        <div
+          className="mt-3 rounded-lg border border-[#E0E3EB] bg-white px-3 py-2"
+          data-testid="below-target-panel"
+        >
+          <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
+            <h4 className="font-bold text-xs text-[#0D0D0D]">
+              Abaixo da meta
+              <span className="ml-1 font-normal text-[10px] text-[#7A7F8C]">
+                (taxa de conversão &lt; meta · mín. {BELOW_TARGET_MIN_PREVIEWS} previews)
+              </span>
+            </h4>
+            {belowTargetRows.length > 0 && (
+              <span className="text-[10px] text-[#7A7F8C] tabular-nums">
+                {belowTargetRows.length}{" "}
+                {belowTargetRows.length === 1 ? "cidade" : "cidades"}
+              </span>
+            )}
+          </div>
+          {belowTargetRows.length === 0 ? (
+            <p className="text-[11px] text-[#7A7F8C] italic">
+              {!hasAnyTarget
+                ? "Defina uma meta de conversão para ver as cidades que estão abaixo dela."
+                : !hasAnyEligibleCity
+                  ? `Nenhuma cidade tem ao menos ${BELOW_TARGET_MIN_PREVIEWS} previews neste período.`
+                  : "Todas as cidades elegíveis estão atingindo a meta."}
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-1.5">
+              {belowTargetRows.map((r, idx) => (
+                <li
+                  key={r.name}
+                  className="flex items-center gap-2 text-xs"
+                  data-testid="below-target-row"
+                >
+                  <span className="w-5 text-right font-semibold text-[#7A7F8C] tabular-nums">
+                    {idx + 1}.
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate font-semibold text-[#2A2D38]">
+                        {r.name}
+                      </span>
+                      <span className="tabular-nums text-[#7A7F8C] text-[11px] shrink-0 flex items-center gap-2">
+                        <span>
+                          {r.previews} prev · {r.signups} assin
+                        </span>
+                        <span className="font-semibold text-[#C92020]">
+                          {formatPct(r.ratePct)}%
+                        </span>
+                        <span className="text-[#7A7F8C]">
+                          / meta {formatPct(r.targetPct)}%
+                          {r.isPerCityTarget ? " (cidade)" : ""}
+                        </span>
+                        <span className="font-semibold text-[#C92020]">
+                          ▼ {formatPct(r.gapPct)} pp
+                        </span>
+                      </span>
+                    </span>
+                    <span className="block mt-1 h-1.5 rounded-full bg-[#F0F2F7] overflow-hidden">
+                      <span
+                        className="block h-full rounded-full bg-[#E03131]"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, r.targetPct > 0 ? (r.ratePct / r.targetPct) * 100 : 0))}%`,
+                        }}
+                      />
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
       {isAdminMode && selectedCity && adminKey && baseUrl && (
         <CityTrendPanel
           baseUrl={baseUrl}
