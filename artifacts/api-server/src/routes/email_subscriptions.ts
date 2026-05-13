@@ -18,6 +18,11 @@ import {
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import {
+  CITY_BELOW_TARGET_REPORT_TYPE,
+  sendBelowTargetDigest,
+  type BelowTargetFrequency,
+} from "../lib/cityBelowTargetDigest";
 
 const router: IRouter = Router();
 
@@ -403,6 +408,209 @@ router.post(
       res.json(updated);
     } catch (err) {
       logger.error({ err }, "Failed to send email report now");
+      res.status(500).json({
+        error:
+          "Falha ao enviar email de teste. Verifique as credenciais SMTP e tente novamente.",
+      });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// City "below target" digest subscriptions. Admins opt in here to receive a
+// daily/weekly email when one or more cities slip below their conversion
+// target. Recipients are stored in the same table with reportType
+// "city_below_target".
+// ---------------------------------------------------------------------------
+
+const belowTargetCreateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  frequency: z.enum(["daily", "weekly"]),
+  enabled: z.boolean().optional(),
+});
+
+const belowTargetUpdateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  frequency: z.enum(["daily", "weekly"]).optional(),
+  enabled: z.boolean().optional(),
+});
+
+router.get(
+  "/email-subscriptions/city-below-target",
+  requireAdminKey,
+  async (_req, res) => {
+    try {
+      const rows = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          eq(emailReportSubscriptionsTable.reportType, CITY_BELOW_TARGET_REPORT_TYPE),
+        )
+        .orderBy(asc(emailReportSubscriptionsTable.createdAt));
+      res.json({ items: rows, emailConfigured: await isEmailConfigured() });
+    } catch (err) {
+      logger.error({ err }, "Failed to list below-target subscriptions");
+      res.status(500).json({ error: "Failed to list subscriptions" });
+    }
+  },
+);
+
+router.post(
+  "/email-subscriptions/city-below-target",
+  requireAdminKey,
+  async (req, res) => {
+    const parsed = belowTargetCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Dados inválidos.", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const existing = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.reportType, CITY_BELOW_TARGET_REPORT_TYPE),
+            eq(emailReportSubscriptionsTable.email, parsed.data.email),
+          ),
+        );
+      if (existing.length > 0) {
+        res.status(409).json({
+          error: "Esse email já está cadastrado para receber este alerta.",
+        });
+        return;
+      }
+      const [row] = await db
+        .insert(emailReportSubscriptionsTable)
+        .values({
+          email: parsed.data.email,
+          frequency: parsed.data.frequency,
+          reportType: CITY_BELOW_TARGET_REPORT_TYPE,
+          enabled: parsed.data.enabled ?? true,
+        })
+        .returning();
+      res.status(201).json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to create below-target subscription");
+      res.status(500).json({ error: "Failed to create subscription" });
+    }
+  },
+);
+
+router.patch(
+  "/email-subscriptions/city-below-target/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = belowTargetUpdateSchema.safeParse(req.body);
+    if (!parsed.success || Object.keys(parsed.data).length === 0) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    try {
+      const [row] = await db
+        .update(emailReportSubscriptionsTable)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, CITY_BELOW_TARGET_REPORT_TYPE),
+          ),
+        )
+        .returning();
+      if (!row) {
+        res.status(404).json({ error: "Não encontrado." });
+        return;
+      }
+      res.json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to update below-target subscription");
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  },
+);
+
+router.delete(
+  "/email-subscriptions/city-below-target/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    try {
+      await db
+        .delete(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, CITY_BELOW_TARGET_REPORT_TYPE),
+          ),
+        );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Failed to delete below-target subscription");
+      res.status(500).json({ error: "Failed to delete subscription" });
+    }
+  },
+);
+
+const belowTargetSendNowSchema = z.object({
+  frequency: z.enum(["daily", "weekly"]).optional(),
+});
+
+router.post(
+  "/email-subscriptions/city-below-target/:id/send-now",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    if (!(await isEmailConfigured())) {
+      res.status(503).json({
+        error:
+          "Servidor de e-mail (SMTP) não configurado. Preencha no painel, aba 'Relatórios por email'.",
+      });
+      return;
+    }
+    try {
+      const [sub] = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, CITY_BELOW_TARGET_REPORT_TYPE),
+          ),
+        );
+      if (!sub) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const override = belowTargetSendNowSchema.safeParse(req.body);
+      const freq: BelowTargetFrequency =
+        override.success && override.data.frequency
+          ? override.data.frequency
+          : (sub.frequency as BelowTargetFrequency);
+      const now = new Date();
+      await sendBelowTargetDigest({ to: sub.email, frequency: freq, now });
+      const [updated] = await db
+        .update(emailReportSubscriptionsTable)
+        .set({ lastSentAt: now, updatedAt: now })
+        .where(eq(emailReportSubscriptionsTable.id, id))
+        .returning();
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "Failed to send below-target digest now");
       res.status(500).json({
         error:
           "Falha ao enviar email de teste. Verifique as credenciais SMTP e tente novamente.",

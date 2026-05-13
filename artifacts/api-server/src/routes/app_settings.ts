@@ -59,6 +59,9 @@ export const SETTING_DEFAULTS = {
   smtp_password: "",
   smtp_from_email: "",
   smtp_from_name: "",
+  // City below-target digest configuration
+  below_target_default_pct: "10",
+  below_target_min_previews: "5",
 } as const;
 
 const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
@@ -91,6 +94,8 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "smtp_password",
   "smtp_user",
   "smtp_host",
+  "below_target_default_pct",
+  "below_target_min_previews",
 ]);
 
 function rowsToObject(
@@ -200,6 +205,22 @@ const settingsBodySchema = z
       .refine((v) => v === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "E-mail inválido")
       .optional(),
     smtp_from_name: z.string().trim().max(120).optional(),
+    below_target_default_pct: z
+      .string()
+      .trim()
+      .refine((v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 && n <= 100;
+      }, "Use um valor entre 0 e 100.")
+      .optional(),
+    below_target_min_previews: z
+      .string()
+      .trim()
+      .refine((v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && Number.isInteger(n) && n >= 1 && n <= 1000;
+      }, "Use um inteiro entre 1 e 1000.")
+      .optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No settings provided" });
 

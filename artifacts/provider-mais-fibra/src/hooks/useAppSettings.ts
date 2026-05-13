@@ -42,6 +42,8 @@ export type AppSettings = {
   smtp_password: string;
   smtp_from_email: string;
   smtp_from_name: string;
+  below_target_default_pct: string;
+  below_target_min_previews: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -88,6 +90,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   smtp_password: "",
   smtp_from_email: "",
   smtp_from_name: "",
+  below_target_default_pct: "10",
+  below_target_min_previews: "5",
 };
 
 let cache: AppSettings | null = null;
