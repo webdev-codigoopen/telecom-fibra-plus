@@ -6,6 +6,7 @@ import storageRouter from "./storage";
 import streamingBrandsRouter from "./streaming_brands";
 import demandInterestsRouter from "./demand_interests";
 import appSettingsRouter from "./app_settings";
+import emailSubscriptionsRouter from "./email_subscriptions";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(storageRouter);
 router.use(streamingBrandsRouter);
 router.use(demandInterestsRouter);
 router.use(appSettingsRouter);
+router.use(emailSubscriptionsRouter);
 
 export default router;

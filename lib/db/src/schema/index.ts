@@ -3,3 +3,4 @@ export * from "./plan_clicks";
 export * from "./streaming_brands";
 export * from "./demand_interests";
 export * from "./app_settings";
+export * from "./email_report_subscriptions";
