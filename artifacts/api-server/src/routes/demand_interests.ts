@@ -177,12 +177,16 @@ async function notifyAdminOfNewInterest(payload: {
         inArray(appSettingsTable.key, [
           "interest_notification_enabled",
           "interest_notification_email",
+          "interest_notification_frequency",
         ]),
       );
     const map = new Map(rows.map((r) => [r.key, r.value]));
     const enabled = (map.get("interest_notification_enabled") ?? "false") === "true";
     const to = (map.get("interest_notification_email") ?? "").trim();
+    const frequency = (map.get("interest_notification_frequency") ?? "instant").trim();
     if (!enabled || !to) return;
+    // Daily/weekly digests are sent by the scheduler — skip per-event email.
+    if (frequency !== "instant") return;
     if (!(await isEmailConfigured())) {
       logger.warn(
         { to },

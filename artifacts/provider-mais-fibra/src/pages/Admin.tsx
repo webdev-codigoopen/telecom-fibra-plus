@@ -4715,6 +4715,14 @@ function InterestNotificationSettings({
   const [enabled, setEnabled] = useState(
     settings.interest_notification_enabled === "true",
   );
+  const initialFrequency =
+    settings.interest_notification_frequency === "daily" ||
+    settings.interest_notification_frequency === "weekly"
+      ? settings.interest_notification_frequency
+      : "instant";
+  const [frequency, setFrequency] = useState<"instant" | "daily" | "weekly">(
+    initialFrequency,
+  );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -4722,11 +4730,27 @@ function InterestNotificationSettings({
   useEffect(() => {
     setEmail(settings.interest_notification_email);
     setEnabled(settings.interest_notification_enabled === "true");
-  }, [settings.interest_notification_email, settings.interest_notification_enabled]);
+    setFrequency(
+      settings.interest_notification_frequency === "daily" ||
+        settings.interest_notification_frequency === "weekly"
+        ? settings.interest_notification_frequency
+        : "instant",
+    );
+  }, [
+    settings.interest_notification_email,
+    settings.interest_notification_enabled,
+    settings.interest_notification_frequency,
+  ]);
 
+  const currentFrequencyNormalized =
+    settings.interest_notification_frequency === "daily" ||
+    settings.interest_notification_frequency === "weekly"
+      ? settings.interest_notification_frequency
+      : "instant";
   const dirty =
     email.trim() !== settings.interest_notification_email ||
-    String(enabled) !== settings.interest_notification_enabled;
+    String(enabled) !== settings.interest_notification_enabled ||
+    frequency !== currentFrequencyNormalized;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -4742,6 +4766,7 @@ function InterestNotificationSettings({
         body: JSON.stringify({
           interest_notification_email: email.trim(),
           interest_notification_enabled: enabled ? "true" : "false",
+          interest_notification_frequency: frequency,
         }),
       });
       if (!res.ok) {
@@ -4764,9 +4789,11 @@ function InterestNotificationSettings({
           Notificação por email
         </h2>
         <p className="text-sm text-[#7A7F8C] mt-1">
-          Receba um email a cada novo cadastro feito em{" "}
+          Receba um email com os novos cadastros feitos em{" "}
           <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>,
           com cidade, bairro, WhatsApp e link direto para iniciar a conversa.
+          Escolha "instantâneo" para receber um email a cada cadastro, ou um
+          resumo "diário" / "semanal" agrupando todos os interesses do período.
         </p>
       </header>
 
@@ -4783,6 +4810,21 @@ function InterestNotificationSettings({
               data-testid="interest-notification-email"
             />
           </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] min-w-[160px]">
+            <span>Frequência</span>
+            <select
+              value={frequency}
+              onChange={(e) =>
+                setFrequency(e.target.value as "instant" | "daily" | "weekly")
+              }
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="interest-notification-frequency"
+            >
+              <option value="instant">Instantâneo (1 email por cadastro)</option>
+              <option value="daily">Diário (resumo)</option>
+              <option value="weekly">Semanal (resumo)</option>
+            </select>
+          </label>
           <label
             className="flex items-center gap-2 text-sm text-[#2A2D38] pb-2"
             data-testid="interest-notification-enabled-label"
@@ -4797,6 +4839,15 @@ function InterestNotificationSettings({
             Enviar emails
           </label>
         </div>
+
+        {enabled && frequency !== "instant" && (
+          <p className="text-xs text-[#7A7F8C]">
+            O resumo {frequency === "daily" ? "diário" : "semanal"} é enviado
+            automaticamente a cada {frequency === "daily" ? "24 horas" : "7 dias"}{" "}
+            com todos os interesses recebidos no período. Períodos sem novos
+            cadastros não geram email.
+          </p>
+        )}
 
         {errorMsg && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">

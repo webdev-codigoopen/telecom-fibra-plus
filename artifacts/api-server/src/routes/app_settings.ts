@@ -16,6 +16,8 @@ export const SETTING_DEFAULTS = {
     "Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, {place}",
   interest_notification_email: "",
   interest_notification_enabled: "false",
+  interest_notification_frequency: "instant",
+  interest_digest_last_sent_at: "",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
@@ -54,6 +56,8 @@ const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
 const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_email",
   "interest_notification_enabled",
+  "interest_notification_frequency",
+  "interest_digest_last_sent_at",
   "recaptcha_secret_key",
   "meta_capi_token",
   "meta_capi_test_event_code",
@@ -103,6 +107,7 @@ const settingsBodySchema = z
       .union([z.literal(""), z.string().trim().toLowerCase().email().max(254)])
       .optional(),
     interest_notification_enabled: z.enum(["true", "false"]).optional(),
+    interest_notification_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
     recaptcha_enabled: z.enum(["true", "false"]).optional(),
     recaptcha_site_key: z.string().trim().max(120).optional(),
     recaptcha_secret_key: z.string().trim().max(120).optional(),
