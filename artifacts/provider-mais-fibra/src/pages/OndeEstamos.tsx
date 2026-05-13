@@ -218,7 +218,7 @@ export default function OndeEstamos() {
                   href="https://wa.me/5577998444757?text=Ol%C3%A1!%20Gostaria%20de%20saber%20se%20a%20Provider%20atende%20na%20minha%20cidade."
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-105"
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-lg font-bold text-base transition-all duration-200 hover:scale-105 border-t-[#ffffff] border-r-[#ffffff] border-b-[#ffffff] border-l-[#ffffff] bg-[#ffffff] text-[#1027c9]"
                   style={{ background: "#95EB1D" }}
                 >
                   <MessageCircle size={18} />
