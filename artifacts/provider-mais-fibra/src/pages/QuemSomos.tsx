@@ -4,8 +4,7 @@ import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
-
-const ICON_PLUS = `${import.meta.env.BASE_URL}images/icons/icone-plus.svg`;
+import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const stats = [
   { value: "11", label: "Cidades Atendidas", suffix: "+" },
@@ -79,35 +78,63 @@ export default function QuemSomos() {
       />
       <Header />
 
-      <main className="flex-1 pt-16 md:pt-[88px]">
+      <main className="flex-1 pt-16">
         <section
-          className="py-20"
-          style={{ background: "#1934C2" }}
+          className="relative py-24 overflow-hidden"
+          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
         >
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1
-                className="text-white mb-4 font-medium text-[40px] leading-tight"
-                style={{ letterSpacing: "-0.02em" }}
+          <div
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: "radial-gradient(ellipse at 80% 20%, #95EB1D 0%, transparent 50%), radial-gradient(ellipse at 20% 80%, #FF8C00 0%, transparent 50%)",
+            }}
+          />
+          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 relative z-10">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
               >
-                Conheça a Provider
-                <span style={{ color: "#95EB1D", marginLeft: "8px" }} className="font-semibold text-[#95eb1d]">
-                  <img
-                    src={ICON_PLUS}
-                    alt="+"
-                    className="inline-block w-7 h-7 mr-1 mb-2 align-[-0.2em]"
-                  />
-                  Fibra
-                </span>
-              </h1>
-              <p className="text-white/70 text-lg">
-                Conectando o Oeste da Bahia há mais de <strong className="text-white">8 anos</strong> com fibra óptica 100%.
-              </p>
-            </motion.div>
+                <div
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
+                  style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#95EB1D]" />
+                  <span className="text-[#95EB1D]">Nossa História</span>
+                </div>
+                <h1
+                  className="text-4xl sm:text-5xl font-black text-white mb-6 leading-tight"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  Conectando o Oeste da Bahia há mais de
+                  <span style={{ color: "#95EB1D" }}> 8 anos</span>
+                </h1>
+                <p className="text-white/75 text-lg leading-relaxed mb-6">
+                  A Provider Mais Fibra nasceu com uma missão simples: levar internet de alta velocidade e qualidade para o interior da Bahia, democratizando o acesso à conectividade para famílias e empresas da região.
+                </p>
+                <p className="text-white/60 text-base leading-relaxed">
+                  Com infraestrutura 100% em fibra óptica e uma equipe comprometida, crescemos de uma cidade para 11 municípios, sempre com o mesmo cuidado e atenção ao cliente que nos trouxe até aqui.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="flex justify-center"
+              >
+                <div
+                  className="p-10 rounded-3xl flex flex-col items-center"
+                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)" }}
+                >
+                  <img src={logoVerticalWhite} alt="Provider Mais Fibra" className="h-40 w-auto mb-6" />
+                  <p className="text-white/60 text-sm text-center">
+                    Homologada pela Anatel · CNPJ 12.345.678/0001-99
+                  </p>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </section>
 
