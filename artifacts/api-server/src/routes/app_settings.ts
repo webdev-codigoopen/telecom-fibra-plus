@@ -18,6 +18,10 @@ export const SETTING_DEFAULTS = {
   interest_notification_enabled: "false",
   interest_notification_frequency: "instant",
   interest_digest_last_sent_at: "",
+  // Time-of-day (and weekday for weekly) at which the digest is delivered,
+  // in America/Sao_Paulo. Hour: 0–23. Weekday: 0=Sunday … 6=Saturday.
+  interest_digest_hour: "8",
+  interest_digest_weekday: "1",
   // Quiet hours — mute lead notifications during off-hours.
   // Times are HH:MM in America/Sao_Paulo. start>end means overnight window.
   quiet_hours_enabled: "false",
@@ -76,6 +80,8 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_enabled",
   "interest_notification_frequency",
   "interest_digest_last_sent_at",
+  "interest_digest_hour",
+  "interest_digest_weekday",
   "quiet_hours_enabled",
   "quiet_hours_start",
   "quiet_hours_end",
@@ -139,6 +145,16 @@ const settingsBodySchema = z
       .optional(),
     interest_notification_enabled: z.enum(["true", "false"]).optional(),
     interest_notification_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
+    interest_digest_hour: z
+      .string()
+      .trim()
+      .regex(/^([0-9]|1[0-9]|2[0-3])$/, "Use uma hora entre 0 e 23.")
+      .optional(),
+    interest_digest_weekday: z
+      .string()
+      .trim()
+      .regex(/^[0-6]$/, "Use um dia da semana entre 0 (domingo) e 6 (sábado).")
+      .optional(),
     quiet_hours_enabled: z.enum(["true", "false"]).optional(),
     quiet_hours_start: z
       .string()

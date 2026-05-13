@@ -1386,6 +1386,8 @@ export default function Admin() {
             <InterestNotificationSettings
               adminKey={adminKey}
               baseUrl={baseUrl}
+              settings={appSettings}
+              onSettingsChange={fetchAppSettingsAdmin}
             />
             <QuietHoursSettings
               settings={appSettings}
@@ -6112,7 +6114,19 @@ function PreviewHealthAlertSubscriptionsManager({
 type InterestNotificationSettingsProps = {
   adminKey: string;
   baseUrl: string;
+  settings: AppSettings;
+  onSettingsChange: () => void | Promise<void>;
 };
+
+const WEEKDAY_LABELS: Array<{ value: string; label: string }> = [
+  { value: "0", label: "Domingo" },
+  { value: "1", label: "Segunda-feira" },
+  { value: "2", label: "Terça-feira" },
+  { value: "3", label: "Quarta-feira" },
+  { value: "4", label: "Quinta-feira" },
+  { value: "5", label: "Sexta-feira" },
+  { value: "6", label: "Sábado" },
+];
 
 type InterestRecipient = {
   id: number;
@@ -6134,6 +6148,8 @@ function interestFreqLabel(f: "instant" | "daily" | "weekly"): string {
 function InterestNotificationSettings({
   adminKey,
   baseUrl,
+  settings,
+  onSettingsChange,
 }: InterestNotificationSettingsProps) {
   const [items, setItems] = useState<InterestRecipient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -6144,6 +6160,64 @@ function InterestNotificationSettings({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const initialHour = /^([0-9]|1[0-9]|2[0-3])$/.test(settings.interest_digest_hour)
+    ? settings.interest_digest_hour
+    : "8";
+  const initialWeekday = /^[0-6]$/.test(settings.interest_digest_weekday)
+    ? settings.interest_digest_weekday
+    : "1";
+  const [digestHour, setDigestHour] = useState(initialHour);
+  const [digestWeekday, setDigestWeekday] = useState(initialWeekday);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [scheduleSavedAt, setScheduleSavedAt] = useState<number | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (/^([0-9]|1[0-9]|2[0-3])$/.test(settings.interest_digest_hour)) {
+      setDigestHour(settings.interest_digest_hour);
+    }
+    if (/^[0-6]$/.test(settings.interest_digest_weekday)) {
+      setDigestWeekday(settings.interest_digest_weekday);
+    }
+  }, [settings.interest_digest_hour, settings.interest_digest_weekday]);
+
+  const hasWeekly = items.some((i) => i.frequency === "weekly");
+  const hasDigest = items.some(
+    (i) => i.frequency === "daily" || i.frequency === "weekly",
+  );
+  const scheduleDirty =
+    digestHour !== (settings.interest_digest_hour || "8") ||
+    digestWeekday !== (settings.interest_digest_weekday || "1");
+
+  async function handleSaveSchedule(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingSchedule(true);
+    setScheduleError(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          interest_digest_hour: digestHour,
+          interest_digest_weekday: digestWeekday,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setScheduleSavedAt(Date.now());
+      await onSettingsChange();
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -6342,6 +6416,77 @@ function InterestNotificationSettings({
           enviadas. Você pode cadastrar destinatários mesmo assim.
         </div>
       )}
+
+      <form
+        onSubmit={handleSaveSchedule}
+        className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-[#E0E3EB] bg-white"
+        data-testid="interest-digest-schedule-form"
+      >
+        <div className="w-full">
+          <h3 className="text-sm font-semibold text-[#0D0D0D]">
+            Horário de envio dos resumos
+          </h3>
+          <p className="text-xs text-[#7A7F8C] mt-1">
+            Define quando os resumos diários e semanais saem (horário de
+            Brasília). Não afeta destinatários no modo "instantâneo".
+          </p>
+        </div>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Hora do envio</span>
+          <select
+            value={digestHour}
+            onChange={(e) => setDigestHour(e.target.value)}
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-digest-hour"
+          >
+            {Array.from({ length: 24 }, (_, h) => (
+              <option key={h} value={String(h)}>
+                {String(h).padStart(2, "0")}:00
+              </option>
+            ))}
+          </select>
+        </label>
+        {hasWeekly && (
+          <label
+            className="flex flex-col gap-1 text-xs text-[#7A7F8C]"
+            data-testid="interest-digest-weekday-label"
+          >
+            <span>Dia da semana (resumo semanal)</span>
+            <select
+              value={digestWeekday}
+              onChange={(e) => setDigestWeekday(e.target.value)}
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="interest-digest-weekday"
+            >
+              {WEEKDAY_LABELS.map((w) => (
+                <option key={w.value} value={w.value}>
+                  {w.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          type="submit"
+          disabled={savingSchedule || !scheduleDirty}
+          className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+          data-testid="interest-digest-schedule-save"
+        >
+          {savingSchedule ? "Salvando..." : "Salvar horário"}
+        </button>
+        {scheduleSavedAt && !scheduleDirty && !scheduleError && (
+          <span className="text-xs text-emerald-700">Horário salvo.</span>
+        )}
+        {scheduleError && (
+          <span className="text-xs text-red-700">{scheduleError}</span>
+        )}
+        {!hasDigest && (
+          <p className="w-full text-[11px] text-[#7A7F8C]">
+            Nenhum destinatário em modo diário ou semanal ainda — o horário
+            será aplicado quando você cadastrar um.
+          </p>
+        )}
+      </form>
 
       <form
         onSubmit={handleAdd}

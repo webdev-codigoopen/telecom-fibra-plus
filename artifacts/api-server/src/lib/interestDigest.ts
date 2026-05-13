@@ -1,9 +1,155 @@
-import { db, demandInterestsTable, emailReportSubscriptionsTable } from "@workspace/db";
-import { and, asc, eq, gt } from "drizzle-orm";
+import {
+  db,
+  appSettingsTable,
+  demandInterestsTable,
+  emailReportSubscriptionsTable,
+} from "@workspace/db";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import { logger } from "./logger";
 
 export type DigestFrequency = "daily" | "weekly";
+
+const TIME_ZONE = "America/Sao_Paulo";
+
+export type DigestSchedule = { hour: number; weekday: number };
+
+const DEFAULT_DIGEST_HOUR = 8;
+const DEFAULT_DIGEST_WEEKDAY = 1; // Monday
+
+export async function loadDigestSchedule(): Promise<DigestSchedule> {
+  const rows = await db
+    .select({ key: appSettingsTable.key, value: appSettingsTable.value })
+    .from(appSettingsTable)
+    .where(
+      inArray(appSettingsTable.key, [
+        "interest_digest_hour",
+        "interest_digest_weekday",
+      ]),
+    );
+  const map = new Map(rows.map((r) => [r.key, r.value]));
+  const hourRaw = map.get("interest_digest_hour");
+  const weekdayRaw = map.get("interest_digest_weekday");
+  const hour =
+    hourRaw != null && /^([0-9]|1[0-9]|2[0-3])$/.test(hourRaw.trim())
+      ? parseInt(hourRaw.trim(), 10)
+      : DEFAULT_DIGEST_HOUR;
+  const weekday =
+    weekdayRaw != null && /^[0-6]$/.test(weekdayRaw.trim())
+      ? parseInt(weekdayRaw.trim(), 10)
+      : DEFAULT_DIGEST_WEEKDAY;
+  return { hour, weekday };
+}
+
+type SPParts = { year: number; month: number; day: number; hour: number; weekday: number };
+
+function spParts(now: Date): SPParts {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    weekday: "short",
+  });
+  const parts = fmt.formatToParts(now);
+  let year = 1970;
+  let month = 1;
+  let day = 1;
+  let hour = 0;
+  let weekdayStr = "Mon";
+  for (const p of parts) {
+    if (p.type === "year") year = parseInt(p.value, 10);
+    else if (p.type === "month") month = parseInt(p.value, 10);
+    else if (p.type === "day") day = parseInt(p.value, 10);
+    else if (p.type === "hour") hour = parseInt(p.value, 10) % 24;
+    else if (p.type === "weekday") weekdayStr = p.value;
+  }
+  const weekdayMap: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6,
+  };
+  return { year, month, day, hour, weekday: weekdayMap[weekdayStr] ?? 1 };
+}
+
+// Returns the UTC instant for `year-month-day hour:00` interpreted in
+// America/Sao_Paulo. Uses Intl to derive the offset (handles potential DST
+// reintroduction defensively).
+function spWallToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+): Date {
+  const guess = Date.UTC(year, month - 1, day, hour, 0, 0, 0);
+  // Compute the actual offset SP has at that instant.
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const parts = fmt.formatToParts(new Date(guess));
+  let gy = 0,
+    gm = 0,
+    gd = 0,
+    gh = 0,
+    gmi = 0;
+  for (const p of parts) {
+    if (p.type === "year") gy = parseInt(p.value, 10);
+    else if (p.type === "month") gm = parseInt(p.value, 10);
+    else if (p.type === "day") gd = parseInt(p.value, 10);
+    else if (p.type === "hour") gh = parseInt(p.value, 10) % 24;
+    else if (p.type === "minute") gmi = parseInt(p.value, 10);
+  }
+  const localAsUtc = Date.UTC(gy, gm - 1, gd, gh, gmi, 0, 0);
+  const offset = localAsUtc - guess; // SP wall - UTC
+  return new Date(guess - offset);
+}
+
+// Most recent SP "today at hour" instant that has already occurred (or now).
+function lastDailySlot(now: Date, hour: number): Date {
+  const sp = spParts(now);
+  let candidate = spWallToUtc(sp.year, sp.month, sp.day, hour);
+  if (candidate.getTime() > now.getTime()) {
+    // Today's SP slot hasn't happened yet — anchor at noon UTC of the prior
+    // calendar day to safely land on the previous SP-local day regardless
+    // of the SP UTC offset.
+    const prev = new Date(
+      Date.UTC(sp.year, sp.month - 1, sp.day - 1, 12, 0, 0, 0),
+    );
+    const prevSp = spParts(prev);
+    candidate = spWallToUtc(prevSp.year, prevSp.month, prevSp.day, hour);
+  }
+  return candidate;
+}
+
+// Most recent SP "weekday at hour" instant that has already occurred (or now).
+function lastWeeklySlot(now: Date, weekday: number, hour: number): Date {
+  const sp = spParts(now);
+  const daysBack = (sp.weekday - weekday + 7) % 7;
+  const stepBack = new Date(
+    Date.UTC(sp.year, sp.month - 1, sp.day - daysBack, 12, 0, 0, 0),
+  );
+  const back = spParts(stepBack);
+  let candidate = spWallToUtc(back.year, back.month, back.day, hour);
+  if (candidate.getTime() > now.getTime()) {
+    // Slot today (target weekday) but hour not yet reached — go back a week.
+    const prev = new Date(candidate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const prevSp = spParts(prev);
+    candidate = spWallToUtc(prevSp.year, prevSp.month, prevSp.day, hour);
+  }
+  return candidate;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -48,15 +194,19 @@ function fmtDateBR(d: Date): string {
   }).format(d);
 }
 
-function isDueDigest(
+export function isDueDigest(
   frequency: DigestFrequency,
   lastSentAt: Date | null,
   now: Date,
+  schedule: DigestSchedule,
 ): boolean {
+  const slot =
+    frequency === "daily"
+      ? lastDailySlot(now, schedule.hour)
+      : lastWeeklySlot(now, schedule.weekday, schedule.hour);
+  if (slot.getTime() > now.getTime()) return false;
   if (!lastSentAt) return true;
-  const elapsed = now.getTime() - lastSentAt.getTime();
-  if (frequency === "daily") return elapsed >= 24 * 60 * 60 * 1000;
-  return elapsed >= 7 * 24 * 60 * 60 * 1000;
+  return lastSentAt.getTime() < slot.getTime();
 }
 
 function buildDigestEmail(
@@ -203,11 +353,13 @@ export async function sendDueInterestDigest(now: Date = new Date()): Promise<voi
   // recipients that share the same cutoff.
   const rowsCache = new Map<string, Awaited<ReturnType<typeof fetchInterestsSince>>>();
 
+  const schedule = await loadDigestSchedule();
+
   for (const sub of digestSubs) {
     try {
       const frequency = sub.frequency as DigestFrequency;
       const lastSentAt = sub.lastSentAt ?? null;
-      if (!isDueDigest(frequency, lastSentAt, now)) continue;
+      if (!isDueDigest(frequency, lastSentAt, now, schedule)) continue;
 
       const cacheKey = lastSentAt ? lastSentAt.toISOString() : "__all__";
       let rows = rowsCache.get(cacheKey);

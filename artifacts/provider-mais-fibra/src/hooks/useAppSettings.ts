@@ -8,6 +8,8 @@ export type AppSettings = {
   interest_notification_enabled: string;
   interest_notification_frequency: string;
   interest_digest_last_sent_at: string;
+  interest_digest_hour: string;
+  interest_digest_weekday: string;
   quiet_hours_enabled: string;
   quiet_hours_start: string;
   quiet_hours_end: string;
@@ -56,6 +58,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   interest_notification_enabled: "false",
   interest_notification_frequency: "instant",
   interest_digest_last_sent_at: "",
+  interest_digest_hour: "8",
+  interest_digest_weekday: "1",
   quiet_hours_enabled: "false",
   quiet_hours_start: "22:00",
   quiet_hours_end: "08:00",
