@@ -160,7 +160,10 @@ type ColorMode = "volume" | "growth" | "conversion";
 type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
 
 const CONVERSION_SCALE_STORAGE_PREFIX = "pmf:mapConversionScale";
+const PER_CITY_TARGETS_STORAGE_PREFIX = "pmf:mapPerCityTargets";
 const DEFAULT_TARGET_PCT = 10;
+
+type PerCityTargets = Record<string, number>;
 
 function hashAdminKey(adminKey: string | undefined): string {
   if (!adminKey) return "anon";
@@ -176,6 +179,39 @@ function hashAdminKey(adminKey: string | undefined): string {
 
 function storageKeyFor(adminKey: string | undefined): string {
   return `${CONVERSION_SCALE_STORAGE_PREFIX}:${hashAdminKey(adminKey)}`;
+}
+
+function perCityStorageKeyFor(adminKey: string | undefined): string {
+  return `${PER_CITY_TARGETS_STORAGE_PREFIX}:${hashAdminKey(adminKey)}`;
+}
+
+function loadPerCityTargets(adminKey: string | undefined): PerCityTargets {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(perCityStorageKeyFor(adminKey));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== "object") return {};
+    const out: PerCityTargets = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      const n = Number(v);
+      if (typeof k === "string" && k && Number.isFinite(n) && n > 0 && n <= 100) {
+        out[k] = n;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function savePerCityTargets(adminKey: string | undefined, targets: PerCityTargets) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(perCityStorageKeyFor(adminKey), JSON.stringify(targets));
+  } catch {
+    // ignore
+  }
 }
 
 function loadConversionScale(adminKey: string | undefined): ConversionScale {
@@ -251,6 +287,9 @@ export default function CityClicksMap(props: Props) {
     const s = loadConversionScale(adminKey);
     return s.mode === "target" ? String(s.targetPct) : String(DEFAULT_TARGET_PCT);
   });
+  const [perCityTargets, setPerCityTargets] = useState<PerCityTargets>(() => loadPerCityTargets(adminKey));
+  const [showPerCityEditor, setShowPerCityEditor] = useState(false);
+  const [perCityDrafts, setPerCityDrafts] = useState<Record<string, string>>({});
   const reqIdRef = useRef(0);
 
   useEffect(() => {
@@ -259,11 +298,24 @@ export default function CityClicksMap(props: Props) {
     const next = loadConversionScale(adminKey);
     setConversionScale(next);
     setTargetInput(next.mode === "target" ? String(next.targetPct) : String(DEFAULT_TARGET_PCT));
+    setPerCityTargets(loadPerCityTargets(adminKey));
+    setPerCityDrafts({});
   }, [adminKey]);
 
   useEffect(() => {
     saveConversionScale(adminKey, conversionScale);
   }, [adminKey, conversionScale]);
+
+  useEffect(() => {
+    savePerCityTargets(adminKey, perCityTargets);
+  }, [adminKey, perCityTargets]);
+
+  function targetPctForCity(name: string): number | null {
+    const override = perCityTargets[name];
+    if (Number.isFinite(override) && override > 0 && override <= 100) return override;
+    if (conversionScale.mode === "target") return conversionScale.targetPct;
+    return null;
+  }
 
   useEffect(() => {
     if (!isAdminMode || !adminKey || !baseUrl) return;
@@ -813,9 +865,154 @@ export default function CityClicksMap(props: Props) {
                 ? `máx. observado: ${formatPct(observedMaxRate * 100)}%`
                 : "verde = meta atingida"}
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                setShowPerCityEditor((s) => !s);
+                if (!showPerCityEditor) {
+                  const drafts: Record<string, string> = {};
+                  for (const [k, v] of Object.entries(perCityTargets)) drafts[k] = String(v);
+                  setPerCityDrafts(drafts);
+                }
+              }}
+              className="text-[11px] font-semibold rounded px-2 py-0.5 border border-[#0040FF] text-[#0040FF] hover:bg-[#0040FF] hover:text-white transition-colors"
+              data-testid="toggle-per-city-targets"
+              aria-expanded={showPerCityEditor}
+            >
+              Metas por cidade
+              {Object.keys(perCityTargets).length > 0 && (
+                <span className="ml-1 inline-block rounded-full bg-[#0040FF] text-white px-1.5 text-[10px]">
+                  {Object.keys(perCityTargets).length}
+                </span>
+              )}
+            </button>
           </div>
         )}
       </div>
+      )}
+      {isAdminMode && effectiveColorMode === "conversion" && showPerCityEditor && (
+        <div
+          className="mb-3 rounded-lg border border-[#E0E3EB] bg-[#F5F7FA] p-3"
+          data-testid="per-city-targets-editor"
+        >
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div>
+              <h4 className="font-bold text-xs text-[#0D0D0D]">Metas por cidade</h4>
+              <p className="text-[11px] text-[#7A7F8C]">
+                Defina uma meta de conversão (%) para cada cidade. Cidades sem meta usam a escala global ({conversionScale.mode === "target" ? `meta ${formatPct(conversionScale.targetPct)}%` : "Auto"}).
+              </p>
+            </div>
+            {Object.keys(perCityTargets).length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPerCityTargets({});
+                  setPerCityDrafts({});
+                }}
+                className="text-[11px] font-semibold text-[#7A7F8C] hover:text-[#C92020] underline"
+                data-testid="clear-per-city-targets"
+              >
+                Limpar todas
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+            {(() => {
+              const names = new Set<string>(CITY_COORDS.map((c) => c.name));
+              for (const name of Object.keys(perCityTargets)) names.add(name);
+              for (const c of conversion.keys()) names.add(c);
+              const list = Array.from(names).sort((a, b) => a.localeCompare(b, "pt-BR"));
+              return list.map((name) => {
+                const draft = perCityDrafts[name] ?? (perCityTargets[name] != null ? String(perCityTargets[name]) : "");
+                const conv = conversion.get(name);
+                const rate = conv && conv.previews > 0 ? (conv.signups / conv.previews) * 100 : null;
+                const hasOverride = perCityTargets[name] != null;
+                return (
+                  <div
+                    key={name}
+                    className={`flex items-center gap-2 bg-white border rounded px-2 py-1 ${hasOverride ? "border-[#0040FF]" : "border-[#E0E3EB]"}`}
+                  >
+                    <span className="flex-1 min-w-0 text-[11px] font-semibold text-[#2A2D38] truncate" title={name}>
+                      {name}
+                    </span>
+                    {rate !== null && (
+                      <span className="text-[10px] text-[#7A7F8C] tabular-nums shrink-0" title="Taxa atual">
+                        {rate.toFixed(0)}%
+                      </span>
+                    )}
+                    <input
+                      type="number"
+                      min={0.1}
+                      max={100}
+                      step={0.5}
+                      value={draft}
+                      placeholder="—"
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setPerCityDrafts((d) => ({ ...d, [name]: v }));
+                        if (v === "") {
+                          setPerCityTargets((t) => {
+                            if (!(name in t)) return t;
+                            const next = { ...t };
+                            delete next[name];
+                            return next;
+                          });
+                          return;
+                        }
+                        const n = Number(v);
+                        if (Number.isFinite(n) && n > 0 && n <= 100) {
+                          setPerCityTargets((t) => ({ ...t, [name]: n }));
+                        }
+                      }}
+                      onBlur={() => {
+                        const v = perCityDrafts[name] ?? "";
+                        if (v === "") return;
+                        const n = Number(v);
+                        if (!Number.isFinite(n) || n <= 0 || n > 100) {
+                          setPerCityDrafts((d) => {
+                            const next = { ...d };
+                            if (perCityTargets[name] != null) {
+                              next[name] = String(perCityTargets[name]);
+                            } else {
+                              delete next[name];
+                            }
+                            return next;
+                          });
+                        }
+                      }}
+                      className="w-14 border border-[#E0E3EB] rounded px-1.5 py-0.5 text-right tabular-nums text-[11px] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                      aria-label={`Meta de conversão para ${name}`}
+                      data-testid={`per-city-target-input-${name}`}
+                    />
+                    <span className="text-[10px] text-[#7A7F8C]">%</span>
+                    {hasOverride && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPerCityTargets((t) => {
+                            const next = { ...t };
+                            delete next[name];
+                            return next;
+                          });
+                          setPerCityDrafts((d) => {
+                            const next = { ...d };
+                            delete next[name];
+                            return next;
+                          });
+                        }}
+                        className="text-[#7A7F8C] hover:text-[#C92020] text-[14px] leading-none px-1"
+                        aria-label={`Remover meta de ${name}`}
+                        title="Remover meta desta cidade"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
       )}
       <div className="relative w-full overflow-hidden rounded-lg" style={{ background: "#F5F7FA" }}>
         <svg
@@ -853,7 +1050,12 @@ export default function CityClicksMap(props: Props) {
                 opacity = 0.4;
               } else {
                 const rate = conv.signups / conv.previews;
-                const normalized = scaleMaxRate > 0 ? rate / scaleMaxRate : 0;
+                const cityTargetPct = targetPctForCity(city.name);
+                const denom =
+                  cityTargetPct != null
+                    ? Math.max(0.0001, Math.min(1, cityTargetPct / 100))
+                    : scaleMaxRate;
+                const normalized = denom > 0 ? rate / denom : 0;
                 fill = conversionColor(normalized);
                 opacity = 0.85;
               }
@@ -1038,7 +1240,16 @@ export default function CityClicksMap(props: Props) {
                   {(() => {
                     const { previews, signups } = hoveredConv;
                     const pct = previews > 0 ? Math.round((signups / previews) * 100) : null;
-                    return `Preview ${previews} → Assina ${signups}${pct !== null ? ` (${pct}%)` : ""}`;
+                    const cityTargetPct = hoveredCity ? targetPctForCity(hoveredCity.name) : null;
+                    const targetSuffix =
+                      cityTargetPct != null
+                        ? ` · meta ${formatPct(cityTargetPct)}%${
+                            hoveredCity && perCityTargets[hoveredCity.name] != null
+                              ? " (cidade)"
+                              : ""
+                          }`
+                        : " · meta auto";
+                    return `Preview ${previews} → Assina ${signups}${pct !== null ? ` (${pct}%)` : ""}${targetSuffix}`;
                   })()}
                 </text>
               )}
