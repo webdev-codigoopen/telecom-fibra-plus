@@ -1,0 +1,1049 @@
+# 🚀 Prompt de Otimização PageSpeed — Meta: Nota 100
+
+> **Stack:** React + Vite · TypeScript · Tailwind CSS · Wouter · Framer Motion · Lucide React · React Helmet Async · Node.js · Drizzle ORM · PostgreSQL · Replit
+>
+> **Objetivo:** Atingir nota 100 em Desempenho, Acessibilidade, SEO e Práticas Recomendadas no [PageSpeed Insights](https://pagespeed.web.dev/).
+>
+> **Metodologia:** Execute cada etapa na ordem apresentada. Após concluir uma etapa, rode o PageSpeed Insights e registre o delta de pontuação antes de avançar para a próxima.
+
+---
+
+## 📋 Diagnóstico Inicial (Baseline)
+
+Antes de qualquer mudança, registre os valores atuais:
+
+| Métrica | Valor Atual | Meta |
+|---|---|---|
+| Performance Score | ~33 | 100 |
+| First Contentful Paint (FCP) | ~13 s | < 1,8 s |
+| Largest Contentful Paint (LCP) | ~242 s | < 2,5 s |
+| Total Blocking Time (TBT) | ~4,37 s | < 200 ms |
+| Speed Index (SI) | — | < 3,4 s |
+| Cumulative Layout Shift (CLS) | — | < 0,1 |
+| Accessibility | ~56 | 100 |
+| Best Practices | ~96 | 100 |
+| SEO | ~90 | 100 |
+
+---
+
+## ETAPA 1 — Bundle e Code Splitting (impacto: TBT, FCP)
+
+### Objetivo
+Reduzir o JavaScript enviado na primeira carga. Uma SPA com Vite carrega tudo de uma vez por padrão — isso é o principal assassino do TBT.
+
+### Tarefas
+
+#### 1.1 — Configurar code splitting agressivo no Vite
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Separa vendor por biblioteca
+          if (id.includes('node_modules/framer-motion')) return 'framer-motion'
+          if (id.includes('node_modules/recharts')) return 'recharts'
+          if (id.includes('node_modules/lucide-react')) return 'lucide'
+          if (id.includes('node_modules/react-dom')) return 'react-dom'
+          if (id.includes('node_modules/react')) return 'react'
+          if (id.includes('node_modules')) return 'vendor'
+        },
+      },
+    },
+    chunkSizeWarningLimit: 300,
+  },
+})
+```
+
+#### 1.2 — Lazy load de todas as rotas (React.lazy + Suspense)
+
+```tsx
+// src/App.tsx — substituir imports estáticos por lazy
+import { lazy, Suspense } from 'react'
+import { Route, Switch } from 'wouter'
+
+const Home      = lazy(() => import('./pages/Home'))
+const Planos    = lazy(() => import('./pages/Planos'))
+const Contato   = lazy(() => import('./pages/Contato'))
+const Admin     = lazy(() => import('./pages/Admin')) // painel pesado — separa sempre
+
+function App() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Switch>
+        <Route path="/"        component={Home} />
+        <Route path="/planos"  component={Planos} />
+        <Route path="/contato" component={Contato} />
+        <Route path="/admin"   component={Admin} />
+      </Switch>
+    </Suspense>
+  )
+}
+```
+
+#### 1.3 — Lazy load de Framer Motion
+
+Framer Motion é grande (~90 KB gzip). Carregue somente quando visível:
+
+```tsx
+// src/components/AnimatedSection.tsx
+import { lazy, Suspense } from 'react'
+
+const MotionDiv = lazy(() =>
+  import('framer-motion').then(m => ({ default: m.motion.div }))
+)
+
+// Alternativa: usar CSS animations no above-the-fold e Framer Motion só abaixo
+```
+
+#### 1.4 — Tree-shake Lucide React
+
+```tsx
+// ❌ Errado — importa toda a biblioteca
+import { Icon1, Icon2 } from 'lucide-react'
+
+// ✅ Correto — import direto do arquivo do ícone
+import Wifi from 'lucide-react/dist/esm/icons/wifi'
+import Phone from 'lucide-react/dist/esm/icons/phone'
+```
+
+#### 1.5 — Analisar bundle com rollup-plugin-visualizer
+
+```bash
+pnpm add -D rollup-plugin-visualizer
+```
+
+```ts
+// vite.config.ts
+import { visualizer } from 'rollup-plugin-visualizer'
+plugins: [react(), visualizer({ open: true, gzipSize: true })]
+```
+
+Rode `pnpm build` e analise o relatório. Elimine dependências > 50 KB não usadas no caminho crítico.
+
+### ✅ Validação da Etapa 1
+- [ ] `pnpm build` gera chunks < 300 KB cada
+- [ ] Chunk do admin não carrega na rota `/`
+- [ ] TBT reduzido no PageSpeed (re-teste)
+
+---
+
+## ETAPA 2 — Otimização de Imagens (impacto: LCP, FCP)
+
+### Objetivo
+LCP de 242 s indica que a imagem hero (ou elemento maior) não está otimizada.
+
+### Tarefas
+
+#### 2.1 — Converter todas as imagens para WebP/AVIF
+
+```bash
+# Instalar sharp para conversão em build
+pnpm add -D sharp vite-imagetools
+```
+
+```ts
+// vite.config.ts
+import { imagetools } from 'vite-imagetools'
+plugins: [react(), imagetools()]
+```
+
+```tsx
+// Uso no componente
+import heroImg from './assets/hero.jpg?format=webp&quality=80&w=1200'
+```
+
+#### 2.2 — Definir width e height em TODAS as imagens (evita CLS)
+
+```tsx
+// ❌ Sem dimensões → CLS
+<img src={hero} alt="Hero" className="w-full" />
+
+// ✅ Com dimensões → sem CLS
+<img
+  src={hero}
+  alt="Fibra óptica de alta velocidade"
+  width={1200}
+  height={600}
+  className="w-full h-auto"
+/>
+```
+
+#### 2.3 — Preload da imagem LCP (hero)
+
+```tsx
+// src/pages/Home.tsx — dentro do <Helmet>
+<Helmet>
+  <link
+    rel="preload"
+    as="image"
+    href="/images/hero.webp"
+    type="image/webp"
+  />
+</Helmet>
+```
+
+#### 2.4 — Lazy load de imagens abaixo do fold
+
+```tsx
+// Imagens que não estão visíveis na tela inicial
+<img src={img} loading="lazy" decoding="async" alt="..." />
+```
+
+#### 2.5 — Otimizar imagens no servidor (Replit)
+
+Se as imagens vêm via API Node.js, adicionar `sharp` para servir WebP on-demand:
+
+```ts
+// server/routes/images.ts
+import sharp from 'sharp'
+import { Request, Response } from 'express'
+
+app.get('/img/:filename', async (req: Request, res: Response) => {
+  const accept = req.headers.accept || ''
+  const format = accept.includes('image/avif') ? 'avif'
+               : accept.includes('image/webp') ? 'webp'
+               : 'jpeg'
+
+  const buffer = await sharp(`./public/images/${req.params.filename}`)
+    .resize({ width: 1200, withoutEnlargement: true })
+    .toFormat(format, { quality: 80 })
+    .toBuffer()
+
+  res.set('Content-Type', `image/${format}`)
+  res.set('Cache-Control', 'public, max-age=31536000, immutable')
+  res.send(buffer)
+})
+```
+
+### ✅ Validação da Etapa 2
+- [ ] Hero image em WebP < 150 KB
+- [ ] Todas as `<img>` têm `width` e `height` definidos
+- [ ] LCP element identificado e com `preload` no `<head>`
+- [ ] CLS = 0 no PageSpeed
+
+---
+
+## ETAPA 3 — Critical CSS e Render-Blocking (impacto: FCP, Speed Index)
+
+### Objetivo
+Eliminar recursos que bloqueiam a renderização inicial.
+
+### Tarefas
+
+#### 3.1 — Inline do CSS crítico (above-the-fold)
+
+```ts
+// vite.config.ts — usar vite-plugin-critical
+import critical from 'vite-plugin-critical'
+
+plugins: [
+  react(),
+  critical({
+    criticalUrl: 'http://localhost:5173',
+    criticalBase: './dist',
+    criticalPages: [{ uri: '/', template: 'index' }],
+    criticalConfig: { inline: true, width: 1300, height: 900 },
+  }),
+]
+```
+
+#### 3.2 — Preconnect para domínios externos
+
+```html
+<!-- index.html — adicionar no <head> -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<!-- Se usar analytics, CDNs, etc. -->
+<link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+```
+
+#### 3.3 — Carregar fontes de forma assíncrona
+
+```html
+<!-- index.html -->
+<!-- ❌ Bloqueia render -->
+<link href="https://fonts.googleapis.com/css2?family=Inter..." rel="stylesheet" />
+
+<!-- ✅ Não bloqueia -->
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter..." as="style"
+      onload="this.onload=null;this.rel='stylesheet'" />
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Inter..." rel="stylesheet" />
+</noscript>
+```
+
+**Melhor opção:** hospedar as fontes localmente com `fontsource`:
+
+```bash
+pnpm add @fontsource/inter  # ou a fonte escolhida
+```
+
+```ts
+// src/main.tsx
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
+```
+
+#### 3.4 — Tailwind CSS — purge agressivo
+
+```ts
+// tailwind.config.ts
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{ts,tsx}',
+  ],
+  // Certifique-se que não há safelist desnecessária
+}
+```
+
+### ✅ Validação da Etapa 3
+- [ ] `pnpm build` → CSS principal < 20 KB gzip
+- [ ] Zero recursos render-blocking no PageSpeed
+- [ ] FCP < 2 s no PageSpeed
+
+---
+
+## ETAPA 4 — Cache, Compressão e Headers HTTP (impacto: Performance geral)
+
+### Objetivo
+Garantir que assets sejam cacheados e servidos comprimidos.
+
+### Tarefas
+
+#### 4.1 — Configurar compressão Brotli/Gzip no servidor Node.js
+
+```bash
+pnpm add compression
+pnpm add -D @types/compression
+```
+
+```ts
+// server/index.ts
+import compression from 'compression'
+
+app.use(compression({
+  level: 9,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false
+    return compression.filter(req, res)
+  },
+}))
+```
+
+#### 4.2 — Headers de cache para assets estáticos
+
+```ts
+// server/index.ts
+import { Request, Response, NextFunction } from 'express'
+
+// Assets com hash no nome (gerados pelo Vite) — cache longo
+app.use('/assets', (req: Request, res: Response, next: NextFunction) => {
+  res.set('Cache-Control', 'public, max-age=31536000, immutable')
+  next()
+}, express.static('./dist/assets'))
+
+// HTML — sem cache (sempre revalida)
+app.use(express.static('./dist', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    }
+  },
+}))
+```
+
+#### 4.3 — Vite: garantir hashes nos nomes dos arquivos de build
+
+```ts
+// vite.config.ts
+build: {
+  assetsDir: 'assets',
+  rollupOptions: {
+    output: {
+      entryFileNames:   'assets/[name]-[hash].js',
+      chunkFileNames:   'assets/[name]-[hash].js',
+      assetFileNames:   'assets/[name]-[hash][extname]',
+      // manualChunks: ... (definido na Etapa 1)
+    },
+  },
+}
+```
+
+#### 4.4 — Habilitar HTTP/2 no Replit (se disponível)
+
+No Replit, verificar se o proxy suporta HTTP/2. Se sim, nenhuma configuração adicional é necessária. Se usar domínio customizado, configurar via Cloudflare (próxima etapa).
+
+### ✅ Validação da Etapa 4
+- [ ] `curl -I https://seu-site.replit.dev/assets/index-[hash].js` retorna `Cache-Control: max-age=31536000`
+- [ ] `curl -I --compressed https://seu-site.replit.dev` retorna `Content-Encoding: br` ou `gzip`
+- [ ] Score de "Práticas Recomendadas" ≥ 95
+
+---
+
+## ETAPA 5 — SSR / Pre-render para SPA (impacto: FCP, LCP, SEO)
+
+### Objetivo
+Uma SPA pura envia HTML vazio ao crawler e ao usuário. O pre-render resolve FCP, LCP e SEO ao mesmo tempo.
+
+### Tarefas
+
+#### 5.1 — Configurar vite-plugin-ssr ou @vitejs/plugin-react + SSR simples
+
+**Opção A (mais simples para Replit): Pre-render com vite-ssg**
+
+```bash
+pnpm add vite-ssg
+```
+
+```ts
+// src/main.ts — trocar createApp por ViteSSG
+import { ViteSSG } from 'vite-ssg'
+import App from './App.tsx'
+import { routes } from './routes'
+
+export const createApp = ViteSSG(App, { routes })
+```
+
+**Opção B: Pre-render estático com vite-plugin-prerender**
+
+```bash
+pnpm add -D vite-plugin-prerender
+```
+
+```ts
+// vite.config.ts
+import Prerender from 'vite-plugin-prerender'
+
+plugins: [
+  react(),
+  Prerender({
+    staticDir: resolve(__dirname, 'dist'),
+    routes: ['/', '/planos', '/contato', '/sobre'],
+    renderer: new Prerender.PuppeteerRenderer({
+      renderAfterDocumentEvent: 'render-event',
+      headless: true,
+    }),
+  }),
+]
+```
+
+```ts
+// src/main.tsx — emitir evento após hidratação
+document.dispatchEvent(new Event('render-event'))
+```
+
+#### 5.2 — Garantir que React Helmet Async funciona no pre-render
+
+```tsx
+// src/main.tsx
+import { HelmetProvider } from 'react-helmet-async'
+
+const helmetContext = {}
+
+ReactDOM.hydrateRoot(
+  document.getElementById('root')!,
+  <HelmetProvider context={helmetContext}>
+    <App />
+  </HelmetProvider>
+)
+```
+
+### ✅ Validação da Etapa 5
+- [ ] `curl https://seu-site.replit.dev` retorna HTML com conteúdo real (não `<div id="root"></div>` vazio)
+- [ ] FCP < 1,8 s
+- [ ] LCP < 2,5 s
+- [ ] SEO score = 100
+
+---
+
+## ETAPA 6 — Acessibilidade (meta: score 100)
+
+### Objetivo
+Corrigir todos os itens de acessibilidade identificados no PageSpeed (score atual ~56).
+
+### Tarefas
+
+#### 6.1 — Checklist de atributos obrigatórios
+
+```tsx
+// ✅ Toda <img> deve ter alt descritivo
+<img src={logo} alt="Logo Mais Fibra" width={160} height={48} />
+
+// ✅ Botões sem texto visível precisam de aria-label
+<button aria-label="Abrir menu de navegação">
+  <MenuIcon />
+</button>
+
+// ✅ Links precisam de texto descritivo (não "Clique aqui")
+<a href="/planos">Ver planos de internet</a>
+
+// ✅ Inputs precisam de <label> associado
+<label htmlFor="email">E-mail</label>
+<input id="email" type="email" name="email" />
+```
+
+#### 6.2 — Contraste de cores (WCAG AA mínimo)
+
+Ferramentas: [Contrast Checker](https://webaim.org/resources/contrastchecker/)
+
+- Texto normal: mínimo **4,5:1**
+- Texto grande (≥18px bold ou ≥24px): mínimo **3:1**
+- Verificar todas as combinações de cor texto/fundo no Tailwind config
+
+```ts
+// tailwind.config.ts — definir cores que garantem contraste
+theme: {
+  extend: {
+    colors: {
+      primary: '#0057B8',      // azul — 4.8:1 sobre branco ✅
+      'primary-dark': '#003F8A', // azul escuro — 7.2:1 ✅
+    },
+  },
+}
+```
+
+#### 6.3 — Hierarquia de headings
+
+```tsx
+// ❌ Pular níveis de heading
+<h1>Mais Fibra</h1>
+<h3>Internet ultrarrápida</h3>  {/* h2 pulado */}
+
+// ✅ Sequência correta
+<h1>Mais Fibra</h1>
+<h2>Internet ultrarrápida</h2>
+<h3>Planos residenciais</h3>
+```
+
+#### 6.4 — Navegação por teclado e focus visible
+
+```css
+/* src/index.css — nunca remover outline sem substituir */
+:focus-visible {
+  outline: 2px solid #0057B8;
+  outline-offset: 2px;
+}
+```
+
+#### 6.5 — Landmarks ARIA e skip-link
+
+```tsx
+// src/components/Layout.tsx
+function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {/* Skip link para leitores de tela */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-white focus:text-primary"
+      >
+        Pular para o conteúdo principal
+      </a>
+
+      <header role="banner">
+        <nav role="navigation" aria-label="Menu principal">
+          {/* navegação */}
+        </nav>
+      </header>
+
+      <main id="main-content" role="main">
+        {children}
+      </main>
+
+      <footer role="contentinfo">
+        {/* rodapé */}
+      </footer>
+    </>
+  )
+}
+```
+
+#### 6.6 — Formulários acessíveis
+
+```tsx
+// Mensagens de erro acessíveis
+<input
+  id="phone"
+  type="tel"
+  aria-describedby={error ? 'phone-error' : undefined}
+  aria-invalid={!!error}
+/>
+{error && (
+  <p id="phone-error" role="alert" className="text-red-600 text-sm">
+    {error}
+  </p>
+)}
+```
+
+#### 6.7 — Animações: respeitar prefers-reduced-motion
+
+```tsx
+// src/hooks/useReducedMotion.ts
+import { useEffect, useState } from 'react'
+
+export function useReducedMotion() {
+  const [reduced, setReduced] = useState(
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return reduced
+}
+
+// Uso no componente
+const reducedMotion = useReducedMotion()
+
+<motion.div
+  initial={{ opacity: 0, y: reducedMotion ? 0 : 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: reducedMotion ? 0 : 0.4 }}
+>
+```
+
+### ✅ Validação da Etapa 6
+- [ ] Rodar `axe` ou `Lighthouse --accessibility` — zero violações críticas
+- [ ] Navegar por todo o site usando somente Tab/Enter/Esc
+- [ ] Accessibility score = 100 no PageSpeed
+
+---
+
+## ETAPA 7 — SEO Técnico (meta: score 100)
+
+### Objetivo
+Garantir que cada página tenha todos os metadados necessários para o Google.
+
+### Tarefas
+
+#### 7.1 — Meta tags obrigatórias por página
+
+```tsx
+// src/components/SEO.tsx
+import { Helmet } from 'react-helmet-async'
+
+interface SEOProps {
+  title: string
+  description: string
+  canonical: string
+  ogImage?: string
+}
+
+export function SEO({ title, description, canonical, ogImage }: SEOProps) {
+  const siteName = 'Mais Fibra'
+  const defaultOgImage = 'https://seu-site.replit.dev/og-image.jpg'
+
+  return (
+    <Helmet>
+      <title>{`${title} | ${siteName}`}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonical} />
+
+      {/* Open Graph */}
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:url" content={canonical} />
+      <meta property="og:image" content={ogImage ?? defaultOgImage} />
+      <meta property="og:type" content="website" />
+      <meta property="og:site_name" content={siteName} />
+
+      {/* Twitter Card */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={ogImage ?? defaultOgImage} />
+    </Helmet>
+  )
+}
+```
+
+#### 7.2 — Sitemap XML + robots.txt no servidor Node.js
+
+```ts
+// server/routes/seo.ts
+import { Router } from 'express'
+const router = Router()
+
+const PAGES = ['/', '/planos', '/contato', '/sobre']
+const BASE_URL = 'https://seu-dominio.com.br'
+
+router.get('/sitemap.xml', (req, res) => {
+  const urls = PAGES.map(p => `
+  <url>
+    <loc>${BASE_URL}${p}</loc>
+    <changefreq>weekly</changefreq>
+    <priority>${p === '/' ? '1.0' : '0.8'}</priority>
+  </url>`).join('')
+
+  res.set('Content-Type', 'application/xml')
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`)
+})
+
+router.get('/robots.txt', (req, res) => {
+  res.type('text/plain')
+  res.send(`User-agent: *
+Allow: /
+Sitemap: ${BASE_URL}/sitemap.xml`)
+})
+
+export default router
+```
+
+#### 7.3 — Structured Data (JSON-LD) para empresa local
+
+```tsx
+// src/components/LocalBusinessSchema.tsx
+export function LocalBusinessSchema() {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'InternetCafe',
+    name: 'Mais Fibra',
+    url: 'https://seu-dominio.com.br',
+    telephone: '+55-XX-XXXX-XXXX',
+    address: {
+      '@type': 'PostalAddress',
+      addressCountry: 'BR',
+    },
+    offers: {
+      '@type': 'AggregateOffer',
+      priceCurrency: 'BRL',
+      description: 'Planos de internet fibra óptica',
+    },
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+```
+
+#### 7.4 — Viewport e charset corretos no index.html
+
+```html
+<!-- index.html — verificar que estes existem -->
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0057B8" />
+```
+
+#### 7.5 — Hreflang (se site multilíngue)
+
+```tsx
+<link rel="alternate" hreflang="pt-BR" href="https://seu-dominio.com.br/" />
+```
+
+### ✅ Validação da Etapa 7
+- [ ] `curl https://seu-site/sitemap.xml` retorna XML válido
+- [ ] `curl https://seu-site/robots.txt` retorna conteúdo correto
+- [ ] Cada página tem title único, description ≤ 160 chars, canonical correto
+- [ ] SEO score = 100 no PageSpeed
+
+---
+
+## ETAPA 8 — Práticas Recomendadas (meta: score 100)
+
+### Tarefas
+
+#### 8.1 — Segurança: Headers HTTP
+
+```ts
+// server/index.ts
+import helmet from 'helmet'
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // ajustar conforme libs externas
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+      connectSrc: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}))
+```
+
+#### 8.2 — HTTPS e sem mixed content
+
+Verificar que todas as URLs referenciadas no código são `https://`, não `http://`.
+
+```bash
+# Buscar por http:// hardcoded no src
+grep -r "http://" src/ --include="*.tsx" --include="*.ts"
+```
+
+#### 8.3 — Remover console.log em produção
+
+```ts
+// vite.config.ts
+build: {
+  minify: 'terser',
+  terserOptions: {
+    compress: {
+      drop_console: true,
+      drop_debugger: true,
+    },
+  },
+}
+```
+
+#### 8.4 — Evitar APIs deprecated
+
+Verificar uso de `document.write`, `XMLHttpRequest` (substituir por `fetch`), e eventos inline como `onclick=""`.
+
+#### 8.5 — Manifest para PWA (opcional, melhora score)
+
+```json
+// public/manifest.json
+{
+  "name": "Mais Fibra",
+  "short_name": "Mais Fibra",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0057B8",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+```html
+<!-- index.html -->
+<link rel="manifest" href="/manifest.json" />
+```
+
+### ✅ Validação da Etapa 8
+- [ ] `curl -I https://seu-site` mostra headers de segurança
+- [ ] Zero mixed content no DevTools > Console
+- [ ] Best Practices score = 100
+
+---
+
+## ETAPA 9 — Otimização de Runtime (impacto: TBT, INP)
+
+### Objetivo
+Eliminar trabalho JavaScript que bloqueia a thread principal.
+
+### Tarefas
+
+#### 9.1 — Adiar scripts de terceiros (analytics, chat, etc.)
+
+```tsx
+// src/components/ThirdPartyScripts.tsx
+import { useEffect } from 'react'
+
+export function ThirdPartyScripts() {
+  useEffect(() => {
+    // Carregar após interação ou 5s, o que vier primeiro
+    const load = () => {
+      const script = document.createElement('script')
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=GA_ID'
+      script.async = true
+      document.head.appendChild(script)
+    }
+
+    const timer = setTimeout(load, 5000)
+    const events = ['click', 'scroll', 'keydown', 'mousemove']
+    const onInteraction = () => { clearTimeout(timer); load(); events.forEach(e => window.removeEventListener(e, onInteraction)) }
+    events.forEach(e => window.addEventListener(e, onInteraction, { once: true }))
+
+    return () => { clearTimeout(timer); events.forEach(e => window.removeEventListener(e, onInteraction)) }
+  }, [])
+
+  return null
+}
+```
+
+#### 9.2 — Virtualizar listas longas (recharts / tabelas admin)
+
+Se o painel admin renderiza listas ou tabelas com muitos itens:
+
+```bash
+pnpm add @tanstack/react-virtual
+```
+
+```tsx
+import { useVirtualizer } from '@tanstack/react-virtual'
+```
+
+#### 9.3 — Memoizar componentes pesados
+
+```tsx
+import { memo, useMemo, useCallback } from 'react'
+
+// Evitar re-renders desnecessários em seções estáticas
+export const PlanosSection = memo(function PlanosSection({ planos }) {
+  const sortedPlanos = useMemo(
+    () => [...planos].sort((a, b) => a.preco - b.preco),
+    [planos]
+  )
+  return <>{/* ... */}</>
+})
+```
+
+#### 9.4 — Usar `startTransition` para atualizações não urgentes
+
+```tsx
+import { startTransition } from 'react'
+
+function SearchPage() {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState([])
+
+  const handleSearch = (value: string) => {
+    setQuery(value) // urgente — atualiza o input imediatamente
+    startTransition(() => {
+      setResults(filterResults(value)) // não urgente — não bloqueia
+    })
+  }
+}
+```
+
+### ✅ Validação da Etapa 9
+- [ ] TBT < 200 ms no PageSpeed
+- [ ] Performance score ≥ 90
+
+---
+
+## ETAPA 10 — Replit: Configurações Específicas de Infra
+
+### Objetivo
+O ambiente Replit tem particularidades que afetam o desempenho.
+
+### Tarefas
+
+#### 10.1 — Wake-up do servidor (cold start)
+
+O Replit pode "dormir" o servidor. Para sites de produção, use um cron job externo (ex: UptimeRobot) para fazer ping a cada 5 minutos.
+
+Também configure o servidor para responder ao health check rapidamente:
+
+```ts
+// server/index.ts
+app.get('/health', (req, res) => res.status(200).json({ ok: true }))
+```
+
+#### 10.2 — Servir o build estático do Vite a partir do Express
+
+```ts
+// server/index.ts — garantir que o build é servido corretamente
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const distPath = path.resolve(__dirname, '../dist') // ajustar conforme estrutura monorepo
+
+app.use(express.static(distPath, {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true,
+}))
+
+// SPA fallback — todas as rotas retornam index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'))
+})
+```
+
+#### 10.3 — Variáveis de ambiente de produção
+
+```bash
+# .env.production
+NODE_ENV=production
+VITE_API_URL=https://seu-site.replit.dev/api
+```
+
+```ts
+// vite.config.ts
+define: {
+  'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+}
+```
+
+#### 10.4 — Configurar domínio customizado + Cloudflare (recomendado)
+
+Se possível, apontar um domínio customizado para o Replit via Cloudflare. Isso adiciona:
+- CDN global (reduz latência para usuários no Brasil)
+- Compressão Brotli automática
+- HTTP/2 e HTTP/3
+- Cache de assets na borda
+
+### ✅ Validação da Etapa 10
+- [ ] Servidor responde em < 200 ms (TTFB) no PageSpeed
+- [ ] Build estático é servido com headers corretos
+- [ ] Sem cold start afetando métricas
+
+---
+
+## 📊 Planilha de Acompanhamento
+
+Registre após cada etapa:
+
+| Etapa | Data | Perf | Acess. | SEO | BP | FCP | LCP | TBT | SI |
+|---|---|---|---|---|---|---|---|---|---|
+| Baseline | | 33 | 56 | 90 | 96 | ~13s | ~242s | ~4,3s | — |
+| Etapa 1 | | | | | | | | | |
+| Etapa 2 | | | | | | | | | |
+| Etapa 3 | | | | | | | | | |
+| Etapa 4 | | | | | | | | | |
+| Etapa 5 | | | | | | | | | |
+| Etapa 6 | | | | | | | | | |
+| Etapa 7 | | | | | | | | | |
+| Etapa 8 | | | | | | | | | |
+| Etapa 9 | | | | | | | | | |
+| Etapa 10 | | | | | | | | | |
+| **Meta** | | **100** | **100** | **100** | **100** | **<1,8s** | **<2,5s** | **<200ms** | **<3,4s** |
+
+---
+
+## 🔧 Ferramentas de Apoio
+
+| Ferramenta | Uso |
+|---|---|
+| [PageSpeed Insights](https://pagespeed.web.dev) | Teste principal após cada etapa |
+| [WebPageTest](https://www.webpagetest.org) | Teste com throttling real |
+| [Lighthouse CI](https://github.com/GoogleChrome/lighthouse-ci) | Automatizar testes no CI/CD |
+| [axe DevTools](https://www.deque.com/axe/) | Acessibilidade detalhada |
+| [Squoosh](https://squoosh.app) | Otimização manual de imagens |
+| [Bundlephobia](https://bundlephobia.com) | Verificar peso de dependências |
+| [WhyDidYouRender](https://github.com/welldone-software/why-did-you-render) | Debug de re-renders React |
+
+---
+
+## ⚡ Quick Wins (fazer primeiro se precisar de resultado rápido)
+
+Se precisar melhorar o score rapidamente antes de fazer tudo:
+
+1. **[5 min]** Adicionar `loading="lazy"` em todas as imagens abaixo do fold
+2. **[10 min]** Converter hero image para WebP e adicionar `<link rel="preload">`
+3. **[15 min]** Adicionar `React.lazy()` na rota `/admin` (Recharts é pesado)
+4. **[20 min]** Adicionar `alt` em todas as imagens sem alt
+5. **[30 min]** Configurar `manualChunks` no Vite para separar vendor chunks
+
+Esses 5 itens sozinhos devem mover o score de ~33 para ~65-70.
+
+---
+
+*Prompt gerado em 12/05/2026 · Baseado no relatório PageSpeed da análise do site Provider Mais Fibra (Replit)*
