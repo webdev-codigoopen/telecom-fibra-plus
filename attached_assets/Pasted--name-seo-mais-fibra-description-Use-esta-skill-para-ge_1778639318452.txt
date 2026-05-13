@@ -1,0 +1,624 @@
+---
+name: seo-mais-fibra
+description: >
+  Use esta skill para gerar, auditar e otimizar todo o SEO do site da Provider Mais Fibra
+  (provedor de internet fibra óptica, Oeste da Bahia). Cobre: meta tags por página,
+  structured data JSON-LD, sitemap, robots.txt, conteúdo semântico, palavras-chave locais,
+  Open Graph, e checklist de validação. Acione quando o usuário pedir para melhorar SEO,
+  ranqueamento orgânico, visibilidade no Google, ou criar meta tags para qualquer página do site.
+license: Proprietário — Provider Mais Fibra
+---
+
+# SEO Skill — Provider Mais Fibra
+
+## Contexto da Empresa
+
+| Campo | Valor |
+|---|---|
+| **Nome** | Provider Mais Fibra |
+| **Segmento** | Provedor de internet fibra óptica |
+| **Região** | Oeste da Bahia |
+| **Cidades atendidas** | Barra, Barreiras, Buritirama, Correntina, Javi, Luís Eduardo Magalhães, Mansidão, Muquém de São Francisco, Posto Rosário, Roda Velha, Santa Rita de Cássia, Wanderley |
+| **WhatsApp principal** | (77) 99844-4757 |
+| **Instagram** | @provider.fibra |
+| **Posicionamento** | Melhor preço + qualidade + velocidade + atendimento |
+| **Regulatório** | Homologado pela Anatel, 100% nacional |
+
+### Planos
+| Plano | Preço | Incluso |
+|---|---|---|
+| 300 Mega | R$ 69,90/mês | Instalação + Roteador + IPTV |
+| 400 Mega | R$ 79,90/mês | Instalação + Roteador + IPTV |
+| 600 Mega | R$ 99,90/mês | Instalação + Roteador + IPTV + Watch |
+| 900 Mega | R$ 149,90/mês | Instalação + Roteador + IPTV + Watch + Power Top |
+
+### Serviços
+Internet residencial · Internet empresarial · Link dedicado · IPTV
+
+### Diferenciais
+Fibra óptica · Instalação rápida · Suporte 24h via WhatsApp · Equipamento incluso · Anatel
+
+---
+
+## Arquitetura de Páginas e Seções
+
+```
+/ (Home)
+  ├── Hero (frase de impacto)
+  ├── Planos
+  ├── IPTV
+  ├── Diferenciais
+  ├── Onde Atuamos (Oeste da Bahia)
+  ├── Avaliações dos Clientes
+  ├── Indique e Ganhe
+  ├── Canais de Esporte IPTV
+  ├── Atendimento WhatsApp
+  ├── Vantagens
+  ├── FAQ (Tire suas Dúvidas)
+  └── Rodapé
+
+/contato
+/sobre-nos
+/onde-estamos
+```
+
+---
+
+## Banco de Palavras-Chave
+
+### Primárias (maior volume + intenção comercial)
+```
+internet fibra óptica Barreiras BA
+internet fibra óptica Luís Eduardo Magalhães
+provedor de internet Oeste da Bahia
+melhor internet Barreiras
+planos de internet Correntina BA
+internet rápida Santa Rita de Cássia
+fibra óptica Wanderley BA
+provedor internet Barra BA
+internet residencial Oeste da Bahia
+IPTV + internet Bahia
+```
+
+### Secundárias (long tail + intenção local)
+```
+internet 300 mega Barreiras preço
+contratar internet fibra óptica [cidade] BA
+plano internet 400 mega [cidade]
+internet empresarial Luís Eduardo Magalhães
+link dedicado Barreiras BA
+provedor internet mais barato [cidade]
+internet com IPTV incluso Bahia
+provider mais fibra contato
+provider mais fibra planos
+internet anatel homologada Bahia
+```
+
+### Semânticas (LSI — reforçam o contexto)
+```
+velocidade de download, latência baixa, fibra óptica simétrica,
+roteador incluso, instalação grátis, suporte técnico 24h,
+streaming 4K, sem travamento, conexão estável, interior da Bahia
+```
+
+---
+
+## Protocolo de Execução
+
+Quando o usuário pedir otimização SEO de uma página, execute **sempre** nesta ordem:
+
+1. **Identificar a página** (Home, Contato, Sobre Nós, Onde Estamos)
+2. **Selecionar palavras-chave primária e secundárias** do banco acima
+3. **Gerar todos os blocos de SEO** (meta tags, OG, JSON-LD, canonical)
+4. **Verificar checklist** antes de entregar
+5. **Reportar** o que foi otimizado e por quê
+
+---
+
+## Templates de Meta Tags por Página
+
+### REGRAS FIXAS
+- `<title>`: máximo **60 caracteres** | formato: `[Palavra-chave] | Provider Mais Fibra`
+- `<meta description>`: máximo **155 caracteres** | conter CTA + palavra-chave + diferencial
+- `canonical`: sempre URL absoluta `https://www.providermaisfiibra.com.br[/path]`
+- `og:image`: 1200×630px, WebP ou JPG, alt descritivo
+
+---
+
+### HOME — `/`
+
+```tsx
+// src/pages/Home.tsx
+import { Helmet } from 'react-helmet-async'
+
+<Helmet>
+  {/* === Básico === */}
+  <title>Internet Fibra Óptica no Oeste da Bahia | Provider Mais Fibra</title>
+  <meta name="description"
+    content="Planos de internet fibra a partir de R$ 69,90/mês com IPTV incluso. Atendemos Barreiras, LEM, Correntina e + 9 cidades. Instale hoje via WhatsApp!" />
+  <link rel="canonical" href="https://www.providermaisfiibra.com.br/" />
+
+  {/* === Open Graph === */}
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://www.providermaisfiibra.com.br/" />
+  <meta property="og:title"       content="Internet Fibra Óptica no Oeste da Bahia | Provider Mais Fibra" />
+  <meta property="og:description" content="Internet rápida, estável e com IPTV incluso a partir de R$ 69,90/mês. Fibra óptica homologada Anatel em 12 cidades do Oeste da Bahia." />
+  <meta property="og:image"       content="https://www.providermaisfiibra.com.br/og/home.jpg" />
+  <meta property="og:image:alt"   content="Provider Mais Fibra — Internet Fibra Óptica no Oeste da Bahia" />
+  <meta property="og:locale"      content="pt_BR" />
+  <meta property="og:site_name"   content="Provider Mais Fibra" />
+
+  {/* === Twitter Card === */}
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="Internet Fibra Óptica no Oeste da Bahia | Provider Mais Fibra" />
+  <meta name="twitter:description" content="Internet rápida com IPTV incluso a partir de R$ 69,90/mês. 12 cidades atendidas." />
+  <meta name="twitter:image"       content="https://www.providermaisfiibra.com.br/og/home.jpg" />
+
+  {/* === Técnico === */}
+  <meta name="robots"   content="index, follow, max-snippet:-1, max-image-preview:large" />
+  <meta name="keywords" content="internet fibra óptica Barreiras, provedor internet Oeste da Bahia, IPTV incluso, planos internet Bahia, fibra óptica LEM" />
+</Helmet>
+```
+
+---
+
+### CONTATO — `/contato`
+
+```tsx
+<Helmet>
+  <title>Fale Conosco — Contratar Internet | Provider Mais Fibra</title>
+  <meta name="description"
+    content="Entre em contato pelo WhatsApp (77) 99844-4757 ou acesse a unidade mais próxima. Atendemos Barreiras, LEM, Correntina e outras cidades do Oeste da Bahia." />
+  <link rel="canonical" href="https://www.providermaisfiibra.com.br/contato" />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://www.providermaisfiibra.com.br/contato" />
+  <meta property="og:title"       content="Fale Conosco | Provider Mais Fibra" />
+  <meta property="og:description" content="Contrate internet fibra óptica pelo WhatsApp ou visite nossa unidade. Instalação rápida em 12 cidades do Oeste da Bahia." />
+  <meta property="og:image"       content="https://www.providermaisfiibra.com.br/og/contato.jpg" />
+  <meta name="robots" content="index, follow" />
+</Helmet>
+```
+
+---
+
+### SOBRE NÓS — `/sobre-nos`
+
+```tsx
+<Helmet>
+  <title>Sobre a Provider Mais Fibra — Provedor do Oeste da Bahia</title>
+  <meta name="description"
+    content="Conheça a Provider Mais Fibra: provedor 100% nacional, homologado Anatel, com equipe capacitada e tecnologia de ponta em 12 cidades do Oeste da Bahia." />
+  <link rel="canonical" href="https://www.providermaisfiibra.com.br/sobre-nos" />
+  <meta property="og:type"  content="website" />
+  <meta property="og:url"   content="https://www.providermaisfiibra.com.br/sobre-nos" />
+  <meta property="og:title" content="Sobre Nós | Provider Mais Fibra" />
+  <meta property="og:description"
+    content="Provedor de internet fibra óptica com sólida experiência no mercado do Oeste da Bahia. Tecnologia de ponta, Anatel homologado, suporte 24h." />
+  <meta property="og:image" content="https://www.providermaisfiibra.com.br/og/sobre.jpg" />
+  <meta name="robots" content="index, follow" />
+</Helmet>
+```
+
+---
+
+### ONDE ESTAMOS — `/onde-estamos`
+
+```tsx
+<Helmet>
+  <title>Cobertura de Fibra Óptica no Oeste da Bahia | Provider Mais Fibra</title>
+  <meta name="description"
+    content="Veja onde a Provider Mais Fibra atua: Barreiras, LEM, Correntina, Wanderley, Santa Rita de Cássia, Barra, Buritirama, Mansidão e mais. Consulte disponibilidade!" />
+  <link rel="canonical" href="https://www.providermaisfiibra.com.br/onde-estamos" />
+  <meta property="og:type"  content="website" />
+  <meta property="og:url"   content="https://www.providermaisfiibra.com.br/onde-estamos" />
+  <meta property="og:title" content="Onde Atuamos | Provider Mais Fibra" />
+  <meta property="og:description"
+    content="Fibra óptica em Barreiras, LEM, Correntina, Wanderley e outras 8 cidades do Oeste da Bahia. Verifique disponibilidade na sua cidade." />
+  <meta property="og:image" content="https://www.providermaisfiibra.com.br/og/cobertura.jpg" />
+  <meta name="robots" content="index, follow" />
+</Helmet>
+```
+
+---
+
+## Structured Data JSON-LD
+
+### 1. Organization (inserir em TODAS as páginas via Layout)
+
+```tsx
+// src/components/OrganizationSchema.tsx
+export function OrganizationSchema() {
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Provider Mais Fibra",
+      "url": "https://www.providermaisfiibra.com.br",
+      "logo": "https://www.providermaisfiibra.com.br/logo.png",
+      "description": "Provedor de internet fibra óptica no Oeste da Bahia. Planos residenciais, empresariais, IPTV e link dedicado. Homologado pela Anatel.",
+      "areaServed": [
+        "Barreiras", "Luís Eduardo Magalhães", "Correntina",
+        "Wanderley", "Santa Rita de Cássia", "Barra", "Buritirama",
+        "Mansidão", "Muquém de São Francisco", "Posto Rosário",
+        "Roda Velha", "Javi"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+55-77-99844-4757",
+        "contactType": "customer service",
+        "availableLanguage": "Portuguese",
+        "contactOption": "TollFree",
+        "areaServed": "BR"
+      },
+      "sameAs": [
+        "https://www.instagram.com/provider.fibra"
+      ]
+    })}} />
+  )
+}
+```
+
+### 2. LocalBusiness por unidade (inserir em /contato e /onde-estamos)
+
+```tsx
+// src/components/LocalBusinessSchema.tsx
+const UNIDADES = [
+  {
+    name: "Provider Mais Fibra — Barreiras",
+    telephone: "+55-77-3614-0950",
+    address: { street: "Rua José Rocha, 49", city: "Barreiras", state: "BA", zip: "47800-184" },
+    geo: { lat: -12.1523, lng: -44.9911 }
+  },
+  {
+    name: "Provider Mais Fibra — Luís Eduardo Magalhães",
+    telephone: "+55-77-99101-0334",
+    address: { street: "Rua Pará, 471 - Loja 1", city: "Luís Eduardo Magalhães", state: "BA", zip: "" },
+    geo: { lat: -12.0967, lng: -45.7895 }
+  },
+  {
+    name: "Provider Mais Fibra — Correntina",
+    telephone: "+55-77-99844-4462",
+    address: { street: "Rua da Chácara, S/N", city: "Correntina", state: "BA", zip: "47650-000" },
+    geo: { lat: -13.3464, lng: -44.6397 }
+  },
+  {
+    name: "Provider Mais Fibra — Santa Rita de Cássia",
+    telephone: "+55-77-99823-6720",
+    address: { street: "Rua Santos Dumont, 277", city: "Santa Rita de Cássia", state: "BA", zip: "47150-128" },
+    geo: { lat: -11.0097, lng: -44.5247 }
+  },
+  {
+    name: "Provider Mais Fibra — Wanderley",
+    telephone: "+55-77-99925-3425",
+    address: { street: "Avenida Domingos Pereira dos Santos, 2", city: "Wanderley", state: "BA", zip: "47940-000" },
+    geo: { lat: -12.0006, lng: -43.9134 }
+  },
+  {
+    name: "Provider Mais Fibra — Barra",
+    telephone: "+55-77-99977-9868",
+    address: { street: "Rua Engenheiro Alfredo Halfeld, 13", city: "Barra", state: "BA", zip: "47100-000" },
+    geo: { lat: -11.0897, lng: -43.1408 }
+  },
+  {
+    name: "Provider Mais Fibra — Buritirama",
+    telephone: "+55-77-99827-0368",
+    address: { street: "Avenida Buriti, S/N", city: "Buritirama", state: "BA", zip: "47120-000" },
+    geo: { lat: -10.7218, lng: -43.6331 }
+  },
+  {
+    name: "Provider Mais Fibra — Mansidão",
+    telephone: "+55-77-99811-4991",
+    address: { street: "Avenida Lidio Francisco de Souza, S/N", city: "Mansidão", state: "BA", zip: "47160-000" },
+    geo: { lat: -10.7259, lng: -44.0358 }
+  },
+]
+
+export function LocalBusinessSchema() {
+  const schemas = UNIDADES.map(u => ({
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `https://www.providermaisfiibra.com.br/unidade/${u.address.city.toLowerCase().replace(/ /g,'-')}`,
+    "name": u.name,
+    "image": "https://www.providermaisfiibra.com.br/logo.png",
+    "url": "https://www.providermaisfiibra.com.br/onde-estamos",
+    "telephone": u.telephone,
+    "priceRange": "R$ 69,90 – R$ 149,90",
+    "servesCuisine": undefined,
+    "description": `Provedor de internet fibra óptica em ${u.address.city}, BA. Planos a partir de R$69,90 com IPTV incluso.`,
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": u.address.street,
+      "addressLocality": u.address.city,
+      "addressRegion": "BA",
+      "postalCode": u.address.zip,
+      "addressCountry": "BR"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": u.geo.lat,
+      "longitude": u.geo.lng
+    },
+    "openingHoursSpecification": {
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+      "opens": "08:00",
+      "closes": "18:00"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "telephone": u.telephone,
+      "contactType": "customer support",
+      "availableLanguage": "Portuguese"
+    }
+  }))
+
+  return (
+    <script type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schemas) }} />
+  )
+}
+```
+
+### 3. FAQ Schema (inserir na seção "Tire suas Dúvidas" da Home)
+
+```tsx
+// src/components/FAQSchema.tsx
+export function FAQSchema() {
+  const faqs = [
+    {
+      q: "Quais cidades a Provider Mais Fibra atende?",
+      a: "Atendemos Barreiras, Luís Eduardo Magalhães, Correntina, Wanderley, Santa Rita de Cássia, Barra, Buritirama, Mansidão, Muquém de São Francisco, Posto Rosário, Roda Velha e Javi — todas no Oeste da Bahia."
+    },
+    {
+      q: "Qual o plano de internet mais barato da Provider Mais Fibra?",
+      a: "Nosso plano mais acessível é o de 300 Mega por apenas R$ 69,90/mês, com instalação, roteador e IPTV inclusos."
+    },
+    {
+      q: "A instalação é gratuita?",
+      a: "Sim! A instalação e o roteador já estão inclusos em todos os nossos planos, sem custo adicional."
+    },
+    {
+      q: "A Provider Mais Fibra oferece IPTV?",
+      a: "Sim, o IPTV já está incluso nos planos de 300 Mega e 400 Mega. Nos planos de 600 e 900 Mega, há benefícios adicionais como Watch e Power Top."
+    },
+    {
+      q: "A Provider Mais Fibra é homologada pela Anatel?",
+      a: "Sim, somos um provedor 100% nacional, devidamente homologado pela Anatel, garantindo qualidade e segurança no serviço."
+    },
+    {
+      q: "Como entrar em contato com a Provider Mais Fibra?",
+      a: "Você pode falar conosco pelo WhatsApp (77) 99844-4757 ou visitar a unidade mais próxima da sua cidade. Oferecemos suporte 24h via WhatsApp."
+    },
+    {
+      q: "Tem contrato de fidelidade?",
+      a: "Consulte as condições na unidade mais próxima ou pelo nosso WhatsApp. Nosso foco é oferecer flexibilidade e o melhor custo-benefício para você."
+    },
+  ]
+
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(f => ({
+        "@type": "Question",
+        "name": f.q,
+        "acceptedAnswer": { "@type": "Answer", "text": f.a }
+      }))
+    })}} />
+  )
+}
+```
+
+### 4. BreadcrumbList (inserir em páginas internas)
+
+```tsx
+// src/components/Breadcrumb.tsx
+interface BreadcrumbItem { name: string; url: string }
+
+export function BreadcrumbSchema({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": items.map((item, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "name": item.name,
+        "item": item.url
+      }))
+    })}} />
+  )
+}
+
+// Uso em /sobre-nos:
+// <BreadcrumbSchema items={[
+//   { name: "Home", url: "https://www.providermaisfiibra.com.br/" },
+//   { name: "Sobre Nós", url: "https://www.providermaisfiibra.com.br/sobre-nos" }
+// ]} />
+```
+
+---
+
+## Sitemap XML (servidor Node.js)
+
+```ts
+// server/routes/seo.ts
+import { Router } from 'express'
+const router = Router()
+const BASE = 'https://www.providermaisfiibra.com.br'
+
+const PAGES = [
+  { url: '/',              priority: '1.0', freq: 'weekly' },
+  { url: '/contato',       priority: '0.9', freq: 'monthly' },
+  { url: '/sobre-nos',     priority: '0.8', freq: 'monthly' },
+  { url: '/onde-estamos',  priority: '0.9', freq: 'monthly' },
+]
+
+router.get('/sitemap.xml', (_req, res) => {
+  const urls = PAGES.map(p => `
+  <url>
+    <loc>${BASE}${p.url}</loc>
+    <changefreq>${p.freq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join('')
+
+  res.set('Content-Type', 'application/xml')
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls}
+</urlset>`)
+})
+
+router.get('/robots.txt', (_req, res) => {
+  res.type('text/plain')
+  res.send(
+`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: ${BASE}/sitemap.xml`
+  )
+})
+
+export default router
+```
+
+---
+
+## SEO On-Page: Guia de Conteúdo Semântico por Seção
+
+### Hero (Home)
+- `<h1>`: **"Internet Fibra Óptica no Oeste da Bahia"** — contém keyword primária
+- Subtítulo `<p>`: mencionar velocidade, cidades, IPTV e CTA WhatsApp
+- Exemplo: *"Planos de 300 a 900 Mega com IPTV incluso. Atendemos Barreiras, LEM, Correntina e mais 9 cidades da Bahia."*
+
+### Seção Planos
+- `<h2>`: **"Planos de Internet Fibra com IPTV Incluso"**
+- Cada card de plano: usar `<h3>` com o nome do plano
+- Texto do card: listar benefícios com termos semânticos (velocidade, streaming, roteador)
+
+### Seção IPTV / Canais
+- `<h2>`: **"IPTV com Canais de Esporte e Entretenimento"**
+- Listar canais disponíveis (aumenta relevância para "IPTV + cidade")
+
+### Seção Diferenciais
+- `<h2>`: **"Por que escolher a Provider Mais Fibra?"**
+- Cada item: texto com palavra semântica (fibra óptica, latência, suporte 24h, Anatel)
+
+### Seção Onde Atuamos
+- `<h2>`: **"Cobertura de Fibra Óptica no Oeste da Bahia"**
+- Listar todas as 12 cidades com links internos para `/onde-estamos#cidade`
+- Esta seção é crítica para SEO local — nomear cada cidade explicitamente
+
+### Seção Avaliações
+- `<h2>`: **"O que nossos clientes dizem"**
+- Usar `itemscope itemtype="https://schema.org/Review"` no HTML dos cards
+
+### Seção Indique e Ganhe
+- `<h2>`: **"Indique e Ganhe com a Provider Mais Fibra"**
+- Texto explicativo breve com CTA para WhatsApp
+
+### FAQ (Tire suas Dúvidas)
+- `<h2>`: **"Perguntas Frequentes"**
+- Cada pergunta: `<h3>` — garante hierarquia correta para Google
+- Usar o FAQSchema gerado acima
+
+### Rodapé
+- Incluir: nome, endereços, telefones, cidades atendidas, CNPJ, menção Anatel
+- Link interno para todas as páginas do site
+- Link externo para Instagram com `rel="noopener"`
+
+---
+
+## index.html — Head Obrigatório
+
+```html
+<!-- public/index.html -->
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0057B8" />
+  <meta name="author" content="Provider Mais Fibra" />
+  <meta name="geo.region" content="BR-BA" />
+  <meta name="geo.placename" content="Barreiras, Bahia, Brasil" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- DNS Prefetch para WhatsApp e Instagram -->
+  <link rel="dns-prefetch" href="https://api.whatsapp.com" />
+  <link rel="dns-prefetch" href="https://www.instagram.com" />
+</head>
+```
+
+---
+
+## Google Business Profile — Checklist de Cadastro
+
+Para reforçar o SEO local em cada cidade, criar e otimizar um perfil no Google Business Profile:
+
+- [ ] Um perfil por unidade (Barreiras, LEM, Correntina, etc.)
+- [ ] Nome exato: **Provider Mais Fibra — [Cidade]**
+- [ ] Categoria principal: **Provedor de Serviços de Internet**
+- [ ] Categoria secundária: **Empresa de Telecomunicações**
+- [ ] Fotos: fachada, equipe, equipamentos (mínimo 10 fotos por unidade)
+- [ ] Posts semanais com promoções e novidades
+- [ ] Responder 100% das avaliações
+- [ ] Adicionar link do site em todos os perfis
+
+---
+
+## Checklist de Validação SEO
+
+Execute após implementar qualquer mudança:
+
+### Meta Tags
+- [ ] Cada página tem `<title>` único ≤ 60 chars
+- [ ] Cada página tem `<meta description>` único ≤ 155 chars
+- [ ] Cada página tem `<link rel="canonical">` apontando para si mesma
+- [ ] Home tem todas as meta OG e Twitter Card
+
+### Structured Data
+- [ ] Organization na home ✓
+- [ ] LocalBusiness em /contato e /onde-estamos ✓
+- [ ] FAQPage na home (seção FAQ) ✓
+- [ ] BreadcrumbList nas páginas internas ✓
+- [ ] Validar em: https://search.google.com/test/rich-results
+
+### Conteúdo
+- [ ] Única `<h1>` por página com keyword primária
+- [ ] Hierarquia h1 → h2 → h3 sem pular níveis
+- [ ] Todas as `<img>` têm `alt` descritivo com contexto
+- [ ] 12 cidades mencionadas explicitamente no texto da Home
+- [ ] CTA para WhatsApp em pelo menos 3 seções
+
+### Técnico
+- [ ] `/sitemap.xml` retorna XML válido
+- [ ] `/robots.txt` não bloqueia páginas importantes
+- [ ] HTTPS em todas as URLs
+- [ ] Sem links quebrados (verificar com Screaming Frog ou Ahrefs)
+- [ ] Velocidade: rodar PageSpeed e garantir score ≥ 90 (ver guia OPTIMIZE_PAGESPEED_100.md)
+
+### Local SEO
+- [ ] Google Business Profile criado para cada unidade
+- [ ] NAP (Nome, Endereço, Telefone) consistente em todo o site e GBP
+- [ ] Cidades mencionadas em texto corrido (não apenas em listas)
+
+---
+
+## Formato de Entrega
+
+Quando o agente SEO gerar conteúdo, sempre entregue neste formato:
+
+```
+📌 Página: [nome]
+🔑 Keyword Primária: [keyword]
+📊 Impacto Esperado: [o que melhora]
+
+[Código completo pronto para colar]
+
+✅ Checklist de validação desta entrega:
+- [ ] item 1
+- [ ] item 2
+```

@@ -1,6 +1,13 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /admin/
 Disallow: /api/
+
+# Permite Googlebot-Image acessar imagens
+User-agent: Googlebot-Image
+Allow: /
+
+Host: https://www.providermaisfibra.com.br
 
 Sitemap: https://www.providermaisfibra.com.br/sitemap.xml

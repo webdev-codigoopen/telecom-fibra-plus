@@ -1,5 +1,10 @@
 import SEO from "@/components/SEO";
-import { ORGANIZATION_SCHEMA, WEBSITE_SCHEMA } from "@/lib/seoConfig";
+import {
+  FAQ_SCHEMA,
+  OFFER_CATALOG_SCHEMA,
+  ORGANIZATION_SCHEMA,
+  WEBSITE_SCHEMA,
+} from "@/lib/seoConfig";
 import Header from "@/components/sections/Header";
 import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
@@ -27,7 +32,12 @@ export default function Home() {
           "Wi-Fi 6",
           "plano de internet residencial",
         ]}
-        jsonLd={[ORGANIZATION_SCHEMA, WEBSITE_SCHEMA]}
+        jsonLd={[
+          ORGANIZATION_SCHEMA,
+          WEBSITE_SCHEMA,
+          OFFER_CATALOG_SCHEMA,
+          FAQ_SCHEMA,
+        ]}
       />
       <Header />
       <main id="main-content" tabIndex={-1} className="focus:outline-none">

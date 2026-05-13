@@ -8,6 +8,10 @@ import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 import { cities, phoneToTel } from "@/lib/cities";
+import {
+  buildBreadcrumbSchema,
+  buildLocalBusinessSchemas,
+} from "@/lib/seoConfig";
 
 function trackCityAssinar(cityName: string) {
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -32,23 +36,38 @@ export default function OndeEstamos() {
           "cobertura internet fibra Oeste da Bahia",
           "cidades com fibra óptica Bahia",
         ]}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "CollectionPage",
-          name: "Cidades atendidas pela Provider Mais Fibra",
-          url: "https://www.providermaisfibra.com.br/onde-estamos",
-          inLanguage: "pt-BR",
-          hasPart: cities.map((c) => ({
-            "@type": "Place",
-            name: c.name,
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: c.name,
-              addressRegion: c.stateCode,
-              addressCountry: "BR",
-            },
-          })),
-        }}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            name: "Cidades atendidas pela Provider Mais Fibra",
+            url: "https://www.providermaisfibra.com.br/onde-estamos",
+            inLanguage: "pt-BR",
+            hasPart: cities.map((c) => ({
+              "@type": "Place",
+              name: c.name,
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: c.name,
+                addressRegion: c.stateCode,
+                addressCountry: "BR",
+              },
+            })),
+          },
+          buildBreadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Onde Estamos", path: "/onde-estamos" },
+          ]),
+          ...buildLocalBusinessSchemas(
+            cities.map((c) => ({
+              slug: c.slug,
+              name: c.name,
+              address: c.address,
+              stateCode: c.stateCode,
+              phones: c.phones,
+            })),
+          ),
+        ]}
       />
       <Header />
       <main id="main-content" tabIndex={-1} className="flex-1 pt-16 md:pt-[88px] focus:outline-none">

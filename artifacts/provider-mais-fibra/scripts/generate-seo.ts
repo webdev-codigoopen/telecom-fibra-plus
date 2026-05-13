@@ -2,6 +2,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cities } from "../src/lib/cities";
+import {
+  FAQ_SCHEMA,
+  OFFER_CATALOG_SCHEMA,
+  buildBreadcrumbSchema,
+  buildLocalBusinessSchemas,
+} from "../src/lib/seoConfig";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, "..", "dist", "public");
@@ -78,7 +84,7 @@ function homeRoute(): RouteSpec {
       "IPTV Bahia",
       "Wi-Fi 6",
     ],
-    jsonLd: [ORG_LD, WEBSITE_LD],
+    jsonLd: [ORG_LD, WEBSITE_LD, OFFER_CATALOG_SCHEMA, FAQ_SCHEMA],
     changefreq: "weekly",
     priority: 1.0,
     bodyHtml: `
@@ -133,6 +139,19 @@ function ondeEstamosRoute(): RouteSpec {
           },
         })),
       },
+      buildBreadcrumbSchema([
+        { name: "Home", path: "/" },
+        { name: "Onde Estamos", path: "/onde-estamos" },
+      ]),
+      ...buildLocalBusinessSchemas(
+        cities.map((c) => ({
+          slug: c.slug,
+          name: c.name,
+          address: c.address,
+          stateCode: c.stateCode,
+          phones: c.phones,
+        })),
+      ),
     ],
     bodyHtml: `
       <header><h1>Onde a Provider Mais Fibra está</h1></header>
@@ -164,6 +183,10 @@ function quemSomosRoute(): RouteSpec {
         inLanguage: "pt-BR",
         about: ORG_LD,
       },
+      buildBreadcrumbSchema([
+        { name: "Home", path: "/" },
+        { name: "Quem Somos", path: "/quem-somos" },
+      ]),
     ],
     bodyHtml: `
       <header><h1>Conectando o Oeste da Bahia há mais de 8 anos</h1></header>
@@ -194,6 +217,21 @@ function contatoRoute(): RouteSpec {
         url: `${SITE_URL}/contato`,
         inLanguage: "pt-BR",
       },
+      buildBreadcrumbSchema([
+        { name: "Home", path: "/" },
+        { name: "Contato", path: "/contato" },
+      ]),
+      ...buildLocalBusinessSchemas(
+        cities
+          .filter((c) => c.slug === "barreiras")
+          .map((c) => ({
+            slug: c.slug,
+            name: c.name,
+            address: c.address,
+            stateCode: c.stateCode,
+            phones: c.phones,
+          })),
+      ),
     ],
     bodyHtml: `
       <header><h1>Fale com a Provider Mais Fibra</h1></header>

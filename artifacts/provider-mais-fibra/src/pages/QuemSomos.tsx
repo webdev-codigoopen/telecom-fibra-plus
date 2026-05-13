@@ -4,6 +4,8 @@ import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
+import { buildBreadcrumbSchema } from "@/lib/seoConfig";
+import { cities as allCities } from "@/lib/cities";
 import logoVerticalWhite from "@assets/logo-provider+fibra-_vertical-branco_1777059547389.png";
 
 const stats = [
@@ -67,14 +69,20 @@ export default function QuemSomos() {
           "provedor de internet Oeste da Bahia",
           "empresa de internet Barreiras",
         ]}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "AboutPage",
-          name: "Quem Somos — Provider Mais Fibra",
-          url: "https://www.providermaisfibra.com.br/quem-somos",
-          inLanguage: "pt-BR",
-          about: { "@type": "Organization", name: "Provider Mais Fibra" },
-        }}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "AboutPage",
+            name: "Quem Somos — Provider Mais Fibra",
+            url: "https://www.providermaisfibra.com.br/quem-somos",
+            inLanguage: "pt-BR",
+            about: { "@type": "Organization", name: "Provider Mais Fibra" },
+          },
+          buildBreadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Quem Somos", path: "/quem-somos" },
+          ]),
+        ]}
       />
       <Header />
 
@@ -107,7 +115,7 @@ export default function QuemSomos() {
                   A Provider Mais Fibra nasceu com uma missão simples: levar internet de alta velocidade e qualidade para o interior da Bahia, democratizando o acesso à conectividade para famílias e empresas da região.
                 </p>
                 <p className="text-white/60 text-base leading-relaxed">
-                  Com infraestrutura 100% em fibra óptica e uma equipe comprometida, crescemos de uma cidade para 11 municípios, sempre com o mesmo cuidado e atenção ao cliente que nos trouxe até aqui.
+                  Com infraestrutura 100% em fibra óptica e uma equipe comprometida, crescemos de uma cidade para {allCities.length} municípios do Oeste da Bahia, sempre com o mesmo cuidado e atenção ao cliente que nos trouxe até aqui.
                 </p>
               </motion.div>
 

@@ -5,6 +5,11 @@ import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
+import {
+  buildBreadcrumbSchema,
+  buildLocalBusinessSchemas,
+} from "@/lib/seoConfig";
+import { cities as allCities } from "@/lib/cities";
 
 const cities = [
   "Barreiras",
@@ -71,13 +76,30 @@ export default function Contato() {
           "WhatsApp Provider Mais Fibra",
           "suporte internet Barreiras",
         ]}
-        jsonLd={{
-          "@context": "https://schema.org",
-          "@type": "ContactPage",
-          name: "Contato — Provider Mais Fibra",
-          url: "https://www.providermaisfibra.com.br/contato",
-          inLanguage: "pt-BR",
-        }}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            name: "Contato — Provider Mais Fibra",
+            url: "https://www.providermaisfibra.com.br/contato",
+            inLanguage: "pt-BR",
+          },
+          buildBreadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Contato", path: "/contato" },
+          ]),
+          ...buildLocalBusinessSchemas(
+            allCities
+              .filter((c) => c.slug === "barreiras")
+              .map((c) => ({
+                slug: c.slug,
+                name: c.name,
+                address: c.address,
+                stateCode: c.stateCode,
+                phones: c.phones,
+              })),
+          ),
+        ]}
       />
       <Header />
 
@@ -336,7 +358,7 @@ export default function Contato() {
                     <h3 className="text-base font-bold text-[#122AD5]">Cobertura</h3>
                   </div>
                   <p className="text-sm text-[#4A4F61] mb-3">
-                    Atendemos 11 cidades no Oeste da Bahia.
+                    Atendemos {allCities.length} cidades no Oeste da Bahia.
                   </p>
                   <a
                     href="/onde-estamos"
