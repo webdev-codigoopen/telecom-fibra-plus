@@ -216,6 +216,26 @@ export async function touchLastLogin(userId: number): Promise<void> {
     .where(eq(adminUsersTable.id, userId));
 }
 
+export async function findAdminById(id: number): Promise<DbAdminUser | null> {
+  const rows = await db
+    .select()
+    .from(adminUsersTable)
+    .where(eq(adminUsersTable.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function setUserTotp(
+  userId: number,
+  patch: { totpSecret?: string | null; totpEnabled?: boolean; recoveryCodes?: string[] },
+): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (patch.totpSecret !== undefined) update["totpSecret"] = patch.totpSecret;
+  if (patch.totpEnabled !== undefined) update["totpEnabled"] = patch.totpEnabled;
+  if (patch.recoveryCodes !== undefined) update["recoveryCodes"] = patch.recoveryCodes;
+  await db.update(adminUsersTable).set(update).where(eq(adminUsersTable.id, userId));
+}
+
 // ---------------------------------------------------------------------------
 // On-boot seed: if no admin user exists and ADMIN_EMAIL + ADMIN_PASSWORD are
 // provided, create the first user. Lets fresh deployments bootstrap without

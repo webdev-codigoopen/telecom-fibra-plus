@@ -5,7 +5,19 @@ export const adminUsersTable = pgTable("admin_users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").notNull().default(false),
+  recoveryCodes: jsonb("recovery_codes").$type<string[]>().default([]).notNull(),
   lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const adminLoginAttemptsTable = pgTable("admin_login_attempts", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  ip: text("ip"),
+  success: boolean("success").notNull(),
+  reason: text("reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -25,3 +37,4 @@ export const adminAuditLogTable = pgTable("admin_audit_log", {
 
 export type DbAdminUser = typeof adminUsersTable.$inferSelect;
 export type DbAdminAuditLog = typeof adminAuditLogTable.$inferSelect;
+export type DbAdminLoginAttempt = typeof adminLoginAttemptsTable.$inferSelect;

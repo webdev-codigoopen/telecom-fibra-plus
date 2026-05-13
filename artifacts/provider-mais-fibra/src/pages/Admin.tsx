@@ -172,6 +172,10 @@ export default function Admin() {
   const [adminKey, setAdminKey] = useState(() => localStorage.getItem(STORAGE_KEY) ?? "");
   const [emailInput, setEmailInput] = useState("");
   const [keyInput, setKeyInput] = useState("");
+  const [totpInput, setTotpInput] = useState("");
+  const [recoveryInput, setRecoveryInput] = useState("");
+  const [requires2fa, setRequires2fa] = useState(false);
+  const [useRecovery, setUseRecovery] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [plans, setPlans] = useState<ApiPlan[]>([]);
@@ -574,28 +578,51 @@ export default function Admin() {
     setError(null);
     setLoggingIn(true);
     try {
+      const body: Record<string, string> = {
+        email: emailInput.trim(),
+        password: keyInput,
+      };
+      if (requires2fa) {
+        if (useRecovery && recoveryInput.trim()) body["recoveryCode"] = recoveryInput.trim();
+        else if (totpInput.trim()) body["totpCode"] = totpInput.trim();
+      }
       const res = await fetch(`${baseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: emailInput.trim(), password: keyInput }),
+        body: JSON.stringify(body),
       });
       if (res.status === 429) {
         setError("Muitas tentativas. Aguarde alguns minutos.");
         return;
       }
-      if (!res.ok) {
-        setError("Credenciais inválidas.");
+      if (res.status === 423) {
+        const data = await res.json().catch(() => ({} as { error?: string }));
+        setError(data.error ?? "Conta bloqueada temporariamente.");
         return;
       }
-      const data = (await res.json()) as { token: string };
-      if (!data.token) {
+      const data = await res.json().catch(() => ({} as { token?: string; requires2fa?: boolean; error?: string }));
+      if (res.status === 401 && (data as { requires2fa?: boolean }).requires2fa) {
+        setRequires2fa(true);
+        setError(requires2fa ? "Código inválido." : null);
+        return;
+      }
+      if (!res.ok) {
+        setError((data as { error?: string }).error ?? "Credenciais inválidas.");
+        return;
+      }
+      const ok = data as { token?: string };
+      if (!ok.token) {
         setError("Resposta inválida do servidor.");
         return;
       }
-      localStorage.setItem(STORAGE_KEY, data.token);
-      setAdminKey(data.token);
-      fetchPlans(data.token);
+      localStorage.setItem(STORAGE_KEY, ok.token);
+      setAdminKey(ok.token);
+      setRequires2fa(false);
+      setTotpInput("");
+      setRecoveryInput("");
+      setUseRecovery(false);
+      fetchPlans(ok.token);
     } catch {
       setError("Falha de conexão. Tente novamente.");
     } finally {
@@ -784,6 +811,57 @@ export default function Admin() {
                 required
               />
             </div>
+            {requires2fa && !useRecovery && (
+              <div>
+                <label className="block text-sm font-medium text-[#2A2D38] mb-1">
+                  Código do app (6 dígitos)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  value={totpInput}
+                  onChange={(e) => setTotpInput(e.target.value.replace(/\D/g, ""))}
+                  className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2.5 text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                  placeholder="000000"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(true); setTotpInput(""); }}
+                  className="mt-2 text-xs text-[#0040FF] hover:underline"
+                >
+                  Não consigo abrir o app — usar código de recuperação
+                </button>
+              </div>
+            )}
+            {requires2fa && useRecovery && (
+              <div>
+                <label className="block text-sm font-medium text-[#2A2D38] mb-1">
+                  Código de recuperação
+                </label>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  autoFocus
+                  value={recoveryInput}
+                  onChange={(e) => setRecoveryInput(e.target.value.toUpperCase())}
+                  className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2.5 text-sm tracking-wider text-center uppercase focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                  placeholder="XXXXX-XXXXX"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(false); setRecoveryInput(""); }}
+                  className="mt-2 text-xs text-[#0040FF] hover:underline"
+                >
+                  Voltar para o código do app
+                </button>
+              </div>
+            )}
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"
@@ -907,12 +985,16 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "seguranca" && (
-          <RecaptchaSettings
-            settings={appSettings}
-            adminKey={adminKey}
-            baseUrl={baseUrl}
-            onChange={fetchAppSettingsAdmin}
-          />
+          <div className="space-y-6">
+            <TwoFactorPanel adminKey={adminKey} baseUrl={baseUrl} />
+            <ChangePasswordPanel adminKey={adminKey} baseUrl={baseUrl} />
+            <RecaptchaSettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
+          </div>
         )}
 
         {!loading && activeTab === "marketing" && (
@@ -5586,6 +5668,281 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+type TwoFactorPanelProps = { adminKey: string; baseUrl: string };
+
+function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [remaining, setRemaining] = useState(0);
+  const [setupQr, setSetupQr] = useState<string | null>(null);
+  const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [disablePassword, setDisablePassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/me`, {
+        credentials: "include",
+        headers: { "X-Admin-Key": adminKey },
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { totpEnabled?: boolean; recoveryCodesRemaining?: number };
+      setEnabled(Boolean(data.totpEnabled));
+      setRemaining(data.recoveryCodesRemaining ?? 0);
+    } catch { /* ignore */ }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  async function startSetup() {
+    setMsg(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/2fa/setup`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setSetupQr(data.qr);
+      setSetupSecret(data.secret);
+      setRecoveryCodes(null);
+    } catch (err) {
+      setMsg({ kind: "err", text: err instanceof Error ? err.message : "Falha ao iniciar 2FA." });
+    } finally { setBusy(false); }
+  }
+
+  async function confirmEnable(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/2fa/enable`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Código inválido.");
+      setRecoveryCodes(data.recoveryCodes ?? []);
+      setSetupQr(null);
+      setSetupSecret(null);
+      setCode("");
+      setMsg({ kind: "ok", text: "2FA ativado. Guarde seus códigos de recuperação." });
+      await refresh();
+    } catch (err) {
+      setMsg({ kind: "err", text: err instanceof Error ? err.message : "Falha." });
+    } finally { setBusy(false); }
+  }
+
+  async function disable(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/2fa/disable`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ password: disablePassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Falha.");
+      setDisablePassword("");
+      setMsg({ kind: "ok", text: "2FA desativado." });
+      await refresh();
+    } catch (err) {
+      setMsg({ kind: "err", text: err instanceof Error ? err.message : "Falha." });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-[#E0E3EB] p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="font-bold text-[#0D0D0D]">Verificação em duas etapas (2FA)</h2>
+          <p className="text-xs text-[#7A7F8C] mt-1">
+            Use Google Authenticator, Authy ou 1Password para gerar um código de 6 dígitos a cada login.
+          </p>
+        </div>
+        {enabled !== null && (
+          <span className={`px-3 py-1 rounded-full text-xs font-bold ${enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+            {enabled ? "Ativo" : "Desativado"}
+          </span>
+        )}
+      </div>
+
+      {msg && (
+        <div className={`mb-4 px-3 py-2 rounded-lg text-sm ${msg.kind === "ok" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {recoveryCodes && (
+        <div className="mb-4 p-4 rounded-lg bg-[#FFF8D6] border-2 border-[#FFD600]">
+          <p className="text-sm font-bold text-[#5C4500] mb-2">
+            Salve estes 8 códigos de recuperação em local seguro. Eles só aparecem UMA vez.
+          </p>
+          <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+            {recoveryCodes.map((c) => (
+              <div key={c} className="bg-white px-3 py-1.5 rounded border border-[#FFD600] tracking-wider">{c}</div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const blob = new Blob([recoveryCodes.join("\n")], { type: "text/plain" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = "codigos-recuperacao-providermaisfibra.txt"; a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="mt-3 text-xs font-semibold text-[#5C4500] underline"
+          >
+            Baixar como arquivo .txt
+          </button>
+        </div>
+      )}
+
+      {enabled === false && !setupQr && (
+        <button
+          type="button"
+          onClick={startSetup}
+          disabled={busy}
+          className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60"
+          style={{ background: "#0040FF" }}
+        >
+          {busy ? "Gerando..." : "Ativar 2FA"}
+        </button>
+      )}
+
+      {setupQr && (
+        <form onSubmit={confirmEnable} className="space-y-3">
+          <p className="text-sm text-[#2A2D38]">
+            1. Abra seu app autenticador e leia o QR code abaixo.
+          </p>
+          <img src={setupQr} alt="QR code 2FA" className="border border-[#E0E3EB] rounded-lg" width={200} height={200} />
+          {setupSecret && (
+            <p className="text-xs text-[#7A7F8C]">
+              Não consegue ler o QR? Digite manualmente: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono">{setupSecret}</code>
+            </p>
+          )}
+          <p className="text-sm text-[#2A2D38]">2. Digite o código de 6 dígitos que apareceu no app:</p>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="\d{6}"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            className="w-40 border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm text-center tracking-widest"
+            placeholder="000000"
+            required
+          />
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy || code.length !== 6} className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60" style={{ background: "#0040FF" }}>
+              {busy ? "Verificando..." : "Confirmar e ativar"}
+            </button>
+            <button type="button" onClick={() => { setSetupQr(null); setSetupSecret(null); setCode(""); }} className="px-4 py-2 rounded-lg font-medium text-sm text-[#2A2D38] border border-[#E0E3EB]">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {enabled === true && !recoveryCodes && (
+        <div className="space-y-3">
+          <p className="text-sm text-[#2A2D38]">
+            2FA está ativo. Códigos de recuperação restantes: <strong>{remaining}</strong>
+            {remaining <= 2 && remaining > 0 && (
+              <span className="text-orange-600"> — gere novos em breve desativando e reativando o 2FA.</span>
+            )}
+          </p>
+          <form onSubmit={disable} className="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+            <div className="flex-1 max-w-xs">
+              <label className="block text-xs font-medium text-[#2A2D38] mb-1">Confirme sua senha para desativar</label>
+              <input
+                type="password"
+                value={disablePassword}
+                onChange={(e) => setDisablePassword(e.target.value)}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm"
+                required
+              />
+            </div>
+            <button type="submit" disabled={busy || !disablePassword} className="px-4 py-2 rounded-lg font-bold text-sm text-red-600 border border-red-200 hover:bg-red-50 disabled:opacity-60">
+              {busy ? "..." : "Desativar 2FA"}
+            </button>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}
+
+type ChangePasswordPanelProps = { adminKey: string; baseUrl: string };
+
+function ChangePasswordPanel({ adminKey, baseUrl }: ChangePasswordPanelProps) {
+  const [current, setCurrent] = useState("");
+  const [next1, setNext1] = useState("");
+  const [next2, setNext2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    if (next1.length < 8) { setMsg({ kind: "err", text: "Nova senha precisa ter pelo menos 8 caracteres." }); return; }
+    if (next1 !== next2) { setMsg({ kind: "err", text: "As novas senhas não conferem." }); return; }
+    setBusy(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/change-password`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: current, newPassword: next1 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Falha.");
+      setMsg({ kind: "ok", text: "Senha atualizada." });
+      setCurrent(""); setNext1(""); setNext2("");
+    } catch (err) {
+      setMsg({ kind: "err", text: err instanceof Error ? err.message : "Falha." });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl shadow-sm border border-[#E0E3EB] p-6">
+      <h2 className="font-bold text-[#0D0D0D] mb-1">Alterar senha</h2>
+      <p className="text-xs text-[#7A7F8C] mb-4">Mínimo 8 caracteres. Recomendamos usar um gerador de senhas.</p>
+      {msg && (
+        <div className={`mb-3 px-3 py-2 rounded-lg text-sm ${msg.kind === "ok" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>{msg.text}</div>
+      )}
+      <form onSubmit={submit} className="space-y-3 max-w-sm">
+        <div>
+          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Senha atual</label>
+          <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Nova senha</label>
+          <input type="password" autoComplete="new-password" value={next1} onChange={(e) => setNext1(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required minLength={8} />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Confirme a nova senha</label>
+          <input type="password" autoComplete="new-password" value={next2} onChange={(e) => setNext2(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required minLength={8} />
+        </div>
+        <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60" style={{ background: "#0040FF" }}>
+          {busy ? "Salvando..." : "Atualizar senha"}
+        </button>
+      </form>
     </section>
   );
 }
