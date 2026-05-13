@@ -418,7 +418,7 @@ export default function PlanCard({
         - Inner gap 8 between CTA and footer for both variants.
       */}
       <div
-        className="flex flex-col mt-auto"
+        className="flex flex-col mt-6 sm:mt-auto"
         style={{
           gap: 8,
         }}
