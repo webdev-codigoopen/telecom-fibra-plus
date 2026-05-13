@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { HelmetProvider } from "react-helmet-async";
+import { MotionConfig } from "framer-motion";
 import Home from "@/pages/Home";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -43,19 +44,34 @@ function Router() {
 }
 
 function App() {
+  // Skip animations during initial load (keeps first paint fast and smooth);
+  // enable them after `window.load` so scroll effects work as usual after.
+  const [animationsReady, setAnimationsReady] = useState(false);
+  useEffect(() => {
+    if (document.readyState === "complete") {
+      setAnimationsReady(true);
+      return;
+    }
+    const onLoad = () => setAnimationsReady(true);
+    window.addEventListener("load", onLoad, { once: true });
+    return () => window.removeEventListener("load", onLoad);
+  }, []);
+
   return (
     <HelmetProvider>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-[#122AD5] focus:rounded focus:shadow-lg focus:outline-2 focus:outline-[#122AD5]"
-      >
-        Pular para o conteúdo principal
-      </a>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Suspense fallback={<RouteFallback />}>
-          <Router />
-        </Suspense>
-      </WouterRouter>
+      <MotionConfig reducedMotion={animationsReady ? "never" : "always"}>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-[#122AD5] focus:rounded focus:shadow-lg focus:outline-2 focus:outline-[#122AD5]"
+        >
+          Pular para o conteúdo principal
+        </a>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Suspense fallback={<RouteFallback />}>
+            <Router />
+          </Suspense>
+        </WouterRouter>
+      </MotionConfig>
     </HelmetProvider>
   );
 }
