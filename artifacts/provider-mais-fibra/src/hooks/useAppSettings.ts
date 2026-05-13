@@ -6,6 +6,10 @@ export type AppSettings = {
   cta_unavailable_message: string;
   interest_notification_email: string;
   interest_notification_enabled: string;
+  recaptcha_enabled: string;
+  recaptcha_site_key: string;
+  recaptcha_secret_key: string;
+  recaptcha_min_score: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -16,6 +20,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     "Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, {place}",
   interest_notification_email: "",
   interest_notification_enabled: "false",
+  recaptcha_enabled: "false",
+  recaptcha_site_key: "",
+  recaptcha_secret_key: "",
+  recaptcha_min_score: "0.5",
 };
 
 let cache: AppSettings | null = null;

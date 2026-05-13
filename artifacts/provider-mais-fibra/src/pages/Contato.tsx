@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Instagram, Clock, MapPin, ChevronDown, ArrowRight } from "lucide-react";
+import {
+  MessageCircle,
+  Instagram,
+  Clock,
+  MapPin,
+  ChevronDown,
+  ArrowRight,
+  AlertCircle,
+} from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
@@ -11,6 +19,18 @@ import {
   buildLocalBusinessSchemas,
 } from "@/lib/seoConfig";
 import { cities as allCities } from "@/lib/cities";
+import { useAppSettings } from "@/hooks/useAppSettings";
+import {
+  MESSAGE_MAX,
+  maskWhatsappInput,
+  sanitizeNameInput,
+  validateCity,
+  validateEmail,
+  validateMessage,
+  validateName,
+  validateReason,
+  validateWhatsapp,
+} from "@/lib/contactValidation";
 
 const cityOptions = [
   "Barreiras",
@@ -39,8 +59,67 @@ const reasons = [
 
 const FAMILY_IMG = `${import.meta.env.BASE_URL}images/photos/family-contact.png`;
 
+type FormState = {
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
+  reason: string;
+  message: string;
+  accept: boolean;
+  website: string; // honeypot
+};
+
+type FormErrors = Partial<Record<keyof FormState, string | null>>;
+
+const RECAPTCHA_SCRIPT_ID = "recaptcha-v3-script";
+
+function loadRecaptcha(siteKey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("no window"));
+    const w = window as unknown as { grecaptcha?: { ready: (cb: () => void) => void } };
+    if (w.grecaptcha) {
+      w.grecaptcha.ready(() => resolve());
+      return;
+    }
+    const existing = document.getElementById(RECAPTCHA_SCRIPT_ID);
+    if (existing) {
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("script error")), {
+        once: true,
+      });
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = RECAPTCHA_SCRIPT_ID;
+    s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
+    s.async = true;
+    s.defer = true;
+    s.onload = () => {
+      const ww = window as unknown as { grecaptcha?: { ready: (cb: () => void) => void } };
+      if (ww.grecaptcha) ww.grecaptcha.ready(() => resolve());
+      else reject(new Error("grecaptcha missing"));
+    };
+    s.onerror = () => reject(new Error("script load failed"));
+    document.head.appendChild(s);
+  });
+}
+
+async function getRecaptchaToken(siteKey: string, action: string): Promise<string> {
+  const w = window as unknown as {
+    grecaptcha?: { execute: (key: string, opts: { action: string }) => Promise<string> };
+  };
+  if (!w.grecaptcha) throw new Error("recaptcha not ready");
+  return w.grecaptcha.execute(siteKey, { action });
+}
+
 export default function Contato() {
-  const [form, setForm] = useState({
+  const settings = useAppSettings();
+  const recaptchaEnabled = settings.recaptcha_enabled === "true";
+  const recaptchaSiteKey = settings.recaptcha_site_key;
+  const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const [form, setForm] = useState<FormState>({
     name: "",
     email: "",
     phone: "",
@@ -48,34 +127,224 @@ export default function Contato() {
     reason: "",
     message: "",
     accept: false,
+    website: "",
   });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
-  ) => {
-    const target = e.target as HTMLInputElement;
-    const value = target.type === "checkbox" ? target.checked : target.value;
-    setForm({ ...form, [target.name]: value });
+  // Time-trap: server issues an HMAC-signed token at form mount. We send it
+  // back on submit so the server can verify the form was opened > 2s ago and
+  // < 30min ago — without trusting a client-supplied timestamp.
+  const trapTokenRef = useRef<string | null>(null);
+  const captureStart = () => {
+    if (trapTokenRef.current != null) return;
+    fetch(`${baseUrl}/api/contact/token`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.token === "string") trapTokenRef.current = data.token;
+      })
+      .catch(() => {
+        /* the submit will fail with a clear error */
+      });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Lazy-load reCAPTCHA when enabled.
+  useEffect(() => {
+    if (recaptchaEnabled && recaptchaSiteKey) {
+      loadRecaptcha(recaptchaSiteKey).catch(() => {
+        // ignore — server will still validate; if enabled, submit will warn
+      });
+    }
+  }, [recaptchaEnabled, recaptchaSiteKey]);
+
+  function validateField(field: keyof FormState, value: string | boolean): string | null {
+    switch (field) {
+      case "name":
+        return validateName(String(value));
+      case "email":
+        return validateEmail(String(value));
+      case "phone":
+        return validateWhatsapp(String(value));
+      case "city":
+        return validateCity(String(value));
+      case "reason":
+        return validateReason(String(value));
+      case "message":
+        return validateMessage(String(value));
+      case "accept":
+        return value ? null : "Aceite a Política de Privacidade.";
+      default:
+        return null;
+    }
+  }
+
+  function setField<K extends keyof FormState>(field: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (touched[field] || field === "accept") {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: validateField(field, value as string | boolean),
+      }));
+    }
+  }
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    captureStart();
+    const cleaned = sanitizeNameInput(e.target.value);
+    setField("name", cleaned);
+  }
+
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    captureStart();
+    const masked = maskWhatsappInput(e.target.value, form.phone);
+    setField("phone", masked);
+  }
+
+  function handleBlur(field: keyof FormState) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors((prev) => ({
+      ...prev,
+      [field]: validateField(field, form[field] as string | boolean),
+    }));
+  }
+
+  function runAllValidations(): FormErrors {
+    return {
+      name: validateField("name", form.name),
+      email: validateField("email", form.email),
+      phone: validateField("phone", form.phone),
+      city: validateField("city", form.city),
+      reason: validateField("reason", form.reason),
+      message: validateField("message", form.message),
+      accept: validateField("accept", form.accept),
+    };
+  }
+
+  const allValid = (() => {
+    const e = runAllValidations();
+    return (Object.keys(e) as Array<keyof FormErrors>).every((k) => !e[k]);
+  })();
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.accept) return;
-    const text = encodeURIComponent(
-      `Olá! Meu nome é *${form.name}*.\n\n` +
-        `📍 Cidade: ${form.city}\n` +
-        `📧 E-mail: ${form.email}\n` +
-        `📋 Assunto: ${form.reason}\n\n` +
-        `💬 Mensagem: ${form.message}\n\n` +
-        `📱 WhatsApp: ${form.phone}`,
+    setSubmitError(null);
+    const validation = runAllValidations();
+    setErrors(validation);
+    setTouched({
+      name: true, email: true, phone: true,
+      city: true, reason: true, message: true, accept: true,
+    });
+    const firstErr = (Object.keys(validation) as Array<keyof FormErrors>).find(
+      (k) => validation[k],
     );
-    window.open(`https://wa.me/5577998444757?text=${text}`, "_blank");
-  };
+    if (firstErr) return;
 
-  const labelClass =
-    "block text-[13px] font-medium text-[#122AD5] mb-1.5";
-  const inputClass =
-    "w-full px-4 py-2.5 rounded-md text-[15px] text-[#0D0D0D] bg-white border border-[#E2E5EC] outline-none focus:outline-none focus-visible:outline-none transition-colors duration-150 focus:border-[#122AD5]/60";
+    setSubmitting(true);
+    try {
+      let recaptchaToken = "";
+      if (recaptchaEnabled && recaptchaSiteKey) {
+        try {
+          recaptchaToken = await getRecaptchaToken(recaptchaSiteKey, "contact");
+        } catch {
+          setSubmitError(
+            "Não foi possível carregar a verificação anti-robô. Recarregue a página.",
+          );
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Make sure we have a trap token. If the initial fetch hasn't completed
+      // yet (or failed), grab one now and wait the minimum form age.
+      if (!trapTokenRef.current) {
+        try {
+          const tokRes = await fetch(`${baseUrl}/api/contact/token`);
+          if (tokRes.ok) {
+            const tokData = (await tokRes.json()) as { token?: string };
+            if (tokData.token) trapTokenRef.current = tokData.token;
+          }
+          await new Promise((r) => setTimeout(r, 2200));
+        } catch {
+          setSubmitError("Sem conexão para validar o envio. Tente novamente.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const res = await fetch(`${baseUrl}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          city: form.city,
+          reason: form.reason,
+          message: form.message,
+          accept: form.accept,
+          website: form.website, // honeypot
+          _t: trapTokenRef.current,
+          recaptchaToken,
+        }),
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        whatsappUrl?: string;
+        error?: string;
+        errors?: Array<{ field: string; message: string }>;
+      };
+
+      if (!res.ok || !data.ok) {
+        if (Array.isArray(data.errors)) {
+          const fieldErrors: FormErrors = {};
+          for (const e of data.errors) {
+            (fieldErrors as Record<string, string>)[e.field] = e.message;
+          }
+          setErrors((prev) => ({ ...prev, ...fieldErrors }));
+        }
+        setSubmitError(data.error ?? "Não foi possível enviar. Verifique os campos e tente novamente.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (data.whatsappUrl) {
+        window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
+      }
+      // reset form so a fresh time-trap token is required for the next send
+      trapTokenRef.current = null;
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        city: "",
+        reason: "",
+        message: "",
+        accept: false,
+        website: "",
+      });
+      setTouched({});
+      setErrors({});
+    } catch {
+      setSubmitError("Erro de conexão. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const labelClass = "block text-[13px] font-medium text-[#122AD5] mb-1.5";
+  const inputBase =
+    "w-full px-4 py-2.5 rounded-md text-[15px] text-[#0D0D0D] bg-white border outline-none focus:outline-none focus-visible:outline-none transition-colors duration-150";
+  function inputCls(field: keyof FormState) {
+    const hasError = touched[field] && errors[field];
+    return `${inputBase} ${
+      hasError
+        ? "border-[#E53935] focus:border-[#E53935]"
+        : "border-[#E2E5EC] focus:border-[#122AD5]/60"
+    }`;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -130,9 +399,7 @@ export default function Contato() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <p className="text-[15px] text-[#4A4F61] mb-2 font-normal">
-                  Fale Conosco
-                </p>
+                <p className="text-[15px] text-[#4A4F61] mb-2 font-normal">Fale Conosco</p>
                 <h1
                   className="text-[#122AD5] font-bold mb-6 text-[36px] md:text-[44px] leading-[1.1]"
                   style={{ letterSpacing: "-0.02em" }}
@@ -273,65 +540,114 @@ export default function Contato() {
                     venha até uma loja.
                   </p>
 
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                      <label htmlFor="c-name" className={labelClass}>
-                        Nome completo
+                  <form
+                    onSubmit={handleSubmit}
+                    onFocus={captureStart}
+                    noValidate
+                    className="space-y-5"
+                  >
+                    {/* Honeypot — visually hidden but not display:none so it
+                        still gets serialized and blurred bots can find it. */}
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        left: "-9999px",
+                        top: "-9999px",
+                        width: 1,
+                        height: 1,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <label>
+                        Não preencha este campo:
+                        <input
+                          type="text"
+                          name="website"
+                          tabIndex={-1}
+                          autoComplete="off"
+                          value={form.website}
+                          onChange={(e) => setForm((p) => ({ ...p, website: e.target.value }))}
+                        />
                       </label>
+                    </div>
+
+                    <Field
+                      label="Nome completo"
+                      htmlFor="c-name"
+                      error={touched.name ? errors.name : null}
+                    >
                       <input
                         id="c-name"
                         type="text"
                         name="name"
-                        required
+                        autoComplete="name"
+                        maxLength={80}
                         value={form.name}
-                        onChange={handleChange}
-                        className={inputClass}
+                        onChange={handleNameChange}
+                        onBlur={() => handleBlur("name")}
+                        className={inputCls("name")}
+                        placeholder="Ex.: Maria Silva"
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label htmlFor="c-email" className={labelClass}>
-                        E-mail
-                      </label>
+                    <Field
+                      label="E-mail"
+                      htmlFor="c-email"
+                      error={touched.email ? errors.email : null}
+                    >
                       <input
                         id="c-email"
                         type="email"
                         name="email"
-                        required
+                        autoComplete="email"
+                        maxLength={254}
+                        inputMode="email"
                         value={form.email}
-                        onChange={handleChange}
-                        className={inputClass}
+                        onChange={(e) => {
+                          captureStart();
+                          setField("email", e.target.value);
+                        }}
+                        onBlur={() => handleBlur("email")}
+                        className={inputCls("email")}
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label htmlFor="c-phone" className={labelClass}>
-                        WhatsApp
-                      </label>
+                    <Field
+                      label="WhatsApp"
+                      htmlFor="c-phone"
+                      error={touched.phone ? errors.phone : null}
+                    >
                       <input
                         id="c-phone"
                         type="tel"
                         name="phone"
-                        required
+                        autoComplete="tel"
+                        inputMode="numeric"
                         value={form.phone}
-                        onChange={handleChange}
+                        onChange={handlePhoneChange}
+                        onBlur={() => handleBlur("phone")}
                         placeholder="(__) _____-____"
-                        className={inputClass}
+                        className={inputCls("phone")}
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label htmlFor="c-city" className={labelClass}>
-                        Cidade
-                      </label>
+                    <Field
+                      label="Cidade"
+                      htmlFor="c-city"
+                      error={touched.city ? errors.city : null}
+                    >
                       <div className="relative">
                         <select
                           id="c-city"
                           name="city"
-                          required
                           value={form.city}
-                          onChange={handleChange}
-                          className={`${inputClass} appearance-none pr-10 bg-white`}
+                          onChange={(e) => {
+                            captureStart();
+                            setField("city", e.target.value);
+                          }}
+                          onBlur={() => handleBlur("city")}
+                          className={`${inputCls("city")} appearance-none pr-10`}
                         >
                           <option value="">Selecione a cidade</option>
                           {cityOptions.map((c) => (
@@ -345,22 +661,26 @@ export default function Contato() {
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
                         />
                       </div>
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label htmlFor="c-reason" className={labelClass}>
-                        Assunto
-                      </label>
+                    <Field
+                      label="Assunto"
+                      htmlFor="c-reason"
+                      error={touched.reason ? errors.reason : null}
+                    >
                       <div className="relative">
                         <select
                           id="c-reason"
                           name="reason"
-                          required
                           value={form.reason}
-                          onChange={handleChange}
-                          className={`${inputClass} appearance-none pr-10 bg-white`}
+                          onChange={(e) => {
+                            captureStart();
+                            setField("reason", e.target.value);
+                          }}
+                          onBlur={() => handleBlur("reason")}
+                          className={`${inputCls("reason")} appearance-none pr-10`}
                         >
-                          <option value="">Informações sobre planos</option>
+                          <option value="">Selecione o assunto</option>
                           {reasons.map((r) => (
                             <option key={r} value={r}>
                               {r}
@@ -372,29 +692,38 @@ export default function Contato() {
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
                         />
                       </div>
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label htmlFor="c-message" className={labelClass}>
-                        Mensagem
-                      </label>
+                    <Field
+                      label="Mensagem"
+                      htmlFor="c-message"
+                      error={touched.message ? errors.message : null}
+                      hint={`${form.message.length}/${MESSAGE_MAX}`}
+                    >
                       <textarea
                         id="c-message"
                         name="message"
                         rows={4}
+                        maxLength={MESSAGE_MAX}
                         value={form.message}
-                        onChange={handleChange}
-                        className={`${inputClass} resize-none`}
+                        onChange={(e) => {
+                          captureStart();
+                          setField("message", e.target.value);
+                        }}
+                        onBlur={() => handleBlur("message")}
+                        className={`${inputCls("message")} resize-none`}
                       />
-                    </div>
+                    </Field>
 
                     <label className="flex items-start gap-2.5 cursor-pointer pt-1">
                       <input
                         type="checkbox"
                         name="accept"
                         checked={form.accept}
-                        onChange={handleChange}
-                        required
+                        onChange={(e) => {
+                          captureStart();
+                          setField("accept", e.target.checked);
+                        }}
                         className="mt-0.5 w-4 h-4 accent-[#122AD5] cursor-pointer flex-shrink-0"
                       />
                       <span className="text-[13px] text-[#6B7280] leading-relaxed">
@@ -409,14 +738,48 @@ export default function Contato() {
                       </span>
                     </label>
 
+                    {submitError && (
+                      <div
+                        role="alert"
+                        className="flex items-start gap-2 bg-[#FEF2F2] border border-[#FECACA] text-[#B91C1C] rounded-md px-3 py-2.5 text-[13px]"
+                      >
+                        <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                        <span>{submitError}</span>
+                      </div>
+                    )}
+
                     <button
                       type="submit"
-                      disabled={!form.accept}
+                      disabled={!allValid || submitting}
                       className="w-full flex items-center justify-center gap-2 py-3.5 rounded-md font-semibold text-[15px] text-white bg-[#122AD5] hover:bg-[#0E22B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Enviar
-                      <ArrowRight size={16} />
+                      {submitting ? "Enviando..." : "Enviar"}
+                      {!submitting && <ArrowRight size={16} />}
                     </button>
+
+                    {recaptchaEnabled && recaptchaSiteKey && (
+                      <p className="text-[11px] text-[#9CA3AF] text-center leading-relaxed">
+                        Este site é protegido pelo reCAPTCHA. Aplicam-se a{" "}
+                        <a
+                          href="https://policies.google.com/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          Política de Privacidade
+                        </a>{" "}
+                        e os{" "}
+                        <a
+                          href="https://policies.google.com/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          Termos
+                        </a>{" "}
+                        do Google.
+                      </p>
+                    )}
                   </form>
                 </div>
               </motion.div>
@@ -427,6 +790,38 @@ export default function Contato() {
 
       <Footer />
       <WhatsAppFloat source="contato-sticky" />
+    </div>
+  );
+}
+
+function Field({
+  label,
+  htmlFor,
+  error,
+  hint,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  error?: string | null;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5">
+        <label htmlFor={htmlFor} className="block text-[13px] font-medium text-[#122AD5]">
+          {label}
+        </label>
+        {hint && <span className="text-[11px] text-[#9CA3AF]">{hint}</span>}
+      </div>
+      {children}
+      {error && (
+        <p className="mt-1.5 text-[12px] text-[#E53935] flex items-center gap-1">
+          <AlertCircle size={12} />
+          {error}
+        </p>
+      )}
     </div>
   );
 }

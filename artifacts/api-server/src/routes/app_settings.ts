@@ -27,6 +27,10 @@ export const SETTING_DEFAULTS = {
     "Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, {place}",
   interest_notification_email: "",
   interest_notification_enabled: "false",
+  recaptcha_enabled: "false",
+  recaptcha_site_key: "",
+  recaptcha_secret_key: "",
+  recaptcha_min_score: "0.5",
 } as const;
 
 const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
@@ -34,10 +38,12 @@ const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
 >;
 
 // Settings that must NEVER be returned by the public GET /settings endpoint.
-// These are admin-only configuration (e.g. recipient email for lead notifications).
+// These are admin-only configuration (e.g. recipient email for lead notifications,
+// reCAPTCHA secret key).
 const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_email",
   "interest_notification_enabled",
+  "recaptcha_secret_key",
 ]);
 
 function rowsToObject(
@@ -80,6 +86,14 @@ const settingsBodySchema = z
       .union([z.literal(""), z.string().trim().toLowerCase().email().max(254)])
       .optional(),
     interest_notification_enabled: z.enum(["true", "false"]).optional(),
+    recaptcha_enabled: z.enum(["true", "false"]).optional(),
+    recaptcha_site_key: z.string().trim().max(120).optional(),
+    recaptcha_secret_key: z.string().trim().max(120).optional(),
+    recaptcha_min_score: z
+      .string()
+      .trim()
+      .regex(/^(0(\.\d+)?|1(\.0+)?)$/, "Use um valor entre 0 e 1, ex: 0.5")
+      .optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No settings provided" });
 

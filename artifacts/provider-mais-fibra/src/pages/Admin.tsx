@@ -196,7 +196,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -782,6 +782,7 @@ export default function Admin() {
             { id: "ctas", label: "Configuração de CTAs" },
             { id: "interesses", label: "Interesses (Demanda)" },
             { id: "emails", label: "Relatórios por email" },
+            { id: "seguranca", label: "Segurança" },
           ] as const).map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -836,6 +837,15 @@ export default function Admin() {
 
         {!loading && activeTab === "emails" && (
           <EmailReportSubscriptionsManager adminKey={adminKey} baseUrl={baseUrl} />
+        )}
+
+        {!loading && activeTab === "seguranca" && (
+          <RecaptchaSettings
+            settings={appSettings}
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            onChange={fetchAppSettingsAdmin}
+          />
         )}
 
         {!loading && activeTab === "planos" && (
@@ -4286,6 +4296,205 @@ function InterestNotificationSettings({
             <span className="text-xs text-amber-700">
               Informe um email para começar a receber notificações.
             </span>
+          )}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+type RecaptchaSettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function RecaptchaSettings({
+  settings,
+  adminKey,
+  baseUrl,
+  onChange,
+}: RecaptchaSettingsProps) {
+  const [enabled, setEnabled] = useState(settings.recaptcha_enabled === "true");
+  const [siteKey, setSiteKey] = useState(settings.recaptcha_site_key);
+  const [secretKey, setSecretKey] = useState(settings.recaptcha_secret_key);
+  const [minScore, setMinScore] = useState(settings.recaptcha_min_score);
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnabled(settings.recaptcha_enabled === "true");
+    setSiteKey(settings.recaptcha_site_key);
+    setSecretKey(settings.recaptcha_secret_key);
+    setMinScore(settings.recaptcha_min_score);
+  }, [
+    settings.recaptcha_enabled,
+    settings.recaptcha_site_key,
+    settings.recaptcha_secret_key,
+    settings.recaptcha_min_score,
+  ]);
+
+  const dirty =
+    String(enabled) !== settings.recaptcha_enabled ||
+    siteKey.trim() !== settings.recaptcha_site_key ||
+    secretKey.trim() !== settings.recaptcha_secret_key ||
+    minScore.trim() !== settings.recaptcha_min_score;
+
+  const scoreInvalid = !/^(0(\.\d+)?|1(\.0+)?)$/.test(minScore.trim());
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (scoreInvalid) {
+      setErrorMsg("Use um valor entre 0 e 1, ex: 0.5");
+      return;
+    }
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({
+          recaptcha_enabled: enabled ? "true" : "false",
+          recaptcha_site_key: siteKey.trim(),
+          recaptcha_secret_key: secretKey.trim(),
+          recaptcha_min_score: minScore.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6 max-w-3xl">
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">
+          Anti-spam & reCAPTCHA v3
+        </h2>
+        <p className="text-sm text-[#7A7F8C] mt-1 leading-relaxed">
+          Proteção do formulário de <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/contato</code>.
+          Já estão sempre ativos: limite de envios por IP, honeypot, time-trap,
+          validação de campos (nome, e-mail, WhatsApp com DDD da Bahia) e
+          bloqueio de scripts/SQL. Adicione o reCAPTCHA v3 do Google para
+          uma camada extra contra robôs.
+        </p>
+        <p className="text-xs text-[#7A7F8C] mt-2">
+          Crie suas chaves em{" "}
+          <a
+            href="https://www.google.com/recaptcha/admin/create"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#122AD5] font-semibold hover:underline"
+          >
+            google.com/recaptcha/admin
+          </a>
+          {" "}— escolha <strong>reCAPTCHA v3</strong>.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex items-center gap-2 text-sm text-[#2A2D38]">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            className="h-4 w-4 accent-[#0040FF]"
+            data-testid="recaptcha-enabled"
+          />
+          Ativar reCAPTCHA v3 no formulário de contato
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Site key (pública)</span>
+          <input
+            type="text"
+            value={siteKey}
+            onChange={(e) => setSiteKey(e.target.value)}
+            placeholder="6Lc..."
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 font-mono"
+            data-testid="recaptcha-site-key"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Secret key (privada — nunca exposta no site)</span>
+          <div className="relative">
+            <input
+              type={showSecret ? "text" : "password"}
+              value={secretKey}
+              onChange={(e) => setSecretKey(e.target.value)}
+              placeholder="6Lc..."
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 font-mono w-full pr-20"
+              data-testid="recaptcha-secret-key"
+            />
+            <button
+              type="button"
+              onClick={() => setShowSecret((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#7A7F8C] hover:text-[#0D0D0D] px-2 py-1"
+            >
+              {showSecret ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] max-w-[220px]">
+          <span>Score mínimo (0.1 a 0.9)</span>
+          <input
+            type="text"
+            value={minScore}
+            onChange={(e) => setMinScore(e.target.value)}
+            placeholder="0.5"
+            className={`border rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 ${
+              scoreInvalid && minScore.trim().length > 0
+                ? "border-red-300 focus:ring-red-300"
+                : "border-[#E0E3EB] focus:ring-[#0040FF]/30"
+            }`}
+            data-testid="recaptcha-min-score"
+          />
+          <span className="text-[11px] text-[#7A7F8C]">
+            Recomendado: 0.5. Quanto mais alto, mais rigoroso (mais robôs barrados, porém mais falsos positivos).
+          </span>
+        </label>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        {enabled && (!siteKey.trim() || !secretKey.trim()) && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-2 text-sm">
+            Para ativar o reCAPTCHA, informe a site key e a secret key.
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#122AD5" }}
+            data-testid="recaptcha-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>
           )}
         </div>
       </form>
