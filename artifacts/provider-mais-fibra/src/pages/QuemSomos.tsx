@@ -78,7 +78,7 @@ export default function QuemSomos() {
       />
       <Header />
 
-      <main className="flex-1 pt-16">
+      <main id="main-content" tabIndex={-1} className="flex-1 pt-16 focus:outline-none">
         <section
           className="relative py-24 overflow-hidden"
           style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}

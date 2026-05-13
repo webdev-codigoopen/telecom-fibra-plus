@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 const logoModules = import.meta.glob<string>(
-  "../../../../attached_assets/channel-logos/*.{png,svg}",
+  "../../../../attached_assets/channel-logos/*.{webp,svg}",
   { eager: true, import: "default", query: "?url" },
 );
 

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { HelmetProvider } from "react-helmet-async";
+import { MotionConfig } from "framer-motion";
 import Home from "@/pages/Home";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -45,11 +46,19 @@ function Router() {
 function App() {
   return (
     <HelmetProvider>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Suspense fallback={<RouteFallback />}>
-          <Router />
-        </Suspense>
-      </WouterRouter>
+      <MotionConfig reducedMotion="user">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-[#122AD5] focus:rounded focus:shadow-lg focus:outline-2 focus:outline-[#122AD5]"
+        >
+          Pular para o conteúdo principal
+        </a>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Suspense fallback={<RouteFallback />}>
+            <Router />
+          </Suspense>
+        </WouterRouter>
+      </MotionConfig>
     </HelmetProvider>
   );
 }

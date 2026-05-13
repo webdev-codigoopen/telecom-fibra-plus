@@ -51,7 +51,7 @@ export default function OndeEstamos() {
         }}
       />
       <Header />
-      <main className="flex-1 pt-16 md:pt-[88px]">
+      <main id="main-content" tabIndex={-1} className="flex-1 pt-16 md:pt-[88px] focus:outline-none">
         <section
           className="py-20"
           style={{ background: "#1934C2" }}

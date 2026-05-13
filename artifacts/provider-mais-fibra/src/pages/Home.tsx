@@ -30,7 +30,7 @@ export default function Home() {
         jsonLd={[ORGANIZATION_SCHEMA, WEBSITE_SCHEMA]}
       />
       <Header />
-      <main>
+      <main id="main-content" tabIndex={-1} className="focus:outline-none">
         <Hero />
         <About />
         <Differentials />

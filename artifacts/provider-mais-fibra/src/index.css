@@ -6,8 +6,15 @@
    Custom display fonts — local files served from /fonts
    - Amino Black: used for the big speed numbers (300/400/600/900)
    - Nexa Black:  used for the price numbers (R$ 69,90 etc.)
-   - Montserrat:  global body font (loaded from Google Fonts in index.html)
+   - Montserrat & Nunito: self-hosted via @fontsource (see main.tsx)
    ────────────────────────────────────────────────────────── */
+
+/* A11y — focus-visible outline for keyboard users */
+:focus-visible {
+  outline: 2px solid #122AD5;
+  outline-offset: 2px;
+}
+
 @font-face {
   font-family: "Amino";
   src: url("/fonts/Amino-Black.woff2") format("woff2"),

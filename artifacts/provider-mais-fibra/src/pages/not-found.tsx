@@ -7,7 +7,9 @@ export default function NotFound() {
   const [, navigate] = useLocation();
 
   return (
-    <div
+    <main
+      id="main-content"
+      tabIndex={-1}
       className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden"
       style={{
         background:
@@ -100,6 +102,6 @@ export default function NotFound() {
           </a>
         </div>
       </motion.div>
-    </div>
+    </main>
   );
 }

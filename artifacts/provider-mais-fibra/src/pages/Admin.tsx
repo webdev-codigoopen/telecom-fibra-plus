@@ -682,7 +682,7 @@ export default function Admin() {
 
   if (!authed && !loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#F5F7FA" }}>
+      <main id="main-content" tabIndex={-1} className="min-h-screen flex items-center justify-center focus:outline-none" style={{ background: "#F5F7FA" }}>
         <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#0040FF" }}>
@@ -718,7 +718,7 @@ export default function Admin() {
             </button>
           </form>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -746,7 +746,7 @@ export default function Admin() {
         </button>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 sm:px-6 py-8 focus:outline-none">
         <div className="mb-6 inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="tablist" aria-label="Seções do painel">
           {([
             { id: "planos", label: "Planos" },
