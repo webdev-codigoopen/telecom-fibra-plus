@@ -65,7 +65,7 @@ function trackPlanClick(plan: Plan, source: string, cityName?: string) {
   });
 }
 
-function StreamingBox({ brands }: { brands: StreamingBrand[] }) {
+export function StreamingBox({ brands }: { brands: StreamingBrand[] }) {
   const altNames = brands.map((b) => b.name).join(" + ");
   const names = new Set(brands.map((b) => b.name));
   const hasWatch = names.has("Watch");

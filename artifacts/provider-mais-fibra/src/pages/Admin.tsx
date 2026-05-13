@@ -3,7 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { adminFetch, clearCsrfCache } from "../lib/adminFetch";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
-import PlanCard from "../components/PlanCard";
+import PlanCard, { StreamingBox } from "../components/PlanCard";
 import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap from "../components/CityClicksMap";
@@ -3270,6 +3270,42 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
 
         <div>
           <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Streamings deste plano</label>
+          {(() => {
+            const previewBrands = streamingBrandIds
+              .map((id) => brandById.get(id))
+              .filter((b): b is StreamingBrand => Boolean(b));
+            return (
+              <div
+                className="mb-3 rounded-lg border border-[#0040FF]/20 overflow-hidden"
+                data-testid="streaming-box-live-preview"
+              >
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[#F5F6FA] border-b border-[#E0E3EB]">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7A7F8C]">
+                    Pré-visualização do StreamingBox
+                  </span>
+                  <span className="text-[10px] text-[#7A7F8C]">
+                    {previewBrands.length === 0
+                      ? "Sem marcas selecionadas"
+                      : `${previewBrands.length} ${previewBrands.length === 1 ? "marca" : "marcas"}`}
+                  </span>
+                </div>
+                <div
+                  className="px-3 py-3 flex items-center justify-center min-h-[72px]"
+                  style={{
+                    background: "linear-gradient(135deg, #2C41DA 20%, #172DD8 96%)",
+                  }}
+                >
+                  {previewBrands.length === 0 ? (
+                    <span className="text-white/60 text-[11px] italic">
+                      Selecione uma marca abaixo para ver o preview
+                    </span>
+                  ) : (
+                    <StreamingBox brands={previewBrands} />
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           {streamingBrandIds.length > 0 && (
             <div className="mb-3">
               <p className="text-[11px] text-[#7A7F8C] mb-1.5">Arraste as miniaturas para reordenar — esta é a ordem que aparece no card.</p>
