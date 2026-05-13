@@ -197,7 +197,9 @@ export default function OndeEstamos() {
                               data-testid={`onde-estamos-phone-${city.slug}-${idx}`}
                               className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#122AD5] hover:underline"
                             >
-                              <Phone size={12} />
+                              {!(city.phones.length >= 4 && idx % 2 === 1) && (
+                                <Phone size={12} />
+                              )}
                               {p}
                             </a>
                           </li>
