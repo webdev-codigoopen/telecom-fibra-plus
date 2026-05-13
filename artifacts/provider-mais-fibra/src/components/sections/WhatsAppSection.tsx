@@ -130,6 +130,13 @@ export default function WhatsAppSection() {
             padding-top: 0 !important;
             padding-bottom: 0 !important;
           }
+          .atendimento-left {
+            align-items: center !important;
+            text-align: center !important;
+          }
+          .atendimento-left img {
+            align-self: center !important;
+          }
         }
       `}</style>
     </section>
