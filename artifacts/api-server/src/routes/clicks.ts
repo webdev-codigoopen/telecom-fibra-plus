@@ -320,6 +320,9 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
     const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
     let sinceDate: Date | undefined;
     if (sinceParam) {
       const parsed = new Date(sinceParam);
@@ -342,6 +345,7 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
     if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
 
     const baseSelect = db
       .select({
@@ -397,6 +401,16 @@ router.get("/clicks/export", requireAdminKey, async (req, res) => {
     } else {
       const stamp = new Date().toISOString().slice(0, 10);
       filename = `clicks-${stamp}.csv`;
+    }
+    if (cityParam) {
+      const citySlug = cityParam
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "city";
+      filename = filename.replace(/^clicks-/, `clicks-${citySlug}-`);
     }
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);

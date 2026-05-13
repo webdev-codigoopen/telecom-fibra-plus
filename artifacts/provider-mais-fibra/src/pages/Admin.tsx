@@ -1043,6 +1043,17 @@ export default function Admin() {
                         } else {
                           filename = `clicks-all-${stamp}.csv`;
                         }
+                        if (cityFilter) {
+                          params.set("city", cityFilter);
+                          const citySlug = cityFilter
+                            .toLowerCase()
+                            .normalize("NFD")
+                            .replace(/[\u0300-\u036f]/g, "")
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-+|-+$/g, "")
+                            .slice(0, 60) || "city";
+                          filename = filename.replace(/^clicks-/, `clicks-${citySlug}-`);
+                        }
                         const qs = params.toString();
                         const res = await fetch(
                           `${baseUrl}/api/clicks/export${qs ? `?${qs}` : ""}`,
