@@ -2110,6 +2110,55 @@ function CityTrendPanel({
   const formatExtremeDelta = (d: number) =>
     `${d > 0 ? "+" : ""}${d} ${Math.abs(d) === 1 ? "clique" : "cliques"}`;
 
+  const handleExportSourcesCsv = () => {
+    const escape = (v: string) => {
+      let s = v;
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const header = ["source", "current_total", "previous_total", "change_abs", "change_pct"];
+    const rows = sortedSources.map(({ source, value, prev, delta }) => {
+      const prevStr = prev === null ? "" : String(prev);
+      const absStr = delta ? String(delta.abs) : "";
+      let pctStr = "";
+      if (delta) {
+        if (delta.pct === null) pctStr = "";
+        else pctStr = delta.pct.toFixed(2);
+      }
+      return [escape(source), String(value), prevStr, absStr, pctStr];
+    });
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n") + "\r\n";
+
+    const slugCity = city
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    let periodPart: string;
+    if (range === "custom") {
+      periodPart = customFrom && customTo ? `${customFrom}_${customTo}` : "personalizado";
+    } else if (range === "today") {
+      periodPart = "hoje";
+    } else if (range === "all") {
+      periodPart = "tudo";
+    } else {
+      periodPart = range;
+    }
+    const filename = `tendencia-origens_${slugCity}_${periodPart}.csv`;
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   return (
     <div
       className="mt-4 rounded-lg border border-[#FFD600] bg-[#FFFBE6] p-3"
@@ -2198,6 +2247,17 @@ function CityTrendPanel({
               />
               Comparar com período anterior
             </label>
+          )}
+          {effectiveViewMode === "source" && sortedSources.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportSourcesCsv}
+              className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
+              data-testid="city-trend-source-export-csv"
+              title="Baixar CSV com totais por origem"
+            >
+              Exportar CSV
+            </button>
           )}
           <button
             type="button"
