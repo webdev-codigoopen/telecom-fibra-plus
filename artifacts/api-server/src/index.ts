@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startEmailReportScheduler } from "./lib/emailReportScheduler";
+import { startBotClickBackfillScheduler } from "./lib/botClickBackfillScheduler";
 
 const rawPort = process.env["PORT"];
 
@@ -24,4 +25,5 @@ app.listen(port, (err) => {
 
   logger.info({ port }, "Server listening");
   startEmailReportScheduler();
+  startBotClickBackfillScheduler();
 });

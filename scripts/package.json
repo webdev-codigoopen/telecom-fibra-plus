@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./backfill-share-bot-clicks": "./src/lib/backfill-share-bot-clicks.ts"
+  },
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "backfill-share-bot-clicks": "tsx ./src/backfill-share-bot-clicks.ts",
