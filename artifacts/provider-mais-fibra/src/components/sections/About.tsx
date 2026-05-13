@@ -64,12 +64,12 @@ export default function About() {
               decoding="async"
             />
             <h2
-              className="m-0"
+              className="about-section__title m-0"
               style={{
                 fontFamily: FONT_MONTSERRAT,
                 fontWeight: 500,
-                fontSize: "clamp(1.75rem, 4.5vw + 0.5rem, 2rem)",
-                lineHeight: 1.25,
+                fontSize: 32,
+                lineHeight: "40px",
                 letterSpacing: "-0.36px",
                 color: COLOR_BLUE,
               }}

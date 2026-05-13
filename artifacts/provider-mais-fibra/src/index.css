@@ -368,3 +368,11 @@ img, video, svg, canvas, picture {
     box-shadow: none !important;
   }
 }
+
+/* Título "Sobre" reduzido no mobile */
+@media (max-width: 639px) {
+  .about-section__title {
+    font-size: 1.75rem !important;
+    line-height: 1.25 !important;
+  }
+}
