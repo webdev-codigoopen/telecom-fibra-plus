@@ -83,14 +83,19 @@ export default function About() {
 
           {/* Body paragraph (Montserrat 400 16/33, color #535353) */}
           <p
-            className="m-0 whitespace-pre-line"
+            className="m-0 whitespace-pre-line text-justify lg:text-left"
             style={{
               fontFamily: FONT_MONTSERRAT,
               fontWeight: 400,
               fontSize: 16,
               lineHeight: "33px",
               color: COLOR_BODY,
-            }}
+              hyphens: "auto",
+              WebkitHyphens: "auto",
+              MozHyphens: "auto",
+              wordSpacing: "-0.5px",
+            } as React.CSSProperties}
+            lang="pt-BR"
           >
             A Provider Mais Fibra nasceu com a missão de levar internet de alta
             velocidade para o interior da Bahia. Com infraestrutura 100% em fibra
