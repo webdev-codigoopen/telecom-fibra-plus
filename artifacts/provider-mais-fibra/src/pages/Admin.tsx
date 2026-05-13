@@ -69,6 +69,7 @@ type CleanupRunRecord = {
   windowSeconds: number;
   minBurst: number;
   useUserAgent: boolean;
+  trigger?: "manual" | "scheduled";
   error: string | null;
 };
 
@@ -119,6 +120,7 @@ type StoredUiState = {
   previewOpen: boolean;
   previewMode: PreviewMode;
   showBots: boolean;
+  cleanupHistoryOpen: boolean;
 };
 
 function loadStoredUiState(): StoredUiState {
@@ -127,6 +129,7 @@ function loadStoredUiState(): StoredUiState {
     previewOpen: true,
     previewMode: "desktop",
     showBots: true,
+    cleanupHistoryOpen: false,
   };
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -140,6 +143,10 @@ function loadStoredUiState(): StoredUiState {
           ? parsed.previewMode
           : fallback.previewMode,
       showBots: typeof parsed.showBots === "boolean" ? parsed.showBots : fallback.showBots,
+      cleanupHistoryOpen:
+        typeof parsed.cleanupHistoryOpen === "boolean"
+          ? parsed.cleanupHistoryOpen
+          : fallback.cleanupHistoryOpen,
     };
   } catch {
     return fallback;
@@ -234,6 +241,9 @@ export default function Admin() {
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [chartView, setChartView] = useState<ChartView>(() => loadStoredUiState().chartView);
   const [showBots, setShowBots] = useState<boolean>(() => loadStoredUiState().showBots);
+  const [cleanupHistoryOpen, setCleanupHistoryOpen] = useState<boolean>(
+    () => loadStoredUiState().cleanupHistoryOpen,
+  );
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -817,12 +827,12 @@ export default function Admin() {
     try {
       localStorage.setItem(
         UI_STORAGE_KEY,
-        JSON.stringify({ chartView, previewOpen, previewMode, showBots }),
+        JSON.stringify({ chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [chartView, previewOpen, previewMode, showBots]);
+  }, [chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen]);
 
   async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
     setSaving(true);
@@ -1964,19 +1974,36 @@ export default function Admin() {
                       {cleanupStatus.history && cleanupStatus.history.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-[#E0E3EB]">
                           <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
-                            <span className="text-[11px] font-semibold text-[#2A2D38]">
+                            <button
+                              type="button"
+                              onClick={() => setCleanupHistoryOpen((o) => !o)}
+                              aria-expanded={cleanupHistoryOpen}
+                              aria-controls="cleanup-history-panel"
+                              className="text-[11px] font-semibold text-[#2A2D38] flex items-center gap-1 hover:text-[#0A6B41] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0A6B41] rounded"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="inline-block transition-transform"
+                                style={{
+                                  transform: cleanupHistoryOpen ? "rotate(90deg)" : "rotate(0deg)",
+                                }}
+                              >
+                                ▶
+                              </span>
                               Histórico recente ({cleanupStatus.history.length}{" "}
                               {cleanupStatus.history.length === 1 ? "execução" : "execuções"})
-                            </span>
-                            <span className="text-[10px] text-[#7A7F8C]">
-                              Linhas reclassificadas por execução
-                            </span>
+                            </button>
+                            {cleanupHistoryOpen && (
+                              <span className="text-[10px] text-[#7A7F8C]">
+                                Linhas reclassificadas por execução
+                              </span>
+                            )}
                           </div>
-                          {(() => {
+                          {cleanupHistoryOpen && (() => {
                             const runs = [...cleanupStatus.history].reverse();
                             const maxRows = Math.max(1, ...runs.map((r) => r.rowsRelabeled));
                             return (
-                              <>
+                              <div id="cleanup-history-panel">
                                 <div className="flex items-end gap-1 h-12 mb-2" aria-label="Sparkline de linhas reclassificadas por execução">
                                   {runs.map((r, idx) => {
                                     const heightPct = r.ok
@@ -2026,6 +2053,21 @@ export default function Admin() {
                                       <span className="text-[#7A7F8C]">
                                         {new Date(r.finishedAt).toLocaleString("pt-BR")}
                                       </span>
+                                      <span
+                                        className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide font-semibold"
+                                        style={
+                                          r.trigger === "manual"
+                                            ? { background: "#EEF0F5", color: "#2A2D38" }
+                                            : { background: "#F5F7FA", color: "#7A7F8C" }
+                                        }
+                                        title={
+                                          r.trigger === "manual"
+                                            ? "Disparada manualmente pelo admin"
+                                            : "Execução agendada (automática)"
+                                        }
+                                      >
+                                        {r.trigger === "manual" ? "Manual" : "Agendada"}
+                                      </span>
                                       <span className="ml-auto">
                                         {r.ok ? (
                                           <>
@@ -2042,7 +2084,7 @@ export default function Admin() {
                                     </li>
                                   ))}
                                 </ul>
-                              </>
+                              </div>
                             );
                           })()}
                         </div>

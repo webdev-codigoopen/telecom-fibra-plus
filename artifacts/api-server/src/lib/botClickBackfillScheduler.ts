@@ -23,8 +23,11 @@ export type BotCleanupStatus = {
   windowSeconds: number;
   minBurst: number;
   useUserAgent: boolean;
+  trigger: BotCleanupTrigger;
   error: string | null;
 };
+
+export type BotCleanupTrigger = "manual" | "scheduled";
 
 let started = false;
 let timer: ReturnType<typeof setInterval> | null = null;
@@ -59,6 +62,7 @@ async function persistStatus(status: BotCleanupStatus): Promise<void> {
       windowSeconds: status.windowSeconds,
       minBurst: status.minBurst,
       useUserAgent: status.useUserAgent,
+      trigger: status.trigger,
       error: status.error,
     });
   } catch (err) {
@@ -73,7 +77,10 @@ export type RunBotClickBackfillTickResult =
   | { skipped: true; status: null }
   | { skipped: false; status: BotCleanupStatus };
 
-export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTickResult> {
+export async function runBotClickBackfillTick(
+  options: { trigger?: BotCleanupTrigger } = {},
+): Promise<RunBotClickBackfillTickResult> {
+  const trigger: BotCleanupTrigger = options.trigger ?? "scheduled";
   if (runningTick) {
     logger.info(
       "[bot-click-backfill] previous tick still running; skipping this run",
@@ -136,6 +143,7 @@ export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTick
       windowSeconds: result.windowSeconds,
       minBurst: result.minBurst,
       useUserAgent: result.useUserAgent,
+      trigger,
       error: null,
     };
     await persistStatus(status);
@@ -165,6 +173,7 @@ export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTick
       windowSeconds: 0,
       minBurst: 0,
       useUserAgent: true,
+      trigger,
       error: err instanceof Error ? err.message : String(err),
     };
     await persistStatus(status);

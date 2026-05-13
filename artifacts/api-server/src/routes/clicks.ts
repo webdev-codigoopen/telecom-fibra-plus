@@ -315,6 +315,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
       windowSeconds: r.windowSeconds,
       minBurst: r.minBurst,
       useUserAgent: r.useUserAgent,
+      trigger: r.trigger,
       error: r.error,
     }));
 
@@ -331,6 +332,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
         windowSeconds: latest.windowSeconds,
         minBurst: latest.minBurst,
         useUserAgent: latest.useUserAgent,
+        trigger: latest.trigger as "manual" | "scheduled",
         error: latest.error,
       };
       res.json({ status, recordedAt: latest.finishedAt, history });
@@ -362,7 +364,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
 
 router.post("/clicks/cleanup-run", requireAdminKey, async (_req, res) => {
   try {
-    const result = await runBotClickBackfillTick();
+    const result = await runBotClickBackfillTick({ trigger: "manual" });
     if (result.skipped) {
       res.status(409).json({
         skipped: true,

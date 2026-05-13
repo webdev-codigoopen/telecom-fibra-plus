@@ -12,6 +12,7 @@ export const botCleanupRunsTable = pgTable("bot_cleanup_runs", {
   windowSeconds: integer("window_seconds").notNull().default(0),
   minBurst: integer("min_burst").notNull().default(0),
   useUserAgent: boolean("use_user_agent").notNull().default(true),
+  trigger: text("trigger").notNull().default("scheduled"),
   error: text("error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
