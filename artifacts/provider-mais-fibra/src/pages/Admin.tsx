@@ -2385,13 +2385,6 @@ export default function Admin() {
               />
             )}
 
-            <StreamingBrandsManager
-              brands={streamingBrands}
-              adminKey={adminKey}
-              baseUrl={baseUrl}
-              onChange={fetchStreamingBrands}
-            />
-
             {plans.length > 0 && (
               <div className="mb-6 bg-white rounded-xl border border-[#E0E3EB] overflow-hidden">
                 <button

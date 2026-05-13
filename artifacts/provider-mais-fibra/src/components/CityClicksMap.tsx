@@ -506,11 +506,15 @@ export default function CityClicksMap(props: Props) {
       zoomAnimation: false,
       inertia: false,
     });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap",
-      crossOrigin: true,
-    }).addTo(map);
+    L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
+      {
+        maxZoom: 19,
+        subdomains: "abcd",
+        attribution: "© OpenStreetMap, © CARTO",
+        crossOrigin: true,
+      },
+    ).addTo(map);
     map.fitBounds(bounds, { padding: [12, 12], animate: false });
     leafletMapRef.current = map;
 
@@ -1210,7 +1214,7 @@ export default function CityClicksMap(props: Props) {
           className="absolute inset-0"
           style={{
             zIndex: 0,
-            filter: "grayscale(0.55) brightness(1.04) contrast(0.95)",
+            opacity: 0.6,
           }}
           aria-hidden
         />
@@ -1219,7 +1223,7 @@ export default function CityClicksMap(props: Props) {
           style={{ zIndex: 2, background: "rgba(255,255,255,0.75)" }}
           aria-hidden
         >
-          © OpenStreetMap
+          © OpenStreetMap, © CARTO
         </div>
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
