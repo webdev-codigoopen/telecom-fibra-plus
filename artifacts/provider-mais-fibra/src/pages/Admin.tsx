@@ -277,7 +277,10 @@ export default function Admin() {
       } else {
         entry.byPlan.push({ planSpeed: row.planSpeed, planPrice: row.planPrice, total: row.total });
       }
-      entry.bySource[row.source] = (entry.bySource[row.source] ?? 0) + row.total;
+      const sourceKey = row.source.startsWith("whatsapp-share-bot")
+        ? "whatsapp-share-bot"
+        : row.source;
+      entry.bySource[sourceKey] = (entry.bySource[sourceKey] ?? 0) + row.total;
     }
     return Array.from(map.values()).sort(
       (a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime(),
@@ -399,9 +402,15 @@ export default function Admin() {
     "quem-somos-sticky": "Quem Somos — Botão flutuante",
     "demanda-cidades-sticky": "Demanda Cidades — Botão flutuante",
     "(sem origem)": "Sem origem",
+    "whatsapp-share": "WhatsApp share — humanos",
+    "whatsapp-share-bot": "WhatsApp share — bots (não conta na conversão)",
   };
   function formatSourceLabel(src: string): string {
     if (sourceLabels[src]) return sourceLabels[src]!;
+    if (src.startsWith("whatsapp-share:")) {
+      const sub = src.slice("whatsapp-share:".length);
+      return `WhatsApp share — humanos (${sub || "sem origem"})`;
+    }
     if (src.startsWith("city:")) return `Cidade — ${src.slice(5)}`;
     if (src.startsWith("city-sticky:")) return `Cidade ${src.slice(12)} — Botão flutuante`;
     if (src.startsWith("city-cta-hero:")) return `Cidade ${src.slice(14)} — CTA Hero`;
@@ -1415,6 +1424,9 @@ export default function Admin() {
                                 (acc, p) => acc + (p.value as number),
                                 0,
                               );
+                              const hasBots = ordered.some(
+                                (p) => String(p.dataKey) === "whatsapp-share-bot",
+                              );
                               return (
                                 <div className="bg-white border border-[#E0E3EB] rounded-lg px-3 py-2 shadow-sm text-xs">
                                   <div className="font-semibold text-[#0D0D0D] mb-1">{label}</div>
@@ -1429,12 +1441,17 @@ export default function Admin() {
                                             className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0"
                                             style={{ background: p.color }}
                                           />
-                                          <span className="truncate">{String(p.dataKey)}</span>
+                                          <span className="truncate">{formatSourceLabel(String(p.dataKey))}</span>
                                         </span>
                                         <span className="font-semibold tabular-nums">{p.value as number}</span>
                                       </div>
                                     ))}
                                   </div>
+                                  {hasBots && (
+                                    <div className="mt-1.5 pt-1.5 border-t border-[#EEF0F5] text-[10px] text-[#7A7F8C] leading-snug">
+                                      Pré-visualizações de bots (WhatsApp/Facebook crawlers) não entram no cálculo de conversão.
+                                    </div>
+                                  )}
                                 </div>
                               );
                             }}
@@ -1444,6 +1461,7 @@ export default function Admin() {
                             height={28}
                             iconSize={10}
                             wrapperStyle={{ fontSize: 11, color: "#2A2D38" }}
+                            formatter={(value) => formatSourceLabel(String(value))}
                           />
                           {chartSources.map(({ source, color }, i) => (
                             <Bar
