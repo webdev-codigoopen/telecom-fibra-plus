@@ -134,12 +134,12 @@ export default function WhatsAppSection() {
             padding-bottom: 0 !important;
             padding-left: 20px !important;
             padding-right: 20px !important;
-            align-items: center !important;
-            text-align: center !important;
+            align-items: flex-start !important;
+            text-align: left !important;
             box-sizing: border-box !important;
           }
           .atendimento-left img {
-            align-self: center !important;
+            align-self: flex-start !important;
           }
           .atendimento-right {
             width: 100% !important;
