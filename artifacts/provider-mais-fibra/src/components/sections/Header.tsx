@@ -58,6 +58,21 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [isOpen]);
+
   const handleNav = (link: NavLink) => {
     setIsOpen(false);
     if (link.page) {
@@ -275,100 +290,90 @@ export default function Header() {
                 />
               </div>
 
-              {/* Nav links — scrollable */}
-              <nav className="relative flex-1 overflow-y-auto px-4 pt-2 pb-4">
-                {navLinks.map((link, i) => {
-                  const active = isActive(link);
-                  return (
-                    <motion.button
-                      key={link.label}
-                      onClick={() => handleNav(link)}
-                      initial={{ opacity: 0, x: 24 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.05 + i * 0.05, duration: 0.3, ease: "easeOut" }}
-                      className="w-full text-left flex items-center justify-between py-4 px-4 my-1 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] active:scale-[0.98]"
-                      style={{
-                        background: active ? "rgba(149,235,29,0.12)" : "transparent",
-                        color: active ? COLORS.active : COLORS.inactive,
-                        fontFamily: FONT_NUNITO,
-                        fontWeight: active ? 700 : 600,
-                        fontSize: 17,
-                        lineHeight: "22px",
-                      }}
-                    >
-                      <span className="flex items-center gap-3">
-                        {active && (
-                          <span
-                            aria-hidden
-                            style={{
-                              width: 4,
-                              height: 20,
-                              borderRadius: 2,
-                              background: COLORS.active,
-                            }}
-                          />
-                        )}
-                        {link.label}
-                      </span>
-                      <ChevronRight size={18} className="opacity-50" />
-                    </motion.button>
-                  );
-                })}
-
-                {/* Divider label */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.05 + navLinks.length * 0.05, duration: 0.3 }}
-                  className="px-4 pt-6 pb-2 text-[11px] uppercase tracking-[0.12em] text-white/40 font-bold"
-                  style={{ fontFamily: FONT_NUNITO }}
-                >
-                  Baixe o app
-                </motion.div>
-
-                {/* App stores row */}
-                <motion.div
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + navLinks.length * 0.05, duration: 0.3 }}
-                  className="flex gap-2 px-2"
-                >
-                  <a
-                    href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setIsOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
-                    style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
-                  >
-                    <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
-                    Play
-                  </a>
-                  <a
-                    href="https://apps.apple.com/br/app/provider-mais-fibra/id6762133657"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setIsOpen(false)}
-                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
-                    style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
-                  >
-                    <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
-                    App Store
-                  </a>
-                </motion.div>
+              {/* Nav links — distributed evenly */}
+              <nav className="relative flex-1 flex flex-col justify-center px-4 py-2 min-h-0">
+                <div className="flex flex-col gap-1">
+                  {navLinks.map((link, i) => {
+                    const active = isActive(link);
+                    return (
+                      <motion.button
+                        key={link.label}
+                        onClick={() => handleNav(link)}
+                        initial={{ opacity: 0, x: 24 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 + i * 0.05, duration: 0.3, ease: "easeOut" }}
+                        className="w-full text-left flex items-center justify-between py-3 px-4 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] active:scale-[0.98]"
+                        style={{
+                          background: active ? "rgba(149,235,29,0.12)" : "transparent",
+                          color: active ? COLORS.active : COLORS.inactive,
+                          fontFamily: FONT_NUNITO,
+                          fontWeight: active ? 700 : 600,
+                          fontSize: 17,
+                          lineHeight: "22px",
+                        }}
+                      >
+                        <span className="flex items-center gap-3">
+                          {active && (
+                            <span
+                              aria-hidden
+                              style={{
+                                width: 4,
+                                height: 20,
+                                borderRadius: 2,
+                                background: COLORS.active,
+                              }}
+                            />
+                          )}
+                          {link.label}
+                        </span>
+                        <ChevronRight size={18} className="opacity-50" />
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </nav>
 
-              {/* Footer: CTA + social — pinned to bottom */}
+              {/* Footer: app stores + CTA + social — pinned to bottom */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.35 }}
-                className="relative flex-shrink-0 px-6 pt-5 pb-6"
-                style={{
-                  background:
-                    "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%)",
-                }}
+                className="relative flex-shrink-0 px-6 pt-4 pb-6 flex flex-col gap-4"
               >
+                {/* App stores row */}
+                <div>
+                  <div
+                    className="text-[11px] uppercase tracking-[0.12em] text-white/40 font-bold mb-2"
+                    style={{ fontFamily: FONT_NUNITO }}
+                  >
+                    Baixe o app
+                  </div>
+                  <div className="flex gap-2">
+                    <a
+                      href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                      style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
+                    >
+                      <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
+                      Play
+                    </a>
+                    <a
+                      href="https://apps.apple.com/br/app/provider-mais-fibra/id6762133657"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsOpen(false)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                      style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
+                    >
+                      <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
+                      App Store
+                    </a>
+                  </div>
+                </div>
+
                 <button
                   onClick={() => {
                     setIsOpen(false);
