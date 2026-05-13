@@ -8,6 +8,8 @@ import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap from "../components/CityClicksMap";
 import CityAccessDashboard from "../components/CityAccessDashboard";
+import AdminShell, { type AdminTabId } from "./admin/AdminShell";
+import DashboardOverview from "./admin/DashboardOverview";
 import { colorForSource } from "../lib/sourceColors";
 import {
   type StreamingBrand,
@@ -251,7 +253,17 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "cidades" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico">("planos");
+  type LegacyConfigTab = "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico";
+  type FullTab = AdminTabId | LegacyConfigTab;
+  const [activeTab, setActiveTab] = useState<FullTab>("dashboard");
+  const isLegacyConfig = (t: FullTab): t is LegacyConfigTab =>
+    t === "interesses" || t === "emails" || t === "seguranca" || t === "marketing"
+    || t === "avaliacoes" || t === "duvidas" || t === "historico";
+  const sidebarActive: AdminTabId = isLegacyConfig(activeTab) ? "config" : activeTab;
+  const handleSidebarChange = (id: AdminTabId) => {
+    if (id === "config") setActiveTab("interesses");
+    else setActiveTab(id);
+  };
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -1055,81 +1067,172 @@ export default function Admin() {
     );
   }
 
+  const periodWindow = (() => {
+    if (statsRange === "today") {
+      const since = new Date(); since.setHours(0, 0, 0, 0);
+      return { since: since.toISOString() };
+    }
+    if (statsRange === "week") {
+      const since = new Date(); since.setDate(since.getDate() - 7);
+      return { since: since.toISOString() };
+    }
+    if (statsRange === "custom" && customFrom && customTo) {
+      const since = new Date(`${customFrom}T00:00:00`);
+      const until = new Date(`${customTo}T00:00:00`);
+      until.setDate(until.getDate() + 1);
+      if (!Number.isNaN(since.getTime()) && !Number.isNaN(until.getTime()) && until > since) {
+        return { since: since.toISOString(), until: until.toISOString() };
+      }
+    }
+    return {} as { since?: string; until?: string };
+  })();
+
+  const handleAdminLogout = async () => {
+    try {
+      await adminFetch(`${baseUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      /* ignore */
+    }
+    clearCsrfCache();
+    localStorage.removeItem(STORAGE_KEY);
+    setAdminKey("");
+    setAuthed(false);
+    setKeyInput("");
+    setEmailInput("");
+  };
+
+  const CONFIG_SUBTABS: { id: LegacyConfigTab; label: string }[] = [
+    { id: "interesses", label: "Interesses" },
+    { id: "emails", label: "E-mails" },
+    { id: "seguranca", label: "Segurança" },
+    { id: "marketing", label: "Marketing" },
+    { id: "avaliacoes", label: "Avaliações" },
+    { id: "duvidas", label: "Dúvidas" },
+    { id: "historico", label: "Histórico" },
+  ];
+
   return (
-    <div className="min-h-screen" style={{ background: "#F5F7FA" }}>
-      <header className="bg-white border-b border-[#E0E3EB] px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <a href="/" className="text-[#7A7F8C] hover:text-[#0040FF] transition-colors">
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 5l-7 7 7 7"/>
-            </svg>
-          </a>
-          <h1 className="font-bold text-[#0D0D0D]">Gerenciar Planos</h1>
-        </div>
-        <button
-          onClick={async () => {
-            try {
-              await adminFetch(`${baseUrl}/api/auth/logout`, {
-                method: "POST",
-                credentials: "include",
-              });
-            } catch {
-              /* ignore */
-            }
-            clearCsrfCache();
-            localStorage.removeItem(STORAGE_KEY);
-            setAdminKey("");
-            setAuthed(false);
-            setKeyInput("");
-            setEmailInput("");
-          }}
-          className="text-sm text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors"
-        >
-          Sair
-        </button>
-      </header>
-
-      <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 sm:px-6 py-8 focus:outline-none">
-        <div className="mb-6 inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="tablist" aria-label="Seções do painel">
-          {([
-            { id: "planos", label: "Planos" },
-            { id: "cidades", label: "Cidades" },
-            { id: "ctas", label: "Configuração de CTAs" },
-            { id: "interesses", label: "Interesses (Demanda)" },
-            { id: "emails", label: "Relatórios por email" },
-            { id: "seguranca", label: "Segurança" },
-            { id: "marketing", label: "Marketing" },
-            { id: "avaliacoes", label: "Avaliações" },
-            { id: "duvidas", label: "Dúvidas" },
-            { id: "historico", label: "Histórico" },
-          ] as const).map((tab) => {
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                  active
-                    ? "bg-[#122AD5] text-white"
-                    : "text-[#7A7F8C] hover:text-[#0D0D0D]"
-                }`}
-                data-testid={`admin-tab-${tab.id}`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
+    <>
+      <Helmet>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap"
+        />
+      </Helmet>
+      <AdminShell
+        active={sidebarActive}
+        onChange={handleSidebarChange}
+        period={statsRange}
+        onPeriodChange={(p) => {
+          setStatsRange(p);
+          if (p === "custom") {
+            void fetchClickStats(adminKey, p, sourceFilter, customFrom, customTo, cityFilter);
+          } else {
+            void fetchClickStats(adminKey, p, sourceFilter, "", "", cityFilter);
+          }
+        }}
+        onLogout={handleAdminLogout}
+      >
+        <main id="main-content" tabIndex={-1} className="focus:outline-none" style={{ outline: "none" }}>
         {loading && (
           <div className="text-center text-[#7A7F8C] py-12">Carregando...</div>
         )}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
             {error}
+          </div>
+        )}
+
+        {!loading && activeTab === "dashboard" && (
+          <DashboardOverview
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            since={periodWindow.since}
+            until={periodWindow.until}
+          />
+        )}
+
+        {!loading && activeTab === "mapa" && (
+          <div className="admin-card" style={{ padding: 0, overflow: "hidden" }}>
+            <CityClicksMap
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              selectedCity={cityFilter}
+              onSelectCity={(city) => {
+                setCityFilter(city);
+                void fetchClickStats(adminKey, statsRange, sourceFilter, customFrom, customTo, city);
+              }}
+            />
+          </div>
+        )}
+
+        {!loading && activeTab === "wpp" && (
+          <div className="admin-card">
+            <div className="admin-card-title">
+              WhatsApp — visão por origem
+              <span className="admin-card-sub">veja Desempenho dos planos para detalhes</span>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--as-text2)" }}>
+              As métricas detalhadas de WhatsApp (cliques por plano, share previews, conversões)
+              estão disponíveis na seção <strong>Planos · Desempenho</strong>. Use o Dashboard
+              para ver o funil de conversão e o mapa de calor de horários.
+            </p>
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="admin-btn-outline"
+                onClick={() => setActiveTab("planos")}
+              >
+                Ir para Desempenho dos planos →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && activeTab === "bots" && (
+          <BotVsHumanPanel
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            statsRange={statsRange}
+            customFrom={customFrom}
+            customTo={customTo}
+            cityFilter={cityFilter}
+          />
+        )}
+
+        {!loading && isLegacyConfig(activeTab) && (
+          <div className="mb-6" role="tablist" aria-label="Configurações">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+              {CONFIG_SUBTABS.map((s) => {
+                const act = activeTab === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={act}
+                    onClick={() => setActiveTab(s.id)}
+                    style={{
+                      fontSize: 12,
+                      padding: "5px 12px",
+                      borderRadius: 999,
+                      border: `1px solid ${act ? "var(--as-blue)" : "var(--as-border2)"}`,
+                      background: act ? "var(--as-blue)" : "transparent",
+                      color: act ? "#fff" : "var(--as-text2)",
+                      cursor: "pointer",
+                    }}
+                    data-testid={`admin-config-${s.id}`}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -2668,8 +2771,9 @@ export default function Admin() {
             </div>
           </>
         )}
-      </main>
-    </div>
+        </main>
+      </AdminShell>
+    </>
   );
 }
 

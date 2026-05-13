@@ -640,6 +640,71 @@ router.get("/clicks/recent", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/heatmap", requireAdminKey, async (req, res) => {
+  try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
+    const includeBots = req.query["includeBots"] === "true";
+    const tz = typeof req.query["tz"] === "string" && /^[A-Za-z0-9_+\-/]{1,64}$/.test(req.query["tz"])
+      ? req.query["tz"]
+      : "America/Bahia";
+
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
+    if (!includeBots) conditions.push(sql`not ${isBotSqlExpr}`);
+
+    const localTs = sql<Date>`(${planClicksTable.clickedAt} at time zone ${tz})`;
+    const dowExpr = sql<number>`cast(extract(dow from ${localTs}) as int)`;
+    const hourExpr = sql<number>`cast(extract(hour from ${localTs}) as int)`;
+
+    const baseSelect = db
+      .select({
+        dow: dowExpr,
+        hour: hourExpr,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable);
+
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+
+    const rows = await filtered.groupBy(dowExpr, hourExpr);
+    res.json({
+      tz,
+      includeBots,
+      cells: rows.map((r) => ({ dow: r.dow, hour: r.hour, total: r.total })),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch click heatmap" });
+  }
+});
+
 router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
   try {
     const isBotSqlExpr = buildIsBotSqlExpr();
