@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { normalizeSource } from "../../lib/plans";
 
@@ -19,13 +19,41 @@ function trackStickyClick(source: string) {
 
 export default function WhatsAppFloat({ source = "home-sticky" }: Props = {}) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [visible, setVisible] = useState(false);
   const normalizedSource = normalizeSource(source) || "home-sticky";
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - window.innerHeight;
+      if (scrollable <= 0) {
+        setVisible(true);
+        return;
+      }
+      const progress = window.scrollY / scrollable;
+      setVisible(progress >= 0.5);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, []);
 
   return (
     <div
       className="whatsapp-float-anchor fixed z-50 flex items-center gap-3"
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
+      style={{
+        opacity: visible ? 1 : 0,
+        visibility: visible ? "visible" : "hidden",
+        pointerEvents: visible ? "auto" : "none",
+        transition: "opacity 0.3s ease, visibility 0.3s ease",
+      }}
+      aria-hidden={!visible}
     >
       <AnimatePresence>
         {showTooltip && (
