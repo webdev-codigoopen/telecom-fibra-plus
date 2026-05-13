@@ -1186,7 +1186,32 @@ type TrendRow = {
   total: number;
 };
 
-type TrendPoint = { bucket: string; label: string; total: number };
+type TrendPoint = { bucket: string; label: string; total: number; previous: number | null };
+
+async function fetchTrendBuckets(
+  baseUrl: string,
+  adminKey: string,
+  city: string,
+  win: Window,
+  bucket: "hour" | "day",
+): Promise<Map<string, number>> {
+  const params = new URLSearchParams();
+  if (win.since) params.set("since", win.since);
+  if (win.until) params.set("until", win.until);
+  params.set("planSpeed", "city");
+  params.set("planPrice", city);
+  params.set("bucket", bucket);
+  const res = await fetch(`${baseUrl}/api/clicks/timeseries?${params.toString()}`, {
+    headers: { "X-Admin-Key": adminKey },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const rows = (await res.json()) as TrendRow[];
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    map.set(row.bucket, (map.get(row.bucket) ?? 0) + row.total);
+  }
+  return map;
+}
 
 function CityTrendPanel({
   baseUrl,
@@ -1206,6 +1231,10 @@ function CityTrendPanel({
   onClose: () => void;
 }) {
   const [points, setPoints] = useState<TrendPoint[] | null>(null);
+  const [currentTotal, setCurrentTotal] = useState(0);
+  const [previousTotal, setPreviousTotal] = useState<number | null>(null);
+  const [prevError, setPrevError] = useState(false);
+  const [showComparison, setShowComparison] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reqRef = useRef(0);
@@ -1223,40 +1252,106 @@ function CityTrendPanel({
     const myReq = ++reqRef.current;
     setLoading(true);
     setError(null);
+    setPrevError(false);
 
-    const params = new URLSearchParams();
-    if (win.since) params.set("since", win.since);
-    if (win.until) params.set("until", win.until);
-    params.set("planSpeed", "city");
-    params.set("planPrice", city);
-    params.set("bucket", useHour ? "hour" : "day");
+    const bucket: "hour" | "day" = useHour ? "hour" : "day";
+    const prevWin = previousWindow(win);
 
-    fetch(`${baseUrl}/api/clicks/timeseries?${params.toString()}`, {
-      headers: { "X-Admin-Key": adminKey },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<TrendRow[]>;
-      })
-      .then((rows) => {
+    const currentPromise = fetchTrendBuckets(baseUrl, adminKey, city, win, bucket);
+    const prevPromise = prevWin
+      ? fetchTrendBuckets(baseUrl, adminKey, city, prevWin, bucket).then(
+          (m) => ({ ok: true as const, map: m }),
+          () => ({ ok: false as const }),
+        )
+      : Promise.resolve({ ok: true as const, map: null });
+
+    Promise.all([currentPromise, prevPromise])
+      .then(([currentMap, prevResult]) => {
         if (myReq !== reqRef.current) return;
-        const map = new Map<string, TrendPoint>();
-        for (const row of rows) {
-          const date = new Date(row.bucket);
+
+        let prevMap: Map<string, number> | null = null;
+        if (prevResult.ok && prevResult.map) {
+          prevMap = prevResult.map;
+        } else if (!prevResult.ok) {
+          setPrevError(true);
+        }
+
+        const bucketMs = bucket === "hour" ? 3_600_000 : 86_400_000;
+        const normalize = (key: string) => new Date(key).toISOString();
+        const currentByIso = new Map<string, number>();
+        for (const [k, v] of currentMap) {
+          currentByIso.set(normalize(k), (currentByIso.get(normalize(k)) ?? 0) + v);
+        }
+        const prevByIso = prevMap ? new Map<string, number>() : null;
+        if (prevMap && prevByIso) {
+          for (const [k, v] of prevMap) {
+            prevByIso.set(normalize(k), (prevByIso.get(normalize(k)) ?? 0) + v);
+          }
+        }
+
+        // Canonical zero-filled timeline aligned to UTC bucket boundaries,
+        // so sparse buckets (days/hours with no clicks) still appear and
+        // line up with the equivalent slot in the previous window.
+        const buildTimeline = (since: string, until: string): number[] => {
+          const sinceMs = new Date(since).getTime();
+          const untilMs = new Date(until).getTime();
+          if (
+            !Number.isFinite(sinceMs) ||
+            !Number.isFinite(untilMs) ||
+            untilMs <= sinceMs
+          ) {
+            return [];
+          }
+          const start = Math.floor(sinceMs / bucketMs) * bucketMs;
+          const out: number[] = [];
+          for (let t = start; t < untilMs; t += bucketMs) out.push(t);
+          return out;
+        };
+
+        // For bounded windows we walk a canonical timeline so sparse
+        // buckets still appear. For unbounded windows (e.g. "Tudo"), no
+        // previous period exists, so fall back to the returned bucket
+        // keys directly to preserve the original chart behavior.
+        const currentTimeline =
+          win.since && win.until
+            ? buildTimeline(win.since, win.until)
+            : Array.from(currentByIso.keys())
+                .map((iso) => new Date(iso).getTime())
+                .filter((t) => Number.isFinite(t))
+                .sort((a, b) => a - b);
+        const prevTimeline =
+          prevWin && prevWin.since && prevWin.until
+            ? buildTimeline(prevWin.since, prevWin.until)
+            : [];
+
+        const length = Math.max(currentTimeline.length, prevTimeline.length);
+        const result: TrendPoint[] = [];
+        for (let i = 0; i < length; i++) {
+          const curT = currentTimeline[i];
+          const prevT = prevTimeline[i];
+          const refT = curT ?? prevT;
+          if (refT == null) continue;
+          const date = new Date(refT);
           const label = useHour
             ? date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
             : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-          const existing = map.get(row.bucket);
-          if (existing) {
-            existing.total += row.total;
+          const total =
+            curT != null ? currentByIso.get(new Date(curT).toISOString()) ?? 0 : 0;
+          let previous: number | null;
+          if (prevByIso) {
+            previous =
+              prevT != null ? prevByIso.get(new Date(prevT).toISOString()) ?? 0 : 0;
           } else {
-            map.set(row.bucket, { bucket: row.bucket, label, total: row.total });
+            previous = null;
           }
+          result.push({ bucket: new Date(refT).toISOString(), label, total, previous });
         }
-        const sorted = Array.from(map.values()).sort(
-          (a, b) => new Date(a.bucket).getTime() - new Date(b.bucket).getTime(),
+
+        setPoints(result);
+        setCurrentTotal(Array.from(currentMap.values()).reduce((s, v) => s + v, 0));
+        setPreviousTotal(
+          prevMap ? Array.from(prevMap.values()).reduce((s, v) => s + v, 0) : null,
         );
-        setPoints(sorted);
       })
       .catch(() => {
         if (myReq !== reqRef.current) return;
@@ -1268,14 +1363,44 @@ function CityTrendPanel({
       });
   }, [baseUrl, adminKey, city, range, customFrom, customTo, useHour]);
 
-  const total = points?.reduce((s, p) => s + p.total, 0) ?? 0;
+  const total = currentTotal;
+  const hasComparison = previousTotal !== null;
+  const deltaAbs = hasComparison ? total - (previousTotal ?? 0) : 0;
+  const deltaPct =
+    hasComparison && (previousTotal ?? 0) > 0
+      ? (deltaAbs / (previousTotal ?? 1)) * 100
+      : null;
+  let badgeBg = "#EEF1F7";
+  let badgeFg = "#2A2D38";
+  let badgeArrow = "•";
+  if (hasComparison) {
+    if (deltaAbs > 0) {
+      badgeBg = "#E6F8EC";
+      badgeFg = "#0A7B2C";
+      badgeArrow = "▲";
+    } else if (deltaAbs < 0) {
+      badgeBg = "#FCE9E9";
+      badgeFg = "#A11A1A";
+      badgeArrow = "▼";
+    }
+  }
+  let badgeLabel = "";
+  if (hasComparison) {
+    if (total === 0 && previousTotal === 0) {
+      badgeLabel = "Sem cliques nos dois períodos";
+    } else if (deltaPct === null) {
+      badgeLabel = `${badgeArrow} ${deltaAbs > 0 ? "+" : ""}${deltaAbs} (novo)`;
+    } else {
+      badgeLabel = `${badgeArrow} ${deltaPct > 0 ? "+" : ""}${deltaPct.toFixed(0)}% vs. anterior`;
+    }
+  }
 
   return (
     <div
       className="mt-4 rounded-lg border border-[#FFD600] bg-[#FFFBE6] p-3"
       data-testid="city-trend-panel"
     >
-      <div className="flex items-center justify-between mb-2 gap-2">
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
         <div>
           <h4 className="font-bold text-sm text-[#0D0D0D]">
             Tendência de cliques · {city}
@@ -1287,18 +1412,52 @@ function CityTrendPanel({
                 · {total} {total === 1 ? "clique" : "cliques"}
               </span>
             )}
+            {hasComparison && !loading && (
+              <span className="ml-2 text-[#5C4500]">
+                · anterior: {previousTotal}
+              </span>
+            )}
             {loading && <span className="ml-2 text-[#0040FF]">Carregando...</span>}
             {error && <span className="ml-2 text-red-600">{error}</span>}
+            {!error && prevError && (
+              <span className="ml-2 text-amber-700">
+                Comparação com período anterior indisponível.
+              </span>
+            )}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
-          aria-label="Fechar tendência"
-        >
-          Fechar ✕
-        </button>
+        <div className="flex items-center gap-2">
+          {hasComparison && !loading && (
+            <span
+              data-testid="city-trend-delta-badge"
+              className="text-[11px] font-semibold rounded-full px-2 py-0.5"
+              style={{ background: badgeBg, color: badgeFg }}
+              title={`Atual: ${total} · Anterior: ${previousTotal}`}
+            >
+              {badgeLabel}
+            </span>
+          )}
+          {hasComparison && (
+            <label className="inline-flex items-center gap-1 text-[11px] text-[#5C4500] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showComparison}
+                onChange={(e) => setShowComparison(e.target.checked)}
+                className="accent-[#0040FF]"
+                data-testid="city-trend-compare-toggle"
+              />
+              Comparar com período anterior
+            </label>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
+            aria-label="Fechar tendência"
+          >
+            Fechar ✕
+          </button>
+        </div>
       </div>
       <div className="bg-white rounded-md border border-[#E0E3EB] p-2" style={{ height: 220 }}>
         {!loading && !error && points && points.length === 0 && (
@@ -1314,9 +1473,25 @@ function CityTrendPanel({
               <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#7A7F8C" }} width={28} />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 6 }}
-                formatter={(v: number) => [v, "Cliques"]}
+                formatter={(v: number, name: string) => [
+                  v,
+                  name === "previous" ? "Período anterior" : "Cliques",
+                ]}
                 labelStyle={{ fontWeight: 600 }}
               />
+              {hasComparison && showComparison && (
+                <Line
+                  type="monotone"
+                  dataKey="previous"
+                  stroke="#7A7F8C"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.55}
+                  dot={false}
+                  activeDot={{ r: 4, fill: "#7A7F8C" }}
+                  isAnimationActive={false}
+                />
+              )}
               <Line
                 type="monotone"
                 dataKey="total"
