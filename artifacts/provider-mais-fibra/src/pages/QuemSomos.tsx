@@ -123,7 +123,7 @@ export default function QuemSomos() {
                 >
                   <img src={logoVerticalWhite} alt="Provider Mais Fibra" className="h-40 w-auto mb-6" />
                   <p className="text-white/60 text-sm text-center">
-                    Homologada pela Anatel · CNPJ 12.345.678/0001-99
+                    Homologada pela Anatel · CNPJ 28.632.900/0001-70
                   </p>
                 </div>
               </motion.div>

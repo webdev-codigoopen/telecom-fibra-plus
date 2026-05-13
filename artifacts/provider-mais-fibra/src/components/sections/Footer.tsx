@@ -311,7 +311,7 @@ export default function Footer() {
               margin: 0,
             }}
           >
-            &copy; 2026 Provider Mais Fibra. Todos os direitos reservados.
+            &copy; 2026 Provider Mais Fibra. Todos os direitos reservados. · CNPJ 28.632.900/0001-70
           </p>
           <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 16 }}>
             <a
