@@ -281,8 +281,8 @@ export default function Header() {
                 }}
               />
 
-              {/* Drawer header: logo + close */}
-              <div className="relative flex items-center justify-between px-6 pt-6 pb-5 flex-shrink-0">
+              {/* Drawer header: logo */}
+              <div className="relative flex items-center px-6 pt-6 pb-5 flex-shrink-0">
                 <img
                   src={logoUrl}
                   alt="Provider + FIBRA"
@@ -290,14 +290,6 @@ export default function Header() {
                   width={264}
                   height={47}
                 />
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="cursor-pointer text-white w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
-                  style={{ background: "rgba(255,255,255,0.08)" }}
-                  aria-label="Fechar menu"
-                >
-                  <X size={20} />
-                </button>
               </div>
 
               {/* Nav links — scrollable */}
