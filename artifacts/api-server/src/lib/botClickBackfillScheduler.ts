@@ -2,6 +2,10 @@ import { backfillShareBotClicks } from "@workspace/scripts/backfill-share-bot-cl
 import { db, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
+import {
+  checkAndAlertIfStale,
+  notifyOnBotCleanupFailure,
+} from "./botCleanupAlert";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 5 * 60 * 1000; // wait 5 min after boot before first run
@@ -79,6 +83,17 @@ export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTick
   runningTick = true;
   const startedAtMs = Date.now();
   const startedAtIso = new Date(startedAtMs).toISOString();
+  // Run the stale-check before the tick so that even a long string of
+  // failed runs (or a scheduler that hasn't been able to complete a
+  // successful tick in >36h) still triggers an alert.
+  try {
+    await checkAndAlertIfStale(new Date(startedAtMs));
+  } catch (alertErr) {
+    logger.error(
+      { err: alertErr },
+      "[bot-click-backfill] stale-check alert dispatch failed",
+    );
+  }
   try {
     const result = await backfillShareBotClicks({
       useUserAgent: true,
@@ -124,6 +139,14 @@ export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTick
       error: null,
     };
     await persistStatus(status);
+    try {
+      await checkAndAlertIfStale(new Date());
+    } catch (alertErr) {
+      logger.error(
+        { err: alertErr },
+        "[bot-click-backfill] stale-check alert dispatch failed",
+      );
+    }
     return { skipped: false, status };
   } catch (err) {
     const finishedAtMs = Date.now();
@@ -145,6 +168,14 @@ export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTick
       error: err instanceof Error ? err.message : String(err),
     };
     await persistStatus(status);
+    try {
+      await notifyOnBotCleanupFailure(status);
+    } catch (alertErr) {
+      logger.error(
+        { err: alertErr },
+        "[bot-click-backfill] failure alert dispatch failed",
+      );
+    }
     return { skipped: false, status };
   } finally {
     runningTick = false;
