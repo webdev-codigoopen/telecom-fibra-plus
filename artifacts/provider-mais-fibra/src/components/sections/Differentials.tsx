@@ -70,7 +70,7 @@ export default function Differentials() {
             Por que escolher a&nbsp;&nbsp;
             <span style={{ fontWeight: 700 }}>Provider</span>
             {" "}mais{" "}
-            <span style={{ fontWeight: 700 }}>Fibra</span>?
+            <span style={{ fontWeight: 700 }}>Fibra</span>
           </h2>
           <p
             className="m-0"
