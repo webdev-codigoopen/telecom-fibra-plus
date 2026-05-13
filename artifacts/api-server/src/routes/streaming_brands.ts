@@ -7,22 +7,10 @@ import {
 } from "@workspace/db";
 import { eq, and, ne } from "drizzle-orm";
 import { z } from "zod";
+import { requireAdmin as requireAdminKey } from "../lib/auth";
 
 const router: IRouter = Router();
 
-function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env["ADMIN_SECRET"];
-  if (!secret) {
-    res.status(503).json({ error: "Admin access not configured" });
-    return;
-  }
-  const key = req.headers["x-admin-key"];
-  if (key !== secret) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 router.get("/streaming-brands", async (_req, res) => {
   try {

@@ -1,4 +1,5 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -87,6 +88,7 @@ app.use(
 // Body size cap — prevents JSON bombs.
 app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true, limit: "256kb" }));
+app.use(cookieParser());
 
 // ---------------------------------------------------------------------------
 // Rate limiting. A wide global limit catches scraping and abuse, and a tight

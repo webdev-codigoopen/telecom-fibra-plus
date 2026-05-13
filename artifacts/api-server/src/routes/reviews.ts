@@ -2,22 +2,10 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { db, reviewsTable, appSettingsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { requireAdmin as requireAdminKey } from "../lib/auth";
 
 const router: IRouter = Router();
 
-function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env["ADMIN_SECRET"];
-  if (!secret) {
-    res.status(503).json({ error: "Admin access not configured" });
-    return;
-  }
-  const key = req.headers["x-admin-key"];
-  if (key !== secret) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
   const n = typeof raw === "number" ? raw : parseInt(String(raw ?? ""), 10);

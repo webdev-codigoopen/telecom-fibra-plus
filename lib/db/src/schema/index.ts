@@ -6,3 +6,4 @@ export * from "./demand_interests";
 export * from "./app_settings";
 export * from "./email_report_subscriptions";
 export * from "./reviews";
+export * from "./admin_users";

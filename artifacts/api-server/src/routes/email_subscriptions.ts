@@ -17,22 +17,10 @@ import {
 } from "../lib/cityComparisonReport";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { logger } from "../lib/logger";
+import { requireAdmin as requireAdminKey } from "../lib/auth";
 
 const router: IRouter = Router();
 
-function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env["ADMIN_SECRET"];
-  if (!secret) {
-    res.status(503).json({ error: "Admin access not configured" });
-    return;
-  }
-  const key = req.headers["x-admin-key"];
-  if (key !== secret) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 const createSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),

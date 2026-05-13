@@ -170,7 +170,9 @@ function emptyPlan(): Omit<ApiPlan, "id"> {
 
 export default function Admin() {
   const [adminKey, setAdminKey] = useState(() => localStorage.getItem(STORAGE_KEY) ?? "");
+  const [emailInput, setEmailInput] = useState("");
   const [keyInput, setKeyInput] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [plans, setPlans] = useState<ApiPlan[]>([]);
   const [loading, setLoading] = useState(false);
@@ -567,11 +569,38 @@ export default function Admin() {
     }
   }, [baseUrl, fetchClickStats, fetchStreamingBrands, fetchAppSettingsAdmin]);
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    localStorage.setItem(STORAGE_KEY, keyInput);
-    setAdminKey(keyInput);
-    fetchPlans(keyInput);
+    setError(null);
+    setLoggingIn(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: emailInput.trim(), password: keyInput }),
+      });
+      if (res.status === 429) {
+        setError("Muitas tentativas. Aguarde alguns minutos.");
+        return;
+      }
+      if (!res.ok) {
+        setError("Credenciais inválidas.");
+        return;
+      }
+      const data = (await res.json()) as { token: string };
+      if (!data.token) {
+        setError("Resposta inválida do servidor.");
+        return;
+      }
+      localStorage.setItem(STORAGE_KEY, data.token);
+      setAdminKey(data.token);
+      fetchPlans(data.token);
+    } catch {
+      setError("Falha de conexão. Tente novamente.");
+    } finally {
+      setLoggingIn(false);
+    }
   }
 
   useEffect(() => {
@@ -726,25 +755,43 @@ export default function Admin() {
               <p className="text-xs text-[#7A7F8C]">Provider Mais Fibra</p>
             </div>
           </div>
+          <Helmet>
+            <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+            <title>Painel Admin · Provider Mais Fibra</title>
+          </Helmet>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#2A2D38] mb-1">Senha de acesso</label>
+              <label className="block text-sm font-medium text-[#2A2D38] mb-1">E-mail</label>
+              <input
+                type="email"
+                autoComplete="username"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#2A2D38] mb-1">Senha</label>
               <input
                 type="password"
+                autoComplete="current-password"
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
                 className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
-                placeholder="Digite a senha"
+                placeholder="Digite sua senha"
                 required
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button
               type="submit"
-              className="w-full py-2.5 rounded-lg font-bold text-sm text-white transition-all duration-200 hover:opacity-90"
+              disabled={loggingIn}
+              className="w-full py-2.5 rounded-lg font-bold text-sm text-white transition-all duration-200 hover:opacity-90 disabled:opacity-60"
               style={{ background: "#0040FF" }}
             >
-              Entrar
+              {loggingIn ? "Entrando..." : "Entrar"}
             </button>
           </form>
         </div>
@@ -764,11 +811,20 @@ export default function Admin() {
           <h1 className="font-bold text-[#0D0D0D]">Gerenciar Planos</h1>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
+            try {
+              await fetch(`${baseUrl}/api/auth/logout`, {
+                method: "POST",
+                credentials: "include",
+              });
+            } catch {
+              /* ignore */
+            }
             localStorage.removeItem(STORAGE_KEY);
             setAdminKey("");
             setAuthed(false);
             setKeyInput("");
+            setEmailInput("");
           }}
           className="text-sm text-[#7A7F8C] hover:text-[#0D0D0D] transition-colors"
         >

@@ -4,22 +4,10 @@ import { db, demandInterestsTable, planClicksTable, appSettingsTable } from "@wo
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { logger } from "../lib/logger";
+import { requireAdmin as requireAdminKey } from "../lib/auth";
 
 const router: IRouter = Router();
 
-function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env["ADMIN_SECRET"];
-  if (!secret) {
-    res.status(503).json({ error: "Admin access not configured" });
-    return;
-  }
-  const key = req.headers["x-admin-key"];
-  if (key !== secret) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX_PER_WINDOW = 3;

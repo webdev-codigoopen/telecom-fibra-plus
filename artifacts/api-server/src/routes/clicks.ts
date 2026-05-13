@@ -1,22 +1,10 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, planClicksTable } from "@workspace/db";
 import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
+import { requireAdmin as requireAdminKey } from "../lib/auth";
 
 const router: IRouter = Router();
 
-function requireAdminKey(req: Request, res: Response, next: NextFunction): void {
-  const secret = process.env["ADMIN_SECRET"];
-  if (!secret) {
-    res.status(503).json({ error: "Admin access not configured" });
-    return;
-  }
-  const key = req.headers["x-admin-key"];
-  if (key !== secret) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
 
 router.post("/clicks", async (req, res) => {
   const { planSpeed, planPrice, source, city } = req.body ?? {};
