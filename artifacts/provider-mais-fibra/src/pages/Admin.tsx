@@ -10,6 +10,7 @@ import CityClicksMap from "../components/CityClicksMap";
 import CityAccessDashboard from "../components/CityAccessDashboard";
 import AdminShell, { type AdminTabId } from "./admin/AdminShell";
 import DashboardOverview from "./admin/DashboardOverview";
+import WhatsAppOverview from "./admin/WhatsAppOverview";
 import { colorForSource } from "../lib/sourceColors";
 import {
   type StreamingBrand,
@@ -156,7 +157,7 @@ function loadStoredUiState(): StoredUiState {
   }
 }
 
-type StatsRange = "today" | "week" | "all" | "custom";
+type StatsRange = "today" | "week" | "30d" | "90d" | "all" | "custom";
 
 type StoredFilters = {
   range: StatsRange;
@@ -253,16 +254,20 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  type LegacyConfigTab = "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico";
-  type FullTab = AdminTabId | LegacyConfigTab;
-  const [activeTab, setActiveTab] = useState<FullTab>("dashboard");
-  const isLegacyConfig = (t: FullTab): t is LegacyConfigTab =>
-    t === "interesses" || t === "emails" || t === "seguranca" || t === "marketing"
-    || t === "avaliacoes" || t === "duvidas" || t === "historico";
-  const sidebarActive: AdminTabId = isLegacyConfig(activeTab) ? "config" : activeTab;
-  const handleSidebarChange = (id: AdminTabId) => {
-    if (id === "config") setActiveTab("interesses");
-    else setActiveTab(id);
+  const ADMIN_TAB_STORAGE_KEY = "pmf-admin-active-tab";
+  const ADMIN_TAB_VALID: AdminTabId[] = [
+    "dashboard", "mapa", "wpp", "ctas", "planos", "cidades", "bots",
+    "interesses", "emails", "seguranca", "marketing", "avaliacoes", "duvidas", "historico",
+  ];
+  const [activeTab, setActiveTabState] = useState<AdminTabId>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const stored = window.localStorage.getItem(ADMIN_TAB_STORAGE_KEY);
+    if (stored && (ADMIN_TAB_VALID as string[]).includes(stored)) return stored as AdminTabId;
+    return "dashboard";
+  });
+  const setActiveTab = (id: AdminTabId) => {
+    setActiveTabState(id);
+    try { window.localStorage.setItem(ADMIN_TAB_STORAGE_KEY, id); } catch { /* ignore */ }
   };
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
@@ -535,7 +540,7 @@ export default function Admin() {
 
   const fetchClickStats = useCallback(async (
     key: string,
-    range: "today" | "week" | "all" | "custom" = "all",
+    range: StatsRange = "all",
     source: string = "",
     customFromStr: string = "",
     customToStr: string = "",
@@ -576,9 +581,10 @@ export default function Admin() {
           prevSince.setHours(0, 0, 0, 0);
           prevSince.setDate(prevSince.getDate() - 1);
         } else {
-          since.setDate(since.getDate() - 7);
-          prevUntil.setDate(prevUntil.getDate() - 7);
-          prevSince.setDate(prevSince.getDate() - 14);
+          const daysBack = range === "30d" ? 30 : range === "90d" ? 90 : 7;
+          since.setDate(since.getDate() - daysBack);
+          prevUntil.setDate(prevUntil.getDate() - daysBack);
+          prevSince.setDate(prevSince.getDate() - daysBack * 2);
         }
         params.set("since", since.toISOString());
         prevParams.set("since", prevSince.toISOString());
@@ -1072,8 +1078,9 @@ export default function Admin() {
       const since = new Date(); since.setHours(0, 0, 0, 0);
       return { since: since.toISOString() };
     }
-    if (statsRange === "week") {
-      const since = new Date(); since.setDate(since.getDate() - 7);
+    if (statsRange === "week" || statsRange === "30d" || statsRange === "90d") {
+      const days = statsRange === "week" ? 7 : statsRange === "30d" ? 30 : 90;
+      const since = new Date(); since.setDate(since.getDate() - days);
       return { since: since.toISOString() };
     }
     if (statsRange === "custom" && customFrom && customTo) {
@@ -1086,6 +1093,31 @@ export default function Admin() {
     }
     return {} as { since?: string; until?: string };
   })();
+
+  const exportClicksCsv = async (kind: "agg" | "raw") => {
+    const params = new URLSearchParams();
+    if (periodWindow.since) params.set("since", periodWindow.since);
+    if (periodWindow.until) params.set("until", periodWindow.until);
+    if (cityFilter) params.set("city", cityFilter);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    const path = kind === "raw" ? "/api/clicks/export/raw" : "/api/clicks/export";
+    try {
+      const res = await adminFetch(`${baseUrl}${path}${qs}`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.download = kind === "raw" ? `clicks-raw-${stamp}.csv` : `clicks-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
 
   const handleAdminLogout = async () => {
     try {
@@ -1104,15 +1136,79 @@ export default function Admin() {
     setEmailInput("");
   };
 
-  const CONFIG_SUBTABS: { id: LegacyConfigTab; label: string }[] = [
-    { id: "interesses", label: "Interesses" },
-    { id: "emails", label: "E-mails" },
-    { id: "seguranca", label: "Segurança" },
-    { id: "marketing", label: "Marketing" },
-    { id: "avaliacoes", label: "Avaliações" },
-    { id: "duvidas", label: "Dúvidas" },
-    { id: "historico", label: "Histórico" },
-  ];
+  const menuItemStyle: React.CSSProperties = {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "8px 12px",
+    fontSize: 12,
+    background: "transparent",
+    border: "none",
+    color: "var(--as-text)",
+    cursor: "pointer",
+  };
+
+  const topbarExtras = (
+    <>
+      <details
+        style={{ position: "relative" }}
+        onToggle={(e) => {
+          // close on outside click handled natively by <details>
+          void e;
+        }}
+      >
+        <summary
+          className="admin-btn-outline"
+          style={{ listStyle: "none", cursor: "pointer" }}
+          data-testid="admin-export-menu"
+        >
+          Exportar ▾
+        </summary>
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "calc(100% + 4px)",
+            background: "var(--as-surface)",
+            border: "1px solid var(--as-border)",
+            borderRadius: "var(--as-radius-sm)",
+            boxShadow: "0 4px 12px rgba(0,0,0,.08)",
+            zIndex: 30,
+            minWidth: 180,
+            overflow: "hidden",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => void exportClicksCsv("agg")}
+            style={menuItemStyle}
+            data-testid="admin-export-csv"
+          >
+            CSV (agregado)
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportClicksCsv("raw")}
+            style={menuItemStyle}
+            data-testid="admin-export-csv-raw"
+          >
+            CSV (bruto)
+          </button>
+        </div>
+      </details>
+      {activeTab === "planos" && (
+        <button
+          type="button"
+          onClick={() => { setActiveTab("planos"); startNew(); }}
+          className="admin-btn-outline"
+          style={{ background: "var(--as-blue)", color: "#fff", borderColor: "var(--as-blue)" }}
+          data-testid="admin-new-plan"
+        >
+          + Novo plano
+        </button>
+      )}
+    </>
+  );
 
   return (
     <>
@@ -1125,8 +1221,8 @@ export default function Admin() {
         />
       </Helmet>
       <AdminShell
-        active={sidebarActive}
-        onChange={handleSidebarChange}
+        active={activeTab}
+        onChange={setActiveTab}
         period={statsRange}
         onPeriodChange={(p) => {
           setStatsRange(p);
@@ -1137,6 +1233,7 @@ export default function Admin() {
           }
         }}
         onLogout={handleAdminLogout}
+        topbarExtras={topbarExtras}
       >
         <main id="main-content" tabIndex={-1} className="focus:outline-none" style={{ outline: "none" }}>
         {loading && (
@@ -1172,26 +1269,12 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "wpp" && (
-          <div className="admin-card">
-            <div className="admin-card-title">
-              WhatsApp — visão por origem
-              <span className="admin-card-sub">veja Desempenho dos planos para detalhes</span>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--as-text2)" }}>
-              As métricas detalhadas de WhatsApp (cliques por plano, share previews, conversões)
-              estão disponíveis na seção <strong>Planos · Desempenho</strong>. Use o Dashboard
-              para ver o funil de conversão e o mapa de calor de horários.
-            </p>
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="admin-btn-outline"
-                onClick={() => setActiveTab("planos")}
-              >
-                Ir para Desempenho dos planos →
-              </button>
-            </div>
-          </div>
+          <WhatsAppOverview
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            since={periodWindow.since}
+            until={periodWindow.until}
+          />
         )}
 
         {!loading && activeTab === "bots" && (
@@ -1203,37 +1286,6 @@ export default function Admin() {
             customTo={customTo}
             cityFilter={cityFilter}
           />
-        )}
-
-        {!loading && isLegacyConfig(activeTab) && (
-          <div className="mb-6" role="tablist" aria-label="Configurações">
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-              {CONFIG_SUBTABS.map((s) => {
-                const act = activeTab === s.id;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={act}
-                    onClick={() => setActiveTab(s.id)}
-                    style={{
-                      fontSize: 12,
-                      padding: "5px 12px",
-                      borderRadius: 999,
-                      border: `1px solid ${act ? "var(--as-blue)" : "var(--as-border2)"}`,
-                      background: act ? "var(--as-blue)" : "transparent",
-                      color: act ? "#fff" : "var(--as-text2)",
-                      cursor: "pointer",
-                    }}
-                    data-testid={`admin-config-${s.id}`}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         )}
 
         {!loading && activeTab === "cidades" && (

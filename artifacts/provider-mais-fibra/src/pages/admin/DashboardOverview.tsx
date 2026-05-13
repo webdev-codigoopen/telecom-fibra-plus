@@ -34,6 +34,9 @@ type BotSummary = {
   otherHumans: number;
 };
 
+type InterestRow = { id: number };
+type InterestsResponse = { rows?: InterestRow[] } | InterestRow[];
+
 type Props = {
   adminKey: string;
   baseUrl: string;
@@ -52,6 +55,7 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
   const [stats, setStats] = useState<ClickStat[]>([]);
   const [series, setSeries] = useState<TimeseriesRow[]>([]);
   const [bots, setBots] = useState<BotSummary | null>(null);
+  const [interestCount, setInterestCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -62,8 +66,11 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
     if (until) params.set("until", until);
     const seriesParams = new URLSearchParams(params);
     seriesParams.set("bucket", "day");
+    const interestParams = new URLSearchParams(params);
+    interestParams.set("limit", "1000");
     const qs = params.toString() ? `?${params.toString()}` : "";
     const sQs = `?${seriesParams.toString()}`;
+    const iQs = `?${interestParams.toString()}`;
     Promise.all([
       adminFetch(`${baseUrl}/api/clicks/stats${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
@@ -74,16 +81,21 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
       adminFetch(`${baseUrl}/api/clicks/bot-summary${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
       }).then((r) => (r.ok ? r.json() : null)) as Promise<BotSummary | null>,
+      adminFetch(`${baseUrl}/api/demand/interests${iQs}`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+      }).then((r) => (r.ok ? r.json() : null)) as Promise<InterestsResponse | null>,
     ])
-      .then(([s, t, b]) => {
+      .then(([s, t, b, i]) => {
         if (cancelled) return;
         setStats(Array.isArray(s) ? s : []);
         setSeries(Array.isArray(t) ? t : []);
         setBots(b);
+        const rows = Array.isArray(i) ? i : (i?.rows ?? []);
+        setInterestCount(Array.isArray(rows) ? rows.length : 0);
       })
       .catch(() => {
         if (cancelled) return;
-        setStats([]); setSeries([]); setBots(null);
+        setStats([]); setSeries([]); setBots(null); setInterestCount(0);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -93,7 +105,6 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
     let totalClicks = 0;
     let ctaClicks = 0;
     let previews = 0;
-    let signups = 0;
     for (const s of stats) {
       if (s.planSpeed === "city") continue;
       if (isBotSource(s.source)) continue;
@@ -102,15 +113,15 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
         previews += s.total;
       } else {
         ctaClicks += s.total;
-        signups += s.total;
       }
     }
     const accesses = totalClicks;
+    const conversions = interestCount;
     const ctaRate = accesses > 0 ? Math.round((ctaClicks / accesses) * 100) : 0;
-    const wppRate = ctaClicks > 0 ? Math.round((signups / ctaClicks) * 1000) / 10 : 0;
+    const convRate = ctaClicks > 0 ? Math.round((conversions / ctaClicks) * 1000) / 10 : 0;
     const botsTotal = bots ? bots.sharePageBots + bots.otherBots : 0;
-    return { accesses, ctaClicks, ctaRate, signups, wppRate, previews, botsTotal };
-  }, [stats, bots]);
+    return { accesses, ctaClicks, ctaRate, conversions, convRate, previews, botsTotal };
+  }, [stats, bots, interestCount]);
 
   const chartData = useMemo(() => {
     const map = new Map<string, number>();
@@ -132,12 +143,12 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
   const funnel = useMemo(() => {
     const accesses = kpis.accesses;
     const ctas = kpis.ctaClicks;
-    const conv = kpis.signups;
+    const conv = kpis.conversions;
     const pct = (n: number, base: number) => (base > 0 ? Math.round((n / base) * 1000) / 10 : 0);
     return [
       { label: "Acessos", value: accesses, pct: 100, color: "var(--as-blue)" },
       { label: "Cliques em CTA", value: ctas, pct: pct(ctas, accesses), color: "var(--as-blue-md)" },
-      { label: "Conversões WhatsApp", value: conv, pct: pct(conv, accesses), color: "var(--as-wpp)" },
+      { label: "Interesses (conversão)", value: conv, pct: pct(conv, accesses), color: "var(--as-wpp)" },
     ];
   }, [kpis]);
 
@@ -166,9 +177,9 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
         <KpiCard
           accent="var(--as-wpp)"
           icon={<MessageCircle size={12} color="var(--as-wpp)" />}
-          label="Conversões WhatsApp"
-          value={kpis.signups.toLocaleString("pt-BR")}
-          sub={`${kpis.wppRate}% dos cliques`}
+          label="Conversões (interesses)"
+          value={kpis.conversions.toLocaleString("pt-BR")}
+          sub={`${kpis.convRate}% dos cliques em CTA`}
         />
         <KpiCard
           accent="var(--as-green)"
