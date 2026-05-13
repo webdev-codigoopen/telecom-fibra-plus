@@ -253,8 +253,7 @@ export default function Header() {
               style={{
                 width: "min(88vw, 380px)",
                 height: "100vh",
-                background:
-                  "linear-gradient(160deg, #1A38D5 0%, #122AD5 45%, #0A1A8C 100%)",
+                background: "#122AD5",
                 boxShadow: "none",
                 zIndex: 60,
                 paddingTop: "env(safe-area-inset-top, 0px)",
@@ -265,22 +264,6 @@ export default function Header() {
               exit={{ x: "100%" }}
               transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
             >
-              {/* Decorative accent orb */}
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  top: -120,
-                  right: -120,
-                  width: 320,
-                  height: 320,
-                  borderRadius: "50%",
-                  background:
-                    "radial-gradient(circle, rgba(149,235,29,0.22) 0%, rgba(149,235,29,0) 70%)",
-                  pointerEvents: "none",
-                }}
-              />
-
               {/* Drawer header: logo */}
               <div className="relative flex items-center px-6 pt-6 pb-5 flex-shrink-0">
                 <img
