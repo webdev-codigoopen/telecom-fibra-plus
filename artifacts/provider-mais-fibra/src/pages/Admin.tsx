@@ -2661,17 +2661,37 @@ export default function Admin() {
             )}
 
             {(editingPlan !== null) && (
-              <PlanForm
-                plan={editingPlan}
-                isNew={isNew}
-                saving={saving}
-                adminKey={adminKey}
-                allInclusions={allInclusions}
-                streamingBrands={streamingBrands}
-                onSave={savePlan}
-                onCancel={cancelEdit}
-              />
+              <div id="plan-edit-form">
+                <PlanForm
+                  plan={editingPlan}
+                  isNew={isNew}
+                  saving={saving}
+                  adminKey={adminKey}
+                  allInclusions={allInclusions}
+                  streamingBrands={streamingBrands}
+                  onSave={savePlan}
+                  onCancel={cancelEdit}
+                />
+              </div>
             )}
+
+            <StreamingBrandsManager
+              brands={streamingBrands}
+              plans={plans}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchStreamingBrands}
+              onEditPlan={(planId) => {
+                const plan = plans.find((p) => p.id === planId);
+                if (!plan) return;
+                startEdit(plan);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("plan-edit-form")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+              }}
+            />
 
             {plans.length > 0 && (
               <div className="mb-6 bg-white rounded-xl border border-[#E0E3EB] overflow-hidden">
@@ -3613,14 +3633,16 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
 
 type StreamingBrandsManagerProps = {
   brands: StreamingBrand[];
+  plans: ApiPlan[];
   adminKey: string;
   baseUrl: string;
   onChange: () => Promise<void> | void;
+  onEditPlan: (planId: number) => void;
 };
 
 type AffectedPlan = { id: number; speed: string; price: string };
 
-function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: StreamingBrandsManagerProps) {
+function StreamingBrandsManager({ brands, plans, adminKey, baseUrl, onChange, onEditPlan }: StreamingBrandsManagerProps) {
   const [editing, setEditing] = useState<StreamingBrand | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -3646,10 +3668,72 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
   const [deleteSummary, setDeleteSummary] = useState<
     { brandName: string; plans: AffectedPlan[] } | null
   >(null);
+  const [viewingId, setViewingId] = useState<number | null>(null);
+  const [viewingPlans, setViewingPlans] = useState<AffectedPlan[]>([]);
+  const [viewingLoading, setViewingLoading] = useState(false);
+  const [viewingError, setViewingError] = useState<string | null>(null);
+  const viewingAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setOrderedBrands(brands);
   }, [brands]);
+
+  useEffect(() => {
+    return () => {
+      viewingAbortRef.current?.abort();
+    };
+  }, []);
+
+  function toggleViewPlans(b: StreamingBrand) {
+    if (viewingId === b.id) {
+      viewingAbortRef.current?.abort();
+      viewingAbortRef.current = null;
+      setViewingId(null);
+      setViewingPlans([]);
+      setViewingLoading(false);
+      setViewingError(null);
+      return;
+    }
+    viewingAbortRef.current?.abort();
+    const controller = new AbortController();
+    viewingAbortRef.current = controller;
+    setViewingId(b.id);
+    setViewingPlans([]);
+    setViewingError(null);
+    setViewingLoading(true);
+    void (async () => {
+      try {
+        const res = await adminFetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
+          headers: { Authorization: `Bearer ${adminKey}` },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!res.ok) {
+          setViewingError("Não foi possível carregar os planos. Tente novamente.");
+          return;
+        }
+        const data = (await res.json()) as { plans: AffectedPlan[] };
+        if (controller.signal.aborted) return;
+        setViewingPlans(data.plans ?? []);
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        if (e instanceof Error && e.name === "AbortError") return;
+        setViewingError("Não foi possível carregar os planos. Tente novamente.");
+      } finally {
+        if (!controller.signal.aborted) setViewingLoading(false);
+      }
+    })();
+  }
+
+  function handleEditPlanFromBrand(planId: number) {
+    viewingAbortRef.current?.abort();
+    viewingAbortRef.current = null;
+    setViewingId(null);
+    setViewingPlans([]);
+    setViewingLoading(false);
+    setViewingError(null);
+    onEditPlan(planId);
+  }
 
   async function persistOrder(next: StreamingBrand[]) {
     const previous = orderedBrands;
@@ -4159,12 +4243,29 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
                       </div>
                     );
                   }
+                  const expanded = viewingId === b.id;
                   return (
-                    <div
-                      className="text-[11px] text-[#7A7F8C] mt-0.5"
-                      data-testid={`streaming-brand-usage-${b.id}`}
-                    >
-                      {count === 1 ? "Usado em 1 plano" : `Usado em ${count} planos`}
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => toggleViewPlans(b)}
+                        aria-expanded={expanded}
+                        aria-controls={`streaming-brand-plans-${b.id}`}
+                        className="text-[11px] text-[#0040FF] font-medium hover:underline focus:outline-none focus:underline"
+                        data-testid={`streaming-brand-usage-${b.id}`}
+                      >
+                        {count === 1 ? "Usado em 1 plano" : `Usado em ${count} planos`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleViewPlans(b)}
+                        aria-expanded={expanded}
+                        aria-controls={`streaming-brand-plans-${b.id}`}
+                        className="text-[11px] text-[#0040FF] hover:underline focus:outline-none focus:underline"
+                        data-testid={`streaming-brand-view-plans-${b.id}`}
+                      >
+                        {expanded ? "Ocultar planos" : "Ver planos"}
+                      </button>
                     </div>
                   );
                 })()}
@@ -4191,6 +4292,55 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
                 )}
               </div>
             </div>
+            {viewingId === b.id && (
+              <div
+                id={`streaming-brand-plans-${b.id}`}
+                className="rounded-md bg-[#F8FAFF] border border-[#0040FF]/20 px-3 py-2.5 text-[12px] text-[#0D0D0D] space-y-2"
+                data-testid={`streaming-brand-plans-panel-${b.id}`}
+              >
+                {viewingLoading ? (
+                  <div className="text-[#7A7F8C]">Carregando planos que usam "{b.name}"...</div>
+                ) : viewingError ? (
+                  <div className="text-red-700 font-semibold">{viewingError}</div>
+                ) : viewingPlans.length === 0 ? (
+                  <div className="text-[#7A7F8C]">
+                    Nenhum plano usa "{b.name}" no momento.
+                  </div>
+                ) : (
+                  <>
+                    <div className="font-semibold text-[#2A2D38]">
+                      Planos que usam "{b.name}":
+                    </div>
+                    <ul className="space-y-1.5">
+                      {viewingPlans.map((p) => {
+                        const exists = plans.some((pl) => pl.id === p.id);
+                        return (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-2 bg-white border border-[#E0E3EB] rounded px-2.5 py-1.5"
+                          >
+                            <span className="truncate">
+                              <span className="font-bold text-[#0040FF]">{p.speed}</span>
+                              <span className="text-[#7A7F8C]"> · R$ {p.price}/mês</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleEditPlanFromBrand(p.id)}
+                              disabled={!exists}
+                              title={exists ? undefined : "Plano não disponível nesta lista"}
+                              className="px-2 py-0.5 rounded text-[11px] font-medium text-[#0040FF] border border-[#0040FF]/20 hover:bg-[#0040FF]/5 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                              data-testid={`streaming-brand-edit-plan-${b.id}-${p.id}`}
+                            >
+                              Editar plano
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
             {confirmDel === b.id && (
               <div
                 className="rounded-md bg-[#FFF1F1] border border-[#F4B5B5] px-3 py-2.5 text-[12px] text-[#7A1F1F] space-y-2"
