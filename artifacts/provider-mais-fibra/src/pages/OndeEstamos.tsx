@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { MapPin, MessageCircle, Phone, Clock, MapPinned } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Clock, MapPinned, Plus } from "lucide-react";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
@@ -65,7 +65,11 @@ export default function OndeEstamos() {
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a Provider
-                <span style={{ color: "#95EB1D" }} className="font-semibold text-[#95eb1d]"> Mais Fibra</span> está
+                <span style={{ color: "#95EB1D" }} className="font-semibold text-[#95eb1d] inline-flex items-center gap-1 align-middle">
+                  <Plus size={36} strokeWidth={3} />
+                  Fibra
+                </span>{" "}
+                está
               </h1>
               <p className="text-white/70 text-lg mb-8">
                 Presentes em <strong className="text-white">{cities.length} cidades</strong> do Oeste da Bahia com fibra óptica 100%
