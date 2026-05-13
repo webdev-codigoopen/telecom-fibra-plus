@@ -76,17 +76,6 @@ export default function OndeEstamos() {
 
         <section className="py-20" style={{ background: "#F5F6FA" }}>
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
-            >
-              <p className="text-[#4A4F61] text-sm">
-                Fale direto com nossa equipe pelo WhatsApp
-              </p>
-            </motion.div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {cities.map((city, i) => (
                 <motion.div
