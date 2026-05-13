@@ -1430,6 +1430,7 @@ function CityTrendPanel({
   const [currentTotal, setCurrentTotal] = useState(0);
   const [previousTotal, setPreviousTotal] = useState<number | null>(null);
   const [sourceTotals, setSourceTotals] = useState<Map<string, number>>(new Map());
+  const [prevSourceTotals, setPrevSourceTotals] = useState<Map<string, number> | null>(null);
   const [prevError, setPrevError] = useState(false);
   const [showComparison, setShowComparison] = useState(true);
   const [viewMode, setViewMode] = useState<"total" | "source">("total");
@@ -1471,8 +1472,10 @@ function CityTrendPanel({
         const currentMap = currentBuckets.totals;
         const currentBySource = currentBuckets.bySource;
         let prevMap: Map<string, number> | null = null;
+        let prevSourceMap: Map<string, number> | null = null;
         if (prevResult.ok && prevResult.buckets) {
           prevMap = prevResult.buckets.totals;
+          prevSourceMap = prevResult.buckets.sourceTotals;
         } else if (!prevResult.ok) {
           setPrevError(true);
         }
@@ -1573,6 +1576,7 @@ function CityTrendPanel({
           prevMap ? Array.from(prevMap.values()).reduce((s, v) => s + v, 0) : null,
         );
         setSourceTotals(currentBuckets.sourceTotals);
+        setPrevSourceTotals(prevSourceMap);
       })
       .catch(() => {
         if (myReq !== reqRef.current) return;
@@ -1621,8 +1625,17 @@ function CityTrendPanel({
       Array.from(sourceTotals.entries())
         .filter(([, v]) => v > 0)
         .sort((a, b) => b[1] - a[1])
-        .map(([source, value]) => ({ source, value, color: colorForSource(source) })),
-    [sourceTotals],
+        .map(([source, value]) => {
+          const prev = prevSourceTotals ? prevSourceTotals.get(source) ?? 0 : null;
+          let delta: { abs: number; pct: number | null } | null = null;
+          if (prev !== null) {
+            const abs = value - prev;
+            const pct = prev === 0 ? null : (abs / prev) * 100;
+            delta = { abs, pct };
+          }
+          return { source, value, color: colorForSource(source), prev, delta };
+        }),
+    [sourceTotals, prevSourceTotals],
   );
 
   useEffect(() => {
@@ -1928,7 +1941,7 @@ function CityTrendPanel({
           className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
           data-testid="city-trend-source-legend"
         >
-          {sortedSources.map(({ source, value, color }) => {
+          {sortedSources.map(({ source, value, color, delta }) => {
             const hidden = hiddenSources.has(source);
             const isSoloed =
               !hidden && hiddenSources.size === sortedSources.length - 1;
@@ -1979,6 +1992,32 @@ function CityTrendPanel({
                   {source}
                 </span>
                 <span className="text-[#7A5C00]">· {value}</span>
+                {delta && (() => {
+                  if (value === 0 && (delta.abs === 0)) return null;
+                  let arrow = "•";
+                  let cls = "text-[#7A7F8C]";
+                  if (delta.abs > 0) {
+                    arrow = "▲";
+                    cls = "text-[#0A7B2C]";
+                  } else if (delta.abs < 0) {
+                    arrow = "▼";
+                    cls = "text-[#A11A1A]";
+                  }
+                  const absStr = `${delta.abs > 0 ? "+" : ""}${delta.abs}`;
+                  const pctStr =
+                    delta.pct === null
+                      ? "novo"
+                      : `${delta.pct > 0 ? "+" : ""}${delta.pct.toFixed(0)}%`;
+                  return (
+                    <span
+                      className={`ml-1 ${cls}`}
+                      title={`Atual: ${value} · Anterior: ${value - delta.abs}`}
+                      data-testid={`city-trend-source-legend-delta-${source}`}
+                    >
+                      {arrow} {absStr} ({pctStr})
+                    </span>
+                  );
+                })()}
               </button>
             );
           })}
