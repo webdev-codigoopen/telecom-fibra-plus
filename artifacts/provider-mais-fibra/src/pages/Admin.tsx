@@ -2439,6 +2439,13 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
   const [renameSummary, setRenameSummary] = useState<
     { oldName: string; newName: string; plans: AffectedPlan[] } | null
   >(null);
+  const [deleteUsages, setDeleteUsages] = useState<AffectedPlan[]>([]);
+  const [deleteUsagesLoading, setDeleteUsagesLoading] = useState(false);
+  const [deleteUsagesError, setDeleteUsagesError] = useState<string | null>(null);
+  const deleteUsagesAbortRef = useRef<AbortController | null>(null);
+  const [deleteSummary, setDeleteSummary] = useState<
+    { brandName: string; plans: AffectedPlan[] } | null
+  >(null);
 
   useEffect(() => {
     setOrderedBrands(brands);
@@ -2535,8 +2542,56 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
   useEffect(() => {
     return () => {
       usagesAbortRef.current?.abort();
+      deleteUsagesAbortRef.current?.abort();
     };
   }, []);
+
+  function startDeleteConfirm(b: StreamingBrand) {
+    setConfirmDel(b.id);
+    setErr(null);
+    setDeleteSummary(null);
+    setDeleteUsages([]);
+    setDeleteUsagesError(null);
+    deleteUsagesAbortRef.current?.abort();
+    const controller = new AbortController();
+    deleteUsagesAbortRef.current = controller;
+    setDeleteUsagesLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
+          headers: { "X-Admin-Key": adminKey },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!res.ok) {
+          setDeleteUsagesError(
+            "Não foi possível verificar quais planos usam esta marca. Tente novamente.",
+          );
+          return;
+        }
+        const data = (await res.json()) as { plans: AffectedPlan[] };
+        if (controller.signal.aborted) return;
+        setDeleteUsages(data.plans ?? []);
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        if (e instanceof Error && e.name === "AbortError") return;
+        setDeleteUsagesError(
+          "Não foi possível verificar quais planos usam esta marca. Tente novamente.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setDeleteUsagesLoading(false);
+      }
+    })();
+  }
+
+  function cancelDeleteConfirm() {
+    deleteUsagesAbortRef.current?.abort();
+    deleteUsagesAbortRef.current = null;
+    setConfirmDel(null);
+    setDeleteUsages([]);
+    setDeleteUsagesLoading(false);
+    setDeleteUsagesError(null);
+  }
 
   async function handleLogoUpload(file: File) {
     if (!file) return;
@@ -2624,8 +2679,17 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? `HTTP ${res.status}`);
       }
+      const data = await res.json().catch(() => ({}));
+      const updatedPlans: AffectedPlan[] = Array.isArray(data?.updatedPlans)
+        ? data.updatedPlans
+        : [];
+      const brandName: string =
+        typeof data?.brandName === "string" && data.brandName
+          ? data.brandName
+          : orderedBrands.find((b) => b.id === id)?.name ?? "";
       await onChange();
-      setConfirmDel(null);
+      cancelDeleteConfirm();
+      setDeleteSummary({ brandName, plans: updatedPlans });
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -2686,6 +2750,31 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
             type="button"
             onClick={() => setRenameSummary(null)}
             className="text-green-700 hover:text-green-900 text-xs font-medium"
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
+      {deleteSummary && (
+        <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg px-3 py-2 mb-3 text-sm flex items-start justify-between gap-3">
+          <div>
+            <div className="font-semibold">
+              Marca "{deleteSummary.brandName}" excluída.
+            </div>
+            <div className="text-[12px] mt-0.5">
+              {deleteSummary.plans.length === 0
+                ? "Nenhum plano precisava ser atualizado."
+                : `O nome foi removido dos itens inclusos de ${deleteSummary.plans.length} ${
+                    deleteSummary.plans.length === 1 ? "plano" : "planos"
+                  }.`}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteSummary(null)}
+            className="text-green-700 hover:text-green-900 text-xs font-medium"
+            data-testid="streaming-brand-delete-summary-close"
           >
             Fechar
           </button>
@@ -2809,9 +2898,9 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {orderedBrands.map((b) => (
+            <div key={b.id} className="space-y-2">
             <div
-              key={b.id}
-              draggable={!isEditingForm && !reordering}
+              draggable={!isEditingForm && !reordering && confirmDel !== b.id}
               onDragStart={(e) => {
                 setDragId(b.id);
                 e.dataTransfer.effectAllowed = "move";
@@ -2870,34 +2959,71 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
                 >
                   Editar
                 </button>
-                {confirmDel === b.id ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => remove(b.id)}
-                      disabled={busy}
-                      className="px-2.5 py-1 rounded-md text-xs font-medium text-white bg-red-500 hover:bg-red-600"
-                    >
-                      Confirmar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDel(null)}
-                      className="px-2.5 py-1 rounded-md text-xs font-medium text-[#7A7F8C] hover:text-[#0D0D0D]"
-                    >
-                      Cancelar
-                    </button>
-                  </>
-                ) : (
+                {confirmDel !== b.id && (
                   <button
                     type="button"
-                    onClick={() => setConfirmDel(b.id)}
+                    onClick={() => startDeleteConfirm(b)}
                     className="px-2.5 py-1 rounded-md text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50"
                   >
                     Excluir
                   </button>
                 )}
               </div>
+            </div>
+            {confirmDel === b.id && (
+              <div
+                className="rounded-md bg-[#FFF1F1] border border-[#F4B5B5] px-3 py-2.5 text-[12px] text-[#7A1F1F] space-y-2"
+                data-testid={`streaming-brand-delete-confirm-${b.id}`}
+              >
+                {deleteUsagesLoading ? (
+                  <div>Verificando planos que usam "{b.name}"...</div>
+                ) : deleteUsagesError ? (
+                  <div className="font-semibold">{deleteUsagesError}</div>
+                ) : deleteUsages.length === 0 ? (
+                  <div>
+                    Nenhum plano usa "{b.name}" atualmente. Deseja realmente excluir esta marca?
+                  </div>
+                ) : (
+                  <div>
+                    <div className="font-semibold mb-1">
+                      {deleteUsages.length}{" "}
+                      {deleteUsages.length === 1 ? "plano ainda usa" : "planos ainda usam"} "{b.name}".
+                      Ao excluir, o nome será removido dos itens inclusos
+                      {deleteUsages.length === 1 ? " deste plano" : " desses planos"}:
+                    </div>
+                    <ul className="list-disc pl-5 space-y-0.5">
+                      {deleteUsages.slice(0, 8).map((p) => (
+                        <li key={p.id}>
+                          {p.speed} — {p.price}
+                        </li>
+                      ))}
+                      {deleteUsages.length > 8 && (
+                        <li>e mais {deleteUsages.length - 8}...</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => remove(b.id)}
+                    disabled={busy || deleteUsagesLoading || deleteUsagesError !== null}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50"
+                    data-testid={`streaming-brand-delete-confirm-button-${b.id}`}
+                  >
+                    {deleteUsages.length > 0 ? "Excluir mesmo assim" : "Confirmar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelDeleteConfirm}
+                    disabled={busy}
+                    className="px-2.5 py-1 rounded-md text-xs font-medium text-[#7A7F8C] hover:text-[#0D0D0D]"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
           ))}
         </div>

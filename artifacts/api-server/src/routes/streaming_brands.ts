@@ -237,15 +237,42 @@ router.delete("/streaming-brands/:id", requireAdminKey, async (req, res) => {
     return;
   }
   try {
-    const [deleted] = await db
-      .delete(streamingBrandsTable)
-      .where(eq(streamingBrandsTable.id, id))
-      .returning();
-    if (!deleted) {
+    const result = await db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(streamingBrandsTable)
+        .where(eq(streamingBrandsTable.id, id))
+        .limit(1);
+      if (!existing) {
+        return { deleted: null, updatedPlans: [] as { id: number; speed: string; price: string }[] };
+      }
+      const updatedPlans = await tx
+        .update(plansTable)
+        .set({
+          inclusions: sql`array_remove(${plansTable.inclusions}, ${existing.name})`,
+        })
+        .where(sql`${existing.name} = ANY(${plansTable.inclusions})`)
+        .returning({
+          id: plansTable.id,
+          speed: plansTable.speed,
+          price: plansTable.price,
+        });
+      const [deleted] = await tx
+        .delete(streamingBrandsTable)
+        .where(eq(streamingBrandsTable.id, id))
+        .returning();
+      return { deleted: deleted ?? null, updatedPlans };
+    });
+    if (!result.deleted) {
       res.status(404).json({ error: "Brand not found" });
       return;
     }
-    res.json({ success: true });
+    res.json({
+      success: true,
+      brandName: result.deleted.name,
+      updatedPlans: result.updatedPlans,
+      updatedPlanCount: result.updatedPlans.length,
+    });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete streaming brand" });
   }
