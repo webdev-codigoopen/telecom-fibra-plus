@@ -96,13 +96,6 @@ export default function QuemSomos() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <div
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                  style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
-                >
-                  <span className="w-2 h-2 rounded-full bg-[#95EB1D]" />
-                  <span className="text-[#95EB1D]">Nossa História</span>
-                </div>
                 <h1
                   className="text-4xl sm:text-5xl font-black text-white mb-6 leading-tight"
                   style={{ letterSpacing: "-0.02em" }}
