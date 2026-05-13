@@ -281,10 +281,13 @@ export default function AppSection() {
             text-align: center !important;
           }
           .appsection-cta {
-            flex-direction: column !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
           }
           .appsection-cta p {
             text-align: center !important;
+            flex: 0 0 100% !important;
           }
         }
       `}</style>
