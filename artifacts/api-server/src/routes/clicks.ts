@@ -1,12 +1,13 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, planClicksTable, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
-import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, lt, sql, type SQL } from "drizzle-orm";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 import {
   BOT_CLEANUP_STATUS_KEY,
   type BotCleanupStatus,
   runBotClickBackfillTick,
 } from "../lib/botClickBackfillScheduler";
+import { extractClientIp, hashIp, lookupGeo, countryNameFor } from "../lib/geoip";
 
 const router: IRouter = Router();
 
@@ -39,12 +40,19 @@ router.post("/clicks", async (req, res) => {
   }
   try {
     const userAgent = req.get("user-agent");
+    const ip = extractClientIp(req);
+    const geo = lookupGeo(ip);
     await db.insert(planClicksTable).values({
       planSpeed: String(planSpeed),
       planPrice: String(planPrice),
       source: source ? String(source) : "hero",
       city: city ? String(city).slice(0, 120) : null,
       userAgent: userAgent ? userAgent.slice(0, 1000) : null,
+      ipHash: hashIp(ip),
+      countryCode: geo.countryCode,
+      countryName: geo.countryName,
+      geoRegion: geo.region,
+      geoCity: geo.city,
     });
     res.status(201).json({ ok: true });
   } catch {
@@ -453,6 +461,90 @@ router.get("/clicks/bot-summary", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
+  try {
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
+    const limitRaw = typeof req.query["limit"] === "string" ? Number(req.query["limit"]) : 8;
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, Math.floor(limitRaw))) : 8;
+
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
+
+    // Aggregate totals over the full filter (not just the top-N), so the UI
+    // can show accurate "X de Y identificados" coverage even when there are
+    // many small countries beyond the limit.
+    const totalsSelect = db
+      .select({
+        totalAll: sql<number>`cast(count(*) as int)`,
+        totalIdentified: sql<number>`cast(count(*) filter (where ${planClicksTable.countryCode} is not null) as int)`,
+      })
+      .from(planClicksTable);
+    const totalsFiltered = conditions.length > 0
+      ? totalsSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : totalsSelect;
+    const [totalsRow] = await totalsFiltered;
+    const totalAll = totalsRow?.totalAll ?? 0;
+    const totalIdentified = totalsRow?.totalIdentified ?? 0;
+
+    const groupConditions = [...conditions, isNotNull(planClicksTable.countryCode)];
+    const grouped = db
+      .select({
+        countryCode: planClicksTable.countryCode,
+        countryName: planClicksTable.countryName,
+        humans: sql<number>`cast(count(*) filter (where not ${isBotSqlExpr}) as int)`,
+        bots: sql<number>`cast(count(*) filter (where ${isBotSqlExpr}) as int)`,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable)
+      .where(groupConditions.length === 1 ? groupConditions[0]! : and(...groupConditions))
+      .groupBy(planClicksTable.countryCode, planClicksTable.countryName)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const rows = await grouped;
+    const cleaned = rows.map((r) => ({
+      countryCode: r.countryCode,
+      countryName: r.countryName ?? countryNameFor(r.countryCode),
+      humans: r.humans,
+      bots: r.bots,
+      total: r.total,
+    }));
+    res.json({
+      rows: cleaned,
+      totalAll,
+      totalIdentified,
+      totalUnknown: Math.max(0, totalAll - totalIdentified),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch top countries" });
+  }
+});
+
 router.get("/clicks/recent", requireAdminKey, async (req, res) => {
   try {
     const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
@@ -512,6 +604,10 @@ router.get("/clicks/recent", requireAdminKey, async (req, res) => {
         source: planClicksTable.source,
         city: planClicksTable.city,
         userAgent: planClicksTable.userAgent,
+        countryCode: planClicksTable.countryCode,
+        countryName: planClicksTable.countryName,
+        geoRegion: planClicksTable.geoRegion,
+        geoCity: planClicksTable.geoCity,
         isBot: isBotSqlExpr,
       })
       .from(planClicksTable);
@@ -568,6 +664,10 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
         source: planClicksTable.source,
         city: planClicksTable.city,
         userAgent: planClicksTable.userAgent,
+        countryCode: planClicksTable.countryCode,
+        countryName: planClicksTable.countryName,
+        geoRegion: planClicksTable.geoRegion,
+        geoCity: planClicksTable.geoCity,
         isBot: isBotSqlExpr,
       })
       .from(planClicksTable);
@@ -589,7 +689,7 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
       return s;
     };
 
-    const header = "clicked_at,plan_speed,plan_price,source,city,is_bot,user_agent";
+    const header = "clicked_at,plan_speed,plan_price,source,city,country_code,country_name,geo_region,geo_city,is_bot,user_agent";
     const body = rows
       .map((r) =>
         [
@@ -598,6 +698,10 @@ router.get("/clicks/export/raw", requireAdminKey, async (req, res) => {
           escape(r.planPrice),
           escape(r.source),
           escape(r.city),
+          escape(r.countryCode),
+          escape(r.countryName),
+          escape(r.geoRegion),
+          escape(r.geoCity),
           escape(r.isBot ? "true" : "false"),
           escape(r.userAgent),
         ].join(","),

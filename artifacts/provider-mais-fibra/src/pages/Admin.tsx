@@ -7695,8 +7695,39 @@ type RecentClickRow = {
   source: string;
   city: string | null;
   userAgent: string | null;
+  countryCode: string | null;
+  countryName: string | null;
+  geoRegion: string | null;
+  geoCity: string | null;
   isBot: boolean;
 };
+
+type TopCountryRow = {
+  countryCode: string | null;
+  countryName: string | null;
+  humans: number;
+  bots: number;
+  total: number;
+};
+
+type TopCountriesResponse = {
+  rows: TopCountryRow[];
+  totalAll: number;
+  totalIdentified: number;
+  totalUnknown: number;
+};
+
+// Convert ISO 3166-1 alpha-2 country code to its emoji flag (regional indicator
+// symbols). Returns an empty string for null / invalid codes so the UI can
+// gracefully show just the country name.
+function countryFlag(code: string | null | undefined): string {
+  if (!code || code.length !== 2) return "";
+  const cc = code.toUpperCase();
+  if (!/^[A-Z]{2}$/.test(cc)) return "";
+  const A = 0x41;
+  const base = 0x1f1e6;
+  return String.fromCodePoint(base + cc.charCodeAt(0) - A, base + cc.charCodeAt(1) - A);
+}
 
 function BotVsHumanPanel({
   adminKey,
@@ -7715,6 +7746,7 @@ function BotVsHumanPanel({
 }) {
   const [summary, setSummary] = useState<BotSummary | null>(null);
   const [rows, setRows] = useState<RecentClickRow[]>([]);
+  const [topCountries, setTopCountries] = useState<TopCountriesResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [kind, setKind] = useState<"all" | "humans" | "bots">("all");
@@ -7759,9 +7791,11 @@ function BotVsHumanPanel({
       if (kind !== "all") recentParams.set("kind", kind);
       if (debouncedSearch) recentParams.set("q", debouncedSearch);
       const recentUrl = `${baseUrl}/api/clicks/recent?${recentParams.toString()}`;
-      const [sRes, rRes] = await Promise.all([
+      const countriesUrl = `${baseUrl}/api/clicks/top-countries${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
+      const [sRes, rRes, cRes] = await Promise.all([
         adminFetch(summaryUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
         adminFetch(recentUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
+        adminFetch(countriesUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
       ]);
       if (!sRes.ok) throw new Error(`HTTP ${sRes.status}`);
       if (!rRes.ok) throw new Error(`HTTP ${rRes.status}`);
@@ -7769,6 +7803,12 @@ function BotVsHumanPanel({
       const rData = (await rRes.json()) as { rows: RecentClickRow[] };
       setSummary(sData);
       setRows(rData.rows);
+      if (cRes.ok) {
+        const cData = (await cRes.json()) as TopCountriesResponse;
+        setTopCountries(cData);
+      } else {
+        setTopCountries(null);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao carregar.");
     } finally {
@@ -7865,6 +7905,53 @@ function BotVsHumanPanel({
         </div>
       </div>
 
+      {topCountries && topCountries.rows.length > 0 && (
+        <div className="rounded-xl border border-[#E0E3EB] px-4 py-3 mb-4" data-testid="top-countries-panel">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap mb-2">
+            <div className="text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide">
+              Origem geográfica (por IP)
+            </div>
+            <div className="text-[11px] text-[#7A7F8C]">
+              {topCountries.totalIdentified.toLocaleString("pt-BR")} de {topCountries.totalAll.toLocaleString("pt-BR")} cliques identificados
+              {topCountries.totalUnknown > 0 && (
+                <> · {topCountries.totalUnknown.toLocaleString("pt-BR")} sem geo</>
+              )}
+            </div>
+          </div>
+          <ul className="space-y-1.5">
+            {topCountries.rows.map((c) => {
+              const pct = topCountries.totalIdentified > 0
+                ? Math.round((c.total / topCountries.totalIdentified) * 100)
+                : 0;
+              const flag = countryFlag(c.countryCode);
+              const label = c.countryName ?? c.countryCode ?? "Desconhecido";
+              return (
+                <li
+                  key={c.countryCode ?? "unknown"}
+                  className="flex items-center gap-3"
+                  data-testid={`top-country-${c.countryCode ?? "unknown"}`}
+                >
+                  <span className="text-base leading-none w-5 text-center" aria-hidden="true">{flag || "🏳️"}</span>
+                  <span className="text-xs font-semibold text-[#2A2D38] w-32 truncate" title={label}>
+                    {label}
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#0040FF]"
+                      style={{ width: `${Math.max(pct, c.total > 0 ? 2 : 0)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs tabular-nums text-[#2A2D38] w-16 text-right">
+                    {c.total.toLocaleString("pt-BR")}
+                  </span>
+                  <span className="text-[10px] text-[#7A7F8C] w-10 text-right tabular-nums">{pct}%</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
         <h3 className="font-bold text-sm text-[#0D0D0D]">Cliques recentes</h3>
         <div className="flex items-center gap-2 flex-wrap">
@@ -7910,6 +7997,7 @@ function BotVsHumanPanel({
               <tr className="text-left text-[#7A7F8C] font-semibold border-b border-[#E0E3EB]">
                 <th className="px-2 py-2">Quando</th>
                 <th className="px-2 py-2">Tipo</th>
+                <th className="px-2 py-2">País</th>
                 <th className="px-2 py-2">Plano / Cidade</th>
                 <th className="px-2 py-2">Origem</th>
                 <th className="px-2 py-2">User-Agent</th>
@@ -7934,6 +8022,26 @@ function BotVsHumanPanel({
                       >
                         {r.isBot ? "robô" : "humano"}
                       </span>
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap text-[#2A2D38]">
+                      {r.countryCode ? (
+                        <span
+                          className="inline-flex items-center gap-1"
+                          title={[r.countryName ?? r.countryCode, r.geoRegion, r.geoCity]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        >
+                          <span aria-hidden="true">{countryFlag(r.countryCode) || "🏳️"}</span>
+                          <span className="text-[11px]">{r.countryCode}</span>
+                          {r.geoCity && (
+                            <span className="text-[10px] text-[#7A7F8C] truncate max-w-[6rem]">
+                              {r.geoCity}
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="italic text-[#7A7F8C] text-[11px]">—</span>
+                      )}
                     </td>
                     <td className="px-2 py-2 text-[#2A2D38]">
                       {isCity ? (

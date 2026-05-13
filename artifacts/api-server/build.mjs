@@ -105,6 +105,10 @@ async function buildAll() {
       // which depends on it) so node loads them from node_modules at runtime.
       "jsdom",
       "isomorphic-dompurify",
+      // geoip-lite ships binary .dat files inside its own package directory and
+      // loads them via __dirname-relative paths. Bundling breaks that lookup,
+      // so keep it external and let node resolve it from node_modules.
+      "geoip-lite",
     ],
     sourcemap: "linked",
     plugins: [
