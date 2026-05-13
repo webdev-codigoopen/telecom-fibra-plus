@@ -1433,6 +1433,7 @@ function CityTrendPanel({
   const [prevError, setPrevError] = useState(false);
   const [showComparison, setShowComparison] = useState(true);
   const [viewMode, setViewMode] = useState<"total" | "source">("total");
+  const [hiddenSources, setHiddenSources] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reqRef = useRef(0);
@@ -1623,6 +1624,20 @@ function CityTrendPanel({
         .map(([source, value]) => ({ source, value, color: colorForSource(source) })),
     [sourceTotals],
   );
+
+  useEffect(() => {
+    setHiddenSources((prev) => {
+      if (prev.size === 0) return prev;
+      const valid = new Set(sortedSources.map((s) => s.source));
+      let changed = false;
+      const next = new Set<string>();
+      for (const src of prev) {
+        if (valid.has(src)) next.add(src);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [sortedSources]);
 
   const sourceChartData = useMemo(() => {
     if (!points) return [];
@@ -1854,18 +1869,20 @@ function CityTrendPanel({
                 contentStyle={{ fontSize: 12, borderRadius: 6 }}
                 labelStyle={{ fontWeight: 600 }}
               />
-              {sortedSources.map(({ source, color }) => (
-                <Line
-                  key={source}
-                  type="monotone"
-                  dataKey={source}
-                  stroke={color}
-                  strokeWidth={2}
-                  dot={{ r: 2, fill: color }}
-                  activeDot={{ r: 4 }}
-                  isAnimationActive={false}
-                />
-              ))}
+              {sortedSources
+                .filter(({ source }) => !hiddenSources.has(source))
+                .map(({ source, color }) => (
+                  <Line
+                    key={source}
+                    type="monotone"
+                    dataKey={source}
+                    stroke={color}
+                    strokeWidth={2}
+                    dot={{ r: 2, fill: color }}
+                    activeDot={{ r: 4 }}
+                    isAnimationActive={false}
+                  />
+                ))}
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -1908,22 +1925,73 @@ function CityTrendPanel({
       )}
       {effectiveViewMode === "source" && sortedSources.length > 0 && (
         <div
-          className="mt-2 flex flex-wrap gap-x-3 gap-y-1"
+          className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
           data-testid="city-trend-source-legend"
         >
-          {sortedSources.map(({ source, value, color }) => (
-            <span
-              key={source}
-              className="inline-flex items-center gap-1 text-[11px] text-[#5C4500]"
+          {sortedSources.map(({ source, value, color }) => {
+            const hidden = hiddenSources.has(source);
+            const isSoloed =
+              !hidden && hiddenSources.size === sortedSources.length - 1;
+            const handleClick = () => {
+              setHiddenSources((prev) => {
+                if (isSoloed) {
+                  return new Set();
+                }
+                if (hidden) {
+                  const next = new Set(prev);
+                  next.delete(source);
+                  return next;
+                }
+                const next = new Set<string>();
+                for (const { source: s } of sortedSources) {
+                  if (s !== source) next.add(s);
+                }
+                return next;
+              });
+            };
+            let title: string;
+            if (isSoloed) {
+              title = "Mostrar todas as origens";
+            } else if (hidden) {
+              title = `Mostrar ${source}`;
+            } else {
+              title = `Isolar ${source} (clique de novo para mostrar todas)`;
+            }
+            return (
+              <button
+                key={source}
+                type="button"
+                onClick={handleClick}
+                className={`inline-flex items-center gap-1 text-[11px] rounded px-1 -mx-1 transition-opacity hover:bg-white ${
+                  hidden ? "opacity-40" : "opacity-100"
+                }`}
+                aria-pressed={!hidden}
+                title={title}
+                data-testid={`city-trend-source-legend-item-${source}`}
+              >
+                <span
+                  className="inline-block rounded-sm"
+                  style={{ width: 10, height: 10, background: color }}
+                />
+                <span
+                  className={`font-semibold ${hidden ? "text-[#7A7F8C] line-through" : "text-[#0D0D0D]"}`}
+                >
+                  {source}
+                </span>
+                <span className="text-[#7A5C00]">· {value}</span>
+              </button>
+            );
+          })}
+          {hiddenSources.size > 0 && (
+            <button
+              type="button"
+              onClick={() => setHiddenSources(new Set())}
+              className="text-[11px] font-semibold rounded-md px-2 py-0.5 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
+              data-testid="city-trend-source-reset"
             >
-              <span
-                className="inline-block rounded-sm"
-                style={{ width: 10, height: 10, background: color }}
-              />
-              <span className="font-semibold text-[#0D0D0D]">{source}</span>
-              <span className="text-[#7A5C00]">· {value}</span>
-            </span>
-          ))}
+              Mostrar todas
+            </button>
+          )}
         </div>
       )}
     </div>
