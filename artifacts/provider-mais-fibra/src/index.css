@@ -361,3 +361,10 @@ img, video, svg, canvas, picture {
     right: 1rem;
   }
 }
+
+/* Cards de plano: sem sombra no mobile (visual mais limpo no carrossel) */
+@media (max-width: 639px) {
+  .plans-section__card {
+    box-shadow: none !important;
+  }
+}
