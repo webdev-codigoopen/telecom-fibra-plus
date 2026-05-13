@@ -61,7 +61,7 @@ export default function OndeEstamos() {
               transition={{ duration: 0.5 }}
             >
               <h1
-                className="sm:text-5xl text-white mb-4 font-medium text-[40px]"
+                className="text-white mb-4 font-medium text-[40px]"
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a Provider
