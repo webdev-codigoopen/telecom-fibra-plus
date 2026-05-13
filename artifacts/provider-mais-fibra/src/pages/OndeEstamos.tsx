@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { MapPin, MessageCircle, Phone, Clock, ArrowRight } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Clock, MapPinned } from "lucide-react";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
-import { cities } from "@/lib/cities";
+import { cities, phoneToTel } from "@/lib/cities";
 
 function trackCityAssinar(cityName: string) {
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -176,11 +176,41 @@ export default function OndeEstamos() {
                   </div>
 
                   <div className="p-5 flex-1 flex flex-col">
-                    <p className="text-sm text-[#4A4F61] leading-relaxed mb-4 flex-1">
+                    <p className="text-sm text-[#4A4F61] leading-relaxed mb-4">
                       {city.description}
                     </p>
 
-                    <div className="flex gap-2">
+                    <div
+                      className="rounded-xl p-3 mb-4"
+                      style={{ background: "#F5F6FA", border: "1px solid #E8EAEF" }}
+                    >
+                      <p className="text-[10px] font-bold text-[#B0B5C3] uppercase tracking-wide mb-1.5">
+                        Telefones
+                      </p>
+                      <ul className="flex flex-col gap-1 mb-3">
+                        {city.phones.map((p, idx) => (
+                          <li key={p}>
+                            <a
+                              href={`tel:${phoneToTel(p)}`}
+                              data-testid={`onde-estamos-phone-${city.slug}-${idx}`}
+                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#122AD5] hover:underline"
+                            >
+                              <Phone size={12} />
+                              {p}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] font-bold text-[#B0B5C3] uppercase tracking-wide mb-1.5">
+                        Endereço
+                      </p>
+                      <p className="text-xs text-[#4A4F61] leading-snug flex items-start gap-1.5">
+                        <MapPinned size={13} className="text-[#122AD5] flex-shrink-0 mt-0.5" />
+                        <span>{city.address}</span>
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex gap-2">
                       <a
                         href={`https://wa.me/${city.whatsapp}?text=${encodeURIComponent(`Olá! Quero assinar um plano em ${city.name} - BA.`)}`}
                         target="_blank"
