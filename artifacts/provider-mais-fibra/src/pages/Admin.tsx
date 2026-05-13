@@ -1183,6 +1183,10 @@ export default function Admin() {
               settings={appSettings}
               onSettingsChange={fetchAppSettingsAdmin}
             />
+            <PreviewHealthAlertSubscriptionsManager
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+            />
           </div>
         )}
 
@@ -5383,6 +5387,291 @@ function BelowTargetDigestManager({
                         disabled={busyId === sub.id}
                         className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
                         data-testid={`below-target-remove-${sub.id}`}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+type PreviewHealthAlertSubscription = {
+  id: number;
+  email: string;
+  reportType: string;
+  frequency: string;
+  enabled: boolean;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function PreviewHealthAlertSubscriptionsManager({
+  adminKey,
+  baseUrl,
+}: {
+  adminKey: string;
+  baseUrl: string;
+}) {
+  const [items, setItems] = useState<PreviewHealthAlertSubscription[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [emailConfigured, setEmailConfigured] = useState<boolean>(true);
+  const [newEmail, setNewEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/preview-health-alert`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: {
+        items: PreviewHealthAlertSubscription[];
+        emailConfigured: boolean;
+      } = await res.json();
+      setItems(data.items);
+      setEmailConfigured(data.emailConfigured);
+    } catch {
+      setErrorMsg("Não foi possível carregar os destinatários do alerta.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/preview-health-alert`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({ email: newEmail.trim() }),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}) as { error?: string });
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setNewEmail("");
+      setFeedback("Destinatário adicionado.");
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível adicionar.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function toggleEnabled(sub: PreviewHealthAlertSubscription) {
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/preview-health-alert/${sub.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({ enabled: !sub.enabled }),
+        },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível atualizar o destinatário.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(sub: PreviewHealthAlertSubscription) {
+    if (!confirm(`Remover ${sub.email}?`)) return;
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/preview-health-alert/${sub.id}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível remover.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function formatTimestamp(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return (
+    <section
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      data-testid="preview-health-alert-section"
+    >
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">
+          Alerta de pré-visualização do WhatsApp
+        </h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Receba um aviso por email quando pessoas abrirem páginas de
+          compartilhamento mas o WhatsApp/Facebook não buscar a pré-visualização
+          (links sem imagem/título). Apenas um email é enviado por incidente.
+        </p>
+      </header>
+
+      {!emailConfigured && (
+        <div
+          className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 mb-4 text-sm"
+          data-testid="preview-health-email-not-configured-warning"
+        >
+          <strong>Envio de email ainda não configurado.</strong> Configure o
+          SMTP acima para que os alertas sejam enviados.
+        </div>
+      )}
+
+      <form
+        onSubmit={handleAdd}
+        className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-[#E0E3EB] bg-[#F8FAFF]"
+      >
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[220px]">
+          <span>Email do destinatário</span>
+          <input
+            type="email"
+            required
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="time@providermaisfibra.com.br"
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="preview-health-new-email"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={submitting || !newEmail.trim()}
+          className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+          data-testid="preview-health-add"
+        >
+          {submitting ? "Adicionando..." : "Adicionar"}
+        </button>
+      </form>
+
+      {feedback && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-2 text-sm mb-4">
+          {feedback}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="text-xs text-[#7A7F8C] mb-2">
+        {loading
+          ? "Carregando..."
+          : items.length === 1
+            ? "1 destinatário cadastrado"
+            : `${items.length} destinatários cadastrados`}
+      </div>
+
+      {!loading && items.length === 0 ? (
+        <div className="text-center text-[#7A7F8C] py-12 border border-dashed border-[#E0E3EB] rounded-xl">
+          Nenhum destinatário cadastrado ainda.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#E0E3EB] rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F5F7FA] text-[#7A7F8C] text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Email</th>
+                <th className="text-left px-3 py-2 font-semibold">Status</th>
+                <th className="text-left px-3 py-2 font-semibold">
+                  Último alerta
+                </th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((sub) => (
+                <tr
+                  key={sub.id}
+                  className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
+                  data-testid={`preview-health-row-${sub.id}`}
+                >
+                  <td className="px-3 py-2 text-[#0D0D0D] font-medium">
+                    {sub.email}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        sub.enabled
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB]"
+                      }`}
+                    >
+                      {sub.enabled ? "Ativo" : "Pausado"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
+                    {formatTimestamp(sub.lastSentAt)}
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <div className="inline-flex flex-wrap gap-1.5 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void toggleEnabled(sub)}
+                        disabled={busyId === sub.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                        data-testid={`preview-health-toggle-${sub.id}`}
+                      >
+                        {sub.enabled ? "Pausar" : "Ativar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(sub)}
+                        disabled={busyId === sub.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
+                        data-testid={`preview-health-remove-${sub.id}`}
                       >
                         Remover
                       </button>

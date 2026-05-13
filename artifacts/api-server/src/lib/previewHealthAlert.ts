@@ -9,6 +9,9 @@ import { logger } from "./logger";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 
 export const PREVIEW_HEALTH_ALERT_STATE_KEY = "preview_health_alert_state";
+export const PREVIEW_HEALTH_ALERT_REPORT_TYPE = "preview_health_alert";
+const PREVIEW_HEALTH_ALERT_MIGRATED_KEY =
+  "preview_health_alert_recipients_migrated";
 
 type AlertState = {
   lastAlertSentAt: string | null;
@@ -73,14 +76,101 @@ async function fetchHealthCounts(now: Date): Promise<HealthCounts> {
   };
 }
 
+/**
+ * One-time migration: if no `preview_health_alert` subscriptions exist yet
+ * AND we have never run this migration, seed it from the active
+ * `city_comparison` subscribers (the previous audience). This preserves
+ * existing behavior the first time the new subscription type is used and
+ * lets admins prune the list afterward without re-adding everyone.
+ *
+ * The migration is idempotent: it only runs once (gated by an
+ * `appSettings` flag) and never re-adds rows that an admin has since
+ * removed.
+ */
+export async function migratePreviewHealthAlertRecipients(): Promise<void> {
+  try {
+    const rows = await db
+      .select({ value: appSettingsTable.value })
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, PREVIEW_HEALTH_ALERT_MIGRATED_KEY))
+      .limit(1);
+    if (rows[0]?.value === "true") return;
+
+    const existing = await db
+      .select({ id: emailReportSubscriptionsTable.id })
+      .from(emailReportSubscriptionsTable)
+      .where(
+        eq(
+          emailReportSubscriptionsTable.reportType,
+          PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+        ),
+      )
+      .limit(1);
+
+    if (existing.length === 0) {
+      const legacy = await db
+        .select({
+          email: emailReportSubscriptionsTable.email,
+          enabled: emailReportSubscriptionsTable.enabled,
+        })
+        .from(emailReportSubscriptionsTable)
+        .where(eq(emailReportSubscriptionsTable.reportType, "city_comparison"));
+      const seen = new Map<string, boolean>();
+      for (const r of legacy) {
+        const e = r.email.trim().toLowerCase();
+        if (!e) continue;
+        // If any subscription for the email is enabled, treat as enabled.
+        const prev = seen.get(e);
+        seen.set(e, prev === true ? true : r.enabled);
+      }
+      if (seen.size > 0) {
+        await db.insert(emailReportSubscriptionsTable).values(
+          [...seen.entries()].map(([email, enabled]) => ({
+            email,
+            reportType: PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+            frequency: "instant",
+            enabled,
+          })),
+        );
+        logger.info(
+          { count: seen.size },
+          "Seeded preview-health alert subscribers from city_comparison list",
+        );
+      }
+    }
+
+    const now = new Date();
+    await db
+      .insert(appSettingsTable)
+      .values({
+        key: PREVIEW_HEALTH_ALERT_MIGRATED_KEY,
+        value: "true",
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: appSettingsTable.key,
+        set: { value: "true", updatedAt: now },
+      });
+  } catch (err) {
+    logger.error(
+      { err },
+      "Failed to migrate preview-health alert recipients from city_comparison",
+    );
+  }
+}
+
 async function fetchSubscriberEmails(): Promise<string[]> {
+  await migratePreviewHealthAlertRecipients();
   const rows = await db
     .select({ email: emailReportSubscriptionsTable.email })
     .from(emailReportSubscriptionsTable)
     .where(
       and(
         eq(emailReportSubscriptionsTable.enabled, true),
-        eq(emailReportSubscriptionsTable.reportType, "city_comparison"),
+        eq(
+          emailReportSubscriptionsTable.reportType,
+          PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+        ),
       ),
     );
   const seen = new Set<string>();
@@ -152,9 +242,11 @@ function buildHtml(counts: HealthCounts, dashboardUrl: string): string {
     <a href="${linkAttr}" style="color:#0A55C2;">${linkText}</a>
   </p>
   <p style="color:#7A7F8C; font-size:12px; margin-top:24px;">
-    Você está recebendo este alerta porque tem uma assinatura de relatórios ativa.
-    Apenas um e-mail é enviado por incidente — você só receberá outro depois que os
-    crawlers voltarem a buscar a página e o problema acontecer novamente.
+    Você está recebendo este alerta porque está cadastrado como destinatário do
+    aviso de pré-visualização do WhatsApp no painel admin (aba "Relatórios por
+    email"). Apenas um e-mail é enviado por incidente — você só receberá outro
+    depois que os crawlers voltarem a buscar a página e o problema acontecer
+    novamente.
   </p>
 </body>
 </html>`;

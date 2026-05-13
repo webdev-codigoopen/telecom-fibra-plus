@@ -23,6 +23,10 @@ import {
   sendBelowTargetDigest,
   type BelowTargetFrequency,
 } from "../lib/cityBelowTargetDigest";
+import {
+  PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+  migratePreviewHealthAlertRecipients,
+} from "../lib/previewHealthAlert";
 
 const router: IRouter = Router();
 
@@ -615,6 +619,163 @@ router.post(
         error:
           "Falha ao enviar email de teste. Verifique as credenciais SMTP e tente novamente.",
       });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Preview-health alert recipients. Admins opt in here to receive an email
+// when the WhatsApp/Facebook share-page preview appears to be broken (humans
+// hit the share page, but no crawler fetched it). Stored in the same table
+// with reportType "preview_health_alert".
+// ---------------------------------------------------------------------------
+
+const previewHealthCreateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  enabled: z.boolean().optional(),
+});
+
+const previewHealthUpdateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  enabled: z.boolean().optional(),
+});
+
+router.get(
+  "/email-subscriptions/preview-health-alert",
+  requireAdminKey,
+  async (_req, res) => {
+    try {
+      await migratePreviewHealthAlertRecipients();
+      const rows = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          eq(
+            emailReportSubscriptionsTable.reportType,
+            PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+          ),
+        )
+        .orderBy(asc(emailReportSubscriptionsTable.createdAt));
+      res.json({ items: rows, emailConfigured: await isEmailConfigured() });
+    } catch (err) {
+      logger.error({ err }, "Failed to list preview-health alert subscriptions");
+      res.status(500).json({ error: "Failed to list subscriptions" });
+    }
+  },
+);
+
+router.post(
+  "/email-subscriptions/preview-health-alert",
+  requireAdminKey,
+  async (req, res) => {
+    const parsed = previewHealthCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Dados inválidos.", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const existing = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(
+              emailReportSubscriptionsTable.reportType,
+              PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+            ),
+            eq(emailReportSubscriptionsTable.email, parsed.data.email),
+          ),
+        );
+      if (existing.length > 0) {
+        res.status(409).json({
+          error: "Esse email já está cadastrado para receber este alerta.",
+        });
+        return;
+      }
+      const [row] = await db
+        .insert(emailReportSubscriptionsTable)
+        .values({
+          email: parsed.data.email,
+          frequency: "instant",
+          reportType: PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+          enabled: parsed.data.enabled ?? true,
+        })
+        .returning();
+      res.status(201).json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to create preview-health alert subscription");
+      res.status(500).json({ error: "Failed to create subscription" });
+    }
+  },
+);
+
+router.patch(
+  "/email-subscriptions/preview-health-alert/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = previewHealthUpdateSchema.safeParse(req.body);
+    if (!parsed.success || Object.keys(parsed.data).length === 0) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    try {
+      const [row] = await db
+        .update(emailReportSubscriptionsTable)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(
+              emailReportSubscriptionsTable.reportType,
+              PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+            ),
+          ),
+        )
+        .returning();
+      if (!row) {
+        res.status(404).json({ error: "Não encontrado." });
+        return;
+      }
+      res.json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to update preview-health alert subscription");
+      res.status(500).json({ error: "Failed to update subscription" });
+    }
+  },
+);
+
+router.delete(
+  "/email-subscriptions/preview-health-alert/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    try {
+      await db
+        .delete(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(
+              emailReportSubscriptionsTable.reportType,
+              PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+            ),
+          ),
+        );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Failed to delete preview-health alert subscription");
+      res.status(500).json({ error: "Failed to delete subscription" });
     }
   },
 );
