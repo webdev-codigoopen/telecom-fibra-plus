@@ -4,6 +4,8 @@ export type AppSettings = {
   whatsapp_number: string;
   cta_subscribe_message: string;
   cta_unavailable_message: string;
+  interest_notification_email: string;
+  interest_notification_enabled: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -12,6 +14,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     "Quero assinar o plano {speed} mega da Provider Mais Fibra na cidade de {place}",
   cta_unavailable_message:
     "Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, {place}",
+  interest_notification_email: "",
+  interest_notification_enabled: "false",
 };
 
 let cache: AppSettings | null = null;

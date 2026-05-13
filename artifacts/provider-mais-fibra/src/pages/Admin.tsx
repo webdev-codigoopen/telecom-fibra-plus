@@ -210,7 +210,9 @@ export default function Admin() {
 
   const fetchAppSettingsAdmin = useCallback(async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/settings`);
+      const res = await fetch(`${baseUrl}/api/settings/admin`, {
+        headers: { "X-Admin-Key": adminKey },
+      });
       if (!res.ok) return;
       const data = (await res.json()) as Partial<AppSettings>;
       const merged: AppSettings = { ...DEFAULT_SETTINGS, ...data };
@@ -219,7 +221,7 @@ export default function Admin() {
     } catch {
       /* ignore */
     }
-  }, [baseUrl]);
+  }, [baseUrl, adminKey]);
 
   const fetchStreamingBrands = useCallback(async () => {
     try {
@@ -821,7 +823,15 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "interesses" && (
-          <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
+          <div className="space-y-6">
+            <InterestNotificationSettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
+            <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
+          </div>
         )}
 
         {!loading && activeTab === "emails" && (
@@ -3992,6 +4002,136 @@ function EmailReportSubscriptionsManager({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+type InterestNotificationSettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function InterestNotificationSettings({
+  settings,
+  adminKey,
+  baseUrl,
+  onChange,
+}: InterestNotificationSettingsProps) {
+  const [email, setEmail] = useState(settings.interest_notification_email);
+  const [enabled, setEnabled] = useState(
+    settings.interest_notification_enabled === "true",
+  );
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmail(settings.interest_notification_email);
+    setEnabled(settings.interest_notification_enabled === "true");
+  }, [settings.interest_notification_email, settings.interest_notification_enabled]);
+
+  const dirty =
+    email.trim() !== settings.interest_notification_email ||
+    String(enabled) !== settings.interest_notification_enabled;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Key": adminKey,
+        },
+        body: JSON.stringify({
+          interest_notification_email: email.trim(),
+          interest_notification_enabled: enabled ? "true" : "false",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-4">
+        <h2 className="font-bold text-[#0D0D0D] text-base">
+          Notificação por email
+        </h2>
+        <p className="text-sm text-[#7A7F8C] mt-1">
+          Receba um email a cada novo cadastro feito em{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>,
+          com cidade, bairro, WhatsApp e link direto para iniciar a conversa.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[260px]">
+            <span>Email do destinatário</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="time@providermaisfibra.com.br"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="interest-notification-email"
+            />
+          </label>
+          <label
+            className="flex items-center gap-2 text-sm text-[#2A2D38] pb-2"
+            data-testid="interest-notification-enabled-label"
+          >
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="h-4 w-4 accent-[#0040FF]"
+              data-testid="interest-notification-enabled"
+            />
+            Enviar emails
+          </label>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#122AD5" }}
+            data-testid="interest-notification-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>
+          )}
+          {enabled && !email.trim() && (
+            <span className="text-xs text-amber-700">
+              Informe um email para começar a receber notificações.
+            </span>
+          )}
+        </div>
+      </form>
     </section>
   );
 }

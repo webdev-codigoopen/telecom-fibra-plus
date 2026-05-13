@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { createHash } from "crypto";
-import { db, demandInterestsTable, planClicksTable } from "@workspace/db";
-import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
+import { db, demandInterestsTable, planClicksTable, appSettingsTable } from "@workspace/db";
+import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
+import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -131,10 +133,101 @@ router.post("/demand/interest", async (req, res) => {
       city,
     });
     res.status(201).json({ ok: true });
+    // Fire-and-forget admin notification email — never blocks or fails the request.
+    void notifyAdminOfNewInterest({ city, neighborhood, whatsapp });
   } catch {
     res.status(500).json({ error: "Não foi possível registrar seu interesse. Tente novamente." });
   }
 });
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function whatsappLink(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  const withCountry = d.length <= 11 ? `55${d}` : d;
+  return `https://wa.me/${withCountry}`;
+}
+
+function formatWhatsappDisplay(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  if (d.length === 13 && d.startsWith("55")) {
+    return `+55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
+  }
+  if (d.length === 12 && d.startsWith("55")) {
+    return `+55 (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
+  }
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return digits;
+}
+
+async function notifyAdminOfNewInterest(payload: {
+  city: string;
+  neighborhood: string;
+  whatsapp: string;
+}): Promise<void> {
+  try {
+    const rows = await db
+      .select({ key: appSettingsTable.key, value: appSettingsTable.value })
+      .from(appSettingsTable)
+      .where(
+        inArray(appSettingsTable.key, [
+          "interest_notification_enabled",
+          "interest_notification_email",
+        ]),
+      );
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const enabled = (map.get("interest_notification_enabled") ?? "false") === "true";
+    const to = (map.get("interest_notification_email") ?? "").trim();
+    if (!enabled || !to) return;
+    if (!isEmailConfigured()) {
+      logger.warn(
+        { to },
+        "Interest notification skipped: SMTP not configured",
+      );
+      return;
+    }
+    const link = whatsappLink(payload.whatsapp);
+    const display = formatWhatsappDisplay(payload.whatsapp);
+    const subject = `Novo interesse em ${payload.city} — ${payload.neighborhood}`;
+    const html = `
+<!doctype html>
+<html lang="pt-BR"><body style="font-family:Arial,sans-serif;color:#0D0D0D;background:#F5F7FA;padding:20px">
+<div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #E0E3EB;border-radius:12px;padding:24px">
+<h2 style="margin:0 0 8px;font-size:18px">Novo interesse no mapa de demanda</h2>
+<p style="margin:0 0 16px;color:#7A7F8C;font-size:13px">Alguém pediu fibra na rua dele agora.</p>
+<table style="width:100%;border-collapse:collapse;font-size:14px">
+<tr><td style="padding:6px 0;color:#7A7F8C;width:120px">Cidade</td><td style="padding:6px 0;font-weight:600">${escapeHtml(payload.city)}</td></tr>
+<tr><td style="padding:6px 0;color:#7A7F8C">Bairro/Rua</td><td style="padding:6px 0">${escapeHtml(payload.neighborhood)}</td></tr>
+<tr><td style="padding:6px 0;color:#7A7F8C">WhatsApp</td><td style="padding:6px 0;font-family:monospace">${escapeHtml(display)}</td></tr>
+</table>
+<p style="margin:20px 0 0">
+  <a href="${link}" style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px">
+    Abrir conversa no WhatsApp
+  </a>
+</p>
+<p style="margin:14px 0 0;color:#7A7F8C;font-size:12px">${escapeHtml(link)}</p>
+</div>
+</body></html>`.trim();
+    const text = [
+      "Novo interesse no mapa de demanda",
+      `Cidade: ${payload.city}`,
+      `Bairro/Rua: ${payload.neighborhood}`,
+      `WhatsApp: ${display}`,
+      `Link: ${link}`,
+    ].join("\n");
+    await sendEmail({ to, subject, html, text });
+  } catch (err) {
+    logger.error({ err }, "Failed to send interest notification email");
+  }
+}
 
 function parseDate(value: unknown): Date | undefined {
   if (typeof value !== "string" || value.length === 0) return undefined;

@@ -25,16 +25,29 @@ export const SETTING_DEFAULTS = {
     "Quero assinar o plano {speed} mega da Provider Mais Fibra na cidade de {place}",
   cta_unavailable_message:
     "Queria saber quando a Provider Mais Fibra vai estar disponível na minha cidade, {place}",
+  interest_notification_email: "",
+  interest_notification_enabled: "false",
 } as const;
 
 const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
   keyof typeof SETTING_DEFAULTS
 >;
 
-function rowsToObject(rows: Array<{ key: string; value: string }>) {
+// Settings that must NEVER be returned by the public GET /settings endpoint.
+// These are admin-only configuration (e.g. recipient email for lead notifications).
+const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
+  "interest_notification_email",
+  "interest_notification_enabled",
+]);
+
+function rowsToObject(
+  rows: Array<{ key: string; value: string }>,
+  opts: { includePrivate: boolean },
+) {
   const map = new Map(rows.map((r) => [r.key, r.value]));
   const result: Record<string, string> = {};
   for (const k of ALLOWED_KEYS) {
+    if (!opts.includePrivate && PRIVATE_KEYS.has(k)) continue;
     result[k] = map.get(k) ?? SETTING_DEFAULTS[k];
   }
   return result;
@@ -43,7 +56,16 @@ function rowsToObject(rows: Array<{ key: string; value: string }>) {
 router.get("/settings", async (_req, res) => {
   try {
     const rows = await db.select().from(appSettingsTable);
-    res.json(rowsToObject(rows));
+    res.json(rowsToObject(rows, { includePrivate: false }));
+  } catch {
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
+router.get("/settings/admin", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db.select().from(appSettingsTable);
+    res.json(rowsToObject(rows, { includePrivate: true }));
   } catch {
     res.status(500).json({ error: "Failed to fetch settings" });
   }
@@ -54,6 +76,10 @@ const settingsBodySchema = z
     whatsapp_number: z.string().trim().min(8).max(20).optional(),
     cta_subscribe_message: z.string().trim().min(1).max(500).optional(),
     cta_unavailable_message: z.string().trim().min(1).max(500).optional(),
+    interest_notification_email: z
+      .union([z.literal(""), z.string().trim().toLowerCase().email().max(254)])
+      .optional(),
+    interest_notification_enabled: z.enum(["true", "false"]).optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No settings provided" });
 
@@ -77,7 +103,7 @@ router.put("/settings", requireAdminKey, async (req, res) => {
         });
     }
     const rows = await db.select().from(appSettingsTable);
-    res.json(rowsToObject(rows));
+    res.json(rowsToObject(rows, { includePrivate: true }));
   } catch {
     res.status(500).json({ error: "Failed to update settings" });
   }
