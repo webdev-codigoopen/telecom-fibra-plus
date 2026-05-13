@@ -88,9 +88,14 @@ export default function WhatsAppOverview({ adminKey, baseUrl, since, until }: Pr
       adminFetch(`${baseUrl}/api/clicks/cities-conversion${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
       }).then((r) => (r.ok ? r.json() : null)) as Promise<CityConvResp | null>,
-      adminFetch(`${baseUrl}/api/clicks/heatmap${qs}`, {
-        headers: { Authorization: `Bearer ${adminKey}` },
-      }).then((r) => (r.ok ? r.json() : null)) as Promise<HeatmapResp | null>,
+      adminFetch(
+        `${baseUrl}/api/clicks/heatmap?${new URLSearchParams({
+          ...(since ? { since } : {}),
+          ...(until ? { until } : {}),
+          sourcePrefix: "whatsapp",
+        }).toString()}`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      ).then((r) => (r.ok ? r.json() : null)) as Promise<HeatmapResp | null>,
     ])
       .then(([s, t, i, c, h]) => {
         if (cancelled) return;
@@ -251,8 +256,8 @@ export default function WhatsAppOverview({ adminKey, baseUrl, since, until }: Pr
 
         <div className="admin-card">
           <div className="admin-card-title">
-            Cliques por hora
-            <span className="admin-card-sub">somente humanos</span>
+            Cliques WhatsApp por hora
+            <span className="admin-card-sub">apenas fontes whatsapp*</span>
           </div>
           <div style={{ width: "100%", height: 200 }}>
             <ResponsiveContainer>

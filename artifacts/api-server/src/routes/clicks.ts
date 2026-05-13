@@ -652,6 +652,12 @@ router.get("/clicks/heatmap", requireAdminKey, async (req, res) => {
     const tz = typeof req.query["tz"] === "string" && /^[A-Za-z0-9_+\-/]{1,64}$/.test(req.query["tz"])
       ? req.query["tz"]
       : "America/Bahia";
+    const sourceParam = typeof req.query["source"] === "string" && req.query["source"].length > 0
+      ? req.query["source"].slice(0, 64)
+      : undefined;
+    const sourcePrefixParam = typeof req.query["sourcePrefix"] === "string" && req.query["sourcePrefix"].length > 0
+      ? req.query["sourcePrefix"].slice(0, 64)
+      : undefined;
 
     let sinceDate: Date | undefined;
     if (sinceParam) {
@@ -677,6 +683,11 @@ router.get("/clicks/heatmap", requireAdminKey, async (req, res) => {
     if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
     if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
     if (!includeBots) conditions.push(sql`not ${isBotSqlExpr}`);
+    if (sourceParam) conditions.push(eq(planClicksTable.source, sourceParam));
+    else if (sourcePrefixParam) {
+      const safe = sourcePrefixParam.replace(/[\\%_]/g, (m) => `\\${m}`);
+      conditions.push(sql`${planClicksTable.source} like ${safe + "%"}`);
+    }
 
     const localTs = sql<Date>`(${planClicksTable.clickedAt} at time zone ${tz})`;
     const dowExpr = sql<number>`cast(extract(dow from ${localTs}) as int)`;

@@ -39,7 +39,7 @@ export type AdminTabId =
   | "historico";
 
 const CONFIG_IDS: AdminTabId[] = [
-  "interesses", "emails", "seguranca", "marketing",
+  "ctas", "interesses", "emails", "seguranca", "marketing",
   "avaliacoes", "duvidas", "historico",
 ];
 
@@ -58,7 +58,6 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Canais",
     items: [
       { id: "wpp", label: "WhatsApp", icon: <MessageCircle /> },
-      { id: "ctas", label: "CTAs", icon: <Target /> },
     ],
   },
   {
@@ -76,6 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Configurações",
     collapsible: true,
     items: [
+      { id: "ctas", label: "CTAs", icon: <Target /> },
       { id: "interesses", label: "Interesses", icon: <Bell /> },
       { id: "emails", label: "E-mails", icon: <Mail /> },
       { id: "seguranca", label: "Segurança", icon: <Lock /> },
@@ -91,7 +91,7 @@ export const ADMIN_TAB_LABEL: Record<AdminTabId, string> = {
   dashboard: "Painel de performance",
   mapa: "Mapa de cliques por cidade",
   wpp: "WhatsApp",
-  ctas: "Configuração de CTAs",
+  ctas: "Configurações · CTAs",
   planos: "Desempenho dos planos",
   cidades: "Cidades",
   bots: "Robôs vs. humanos",

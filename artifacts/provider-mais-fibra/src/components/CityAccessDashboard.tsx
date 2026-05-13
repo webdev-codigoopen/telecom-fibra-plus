@@ -30,9 +30,12 @@ const RANGE_OPTIONS: { id: RangeId; label: string }[] = [
 type Props = {
   adminKey: string;
   baseUrl: string;
+  since?: string;
+  until?: string;
 };
 
-export default function CityAccessDashboard({ adminKey, baseUrl }: Props) {
+export default function CityAccessDashboard({ adminKey, baseUrl, since: sinceOverride, until: untilOverride }: Props) {
+  const hasOverride = Boolean(sinceOverride || untilOverride);
   const [rangeId, setRangeId] = useState<RangeId>("30d");
   const [data, setData] = useState<ApiRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +49,10 @@ export default function CityAccessDashboard({ adminKey, baseUrl }: Props) {
       setLoading(true);
       setError(null);
       const params = new URLSearchParams();
-      if (rangeId !== "all") {
+      if (hasOverride) {
+        if (sinceOverride) params.set("since", sinceOverride);
+        if (untilOverride) params.set("until", untilOverride);
+      } else if (rangeId !== "all") {
         const now = new Date();
         const since = new Date(now);
         const days = rangeId === "7d" ? 7 : rangeId === "30d" ? 30 : 90;
@@ -75,7 +81,7 @@ export default function CityAccessDashboard({ adminKey, baseUrl }: Props) {
       }
     })();
     return () => controller.abort();
-  }, [adminKey, baseUrl, rangeId]);
+  }, [adminKey, baseUrl, rangeId, hasOverride, sinceOverride, untilOverride]);
 
   const companyRows: CityRow[] = useMemo(() => {
     const map = new Map<string, ApiRow>();

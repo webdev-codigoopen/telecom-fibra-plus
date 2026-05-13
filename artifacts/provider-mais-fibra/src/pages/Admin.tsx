@@ -174,7 +174,7 @@ function loadStoredFilters(): StoredFilters {
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<StoredFilters>;
     const range: StatsRange =
-      parsed.range === "today" || parsed.range === "week" || parsed.range === "all" || parsed.range === "custom"
+      parsed.range === "today" || parsed.range === "week" || parsed.range === "30d" || parsed.range === "90d" || parsed.range === "all" || parsed.range === "custom"
         ? parsed.range
         : "all";
     return {
@@ -1339,7 +1339,12 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "cidades" && (
-          <CityAccessDashboard adminKey={adminKey} baseUrl={baseUrl} />
+          <CityAccessDashboard
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            since={periodWindow.since}
+            until={periodWindow.until}
+          />
         )}
 
         {!loading && activeTab === "ctas" && (
