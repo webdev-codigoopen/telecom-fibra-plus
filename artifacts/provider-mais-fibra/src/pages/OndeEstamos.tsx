@@ -49,7 +49,6 @@ export default function OndeEstamos() {
         }}
       />
       <Header />
-
       <main className="flex-1 pt-16">
         <section
           className="py-20"
@@ -62,7 +61,7 @@ export default function OndeEstamos() {
               transition={{ duration: 0.5 }}
             >
               <h1
-                className="text-4xl sm:text-5xl font-black text-white mb-4"
+                className="sm:text-5xl text-white mb-4 font-medium text-[32px]"
                 style={{ letterSpacing: "-0.02em" }}
               >
                 Onde a Provider
@@ -285,7 +284,6 @@ export default function OndeEstamos() {
           </div>
         </section>
       </main>
-
       <Footer />
       <WhatsAppFloat source="onde-estamos-sticky" />
     </div>
