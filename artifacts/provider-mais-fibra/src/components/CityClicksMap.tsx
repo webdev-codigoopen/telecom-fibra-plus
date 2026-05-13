@@ -8,6 +8,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { colorForSource } from "../lib/sourceColors";
 import { adminFetch } from "../lib/adminFetch";
 
@@ -477,7 +479,73 @@ export default function CityClicksMap(props: Props) {
     };
   }, []);
 
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const leafletMapRef = useRef<L.Map | null>(null);
+  const [mapProjector, setMapProjector] = useState<
+    ((lat: number, lon: number) => { x: number; y: number }) | null
+  >(null);
+
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const lonPad = (lonMax - lonMin) * 0.18;
+    const latPad = (latMax - latMin) * 0.18;
+    const bounds = L.latLngBounds(
+      [latMin - latPad, lonMin - lonPad],
+      [latMax + latPad, lonMax + lonPad],
+    );
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      touchZoom: false,
+      fadeAnimation: false,
+      zoomAnimation: false,
+      inertia: false,
+    });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap",
+      crossOrigin: true,
+    }).addTo(map);
+    map.fitBounds(bounds, { padding: [12, 12], animate: false });
+    leafletMapRef.current = map;
+
+    const updateProjector = () => {
+      const size = map.getSize();
+      if (size.x === 0 || size.y === 0) return;
+      setMapProjector(() => (lat: number, lon: number) => {
+        const pt = map.latLngToContainerPoint([lat, lon]);
+        return {
+          x: (pt.x / size.x) * VIEW_W,
+          y: (pt.y / size.y) * VIEW_H,
+        };
+      });
+    };
+    updateProjector();
+    map.on("resize", () => {
+      map.fitBounds(bounds, { padding: [12, 12], animate: false });
+      updateProjector();
+    });
+
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(mapContainerRef.current);
+
+    return () => {
+      ro.disconnect();
+      map.remove();
+      leafletMapRef.current = null;
+      setMapProjector(null);
+    };
+  }, [lonMin, lonMax, latMin, latMax]);
+
   function project(lat: number, lon: number) {
+    if (mapProjector) return mapProjector(lat, lon);
     const x = PAD + ((lon - lonMin) / (lonMax - lonMin)) * (VIEW_W - PAD * 2);
     const y = PAD + ((latMax - lat) / (latMax - latMin)) * (VIEW_H - PAD * 2);
     return { x, y };
@@ -1133,23 +1201,60 @@ export default function CityClicksMap(props: Props) {
           </div>
         </div>
       )}
-      <div className="relative w-full overflow-hidden rounded-lg" style={{ background: "#F5F7FA" }}>
+      <div
+        className="relative w-full overflow-hidden rounded-lg"
+        style={{ background: "#F5F7FA", aspectRatio: `${VIEW_W} / ${VIEW_H}` }}
+      >
+        <div
+          ref={mapContainerRef}
+          className="absolute inset-0"
+          style={{
+            zIndex: 0,
+            filter: "grayscale(0.55) brightness(1.04) contrast(0.95)",
+          }}
+          aria-hidden
+        />
+        <div
+          className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-semibold text-[#2A2D38]"
+          style={{ zIndex: 2, background: "rgba(255,255,255,0.75)" }}
+          aria-hidden
+        >
+          © OpenStreetMap
+        </div>
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          className="block w-full h-auto"
+          className="absolute inset-0 w-full h-full"
           role="img"
           aria-label="Mapa de cliques por cidade no Oeste da Bahia"
+          style={{ zIndex: 1 }}
         >
           <defs>
-            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E0E3EB" strokeWidth="0.5" />
-            </pattern>
+            <filter id="bubbleShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="0" dy="0.5" stdDeviation="0.8" floodOpacity="0.45" />
+            </filter>
           </defs>
-          <rect width={VIEW_W} height={VIEW_H} fill="url(#grid)" />
-          <text x={PAD} y={28} fill="#7A7F8C" fontSize="11" fontWeight="600">
+          <text
+            x={PAD}
+            y={28}
+            fill="#0D0D0D"
+            fontSize="11"
+            fontWeight="700"
+            stroke="#fff"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
             Oeste da Bahia
           </text>
-          <text x={VIEW_W - PAD} y={VIEW_H - 16} fill="#B0B5C3" fontSize="10" textAnchor="end">
+          <text
+            x={VIEW_W - PAD}
+            y={VIEW_H - 16}
+            fill="#0D0D0D"
+            fontSize="10"
+            textAnchor="end"
+            stroke="#fff"
+            strokeWidth="3"
+            paintOrder="stroke"
+          >
             N ↑
           </text>
           {CITY_COORDS.map((city) => {
@@ -1231,15 +1336,27 @@ export default function CityClicksMap(props: Props) {
                     strokeDasharray="3 2"
                   />
                 )}
-                <circle cx={x} cy={y} r={r} fill={fill} opacity={opacity} />
-                <circle cx={x} cy={y} r={3} fill="#0D0D0D" />
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={r}
+                  fill={fill}
+                  opacity={opacity}
+                  stroke="#fff"
+                  strokeWidth={1.25}
+                  filter="url(#bubbleShadow)"
+                />
+                <circle cx={x} cy={y} r={3} fill="#0D0D0D" stroke="#fff" strokeWidth={0.6} />
                 <text
                   x={x}
                   y={y - r - 6}
                   textAnchor="middle"
                   fontSize="10"
-                  fontWeight="600"
-                  fill="#2A2D38"
+                  fontWeight="700"
+                  fill="#0D0D0D"
+                  stroke="#fff"
+                  strokeWidth={3}
+                  paintOrder="stroke"
                   pointerEvents="none"
                 >
                   {city.name}
