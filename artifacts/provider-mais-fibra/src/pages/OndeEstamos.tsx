@@ -71,7 +71,7 @@ export default function OndeEstamos() {
                   <img
                     src={ICON_PLUS}
                     alt="+"
-                    className="inline-block w-7 h-7 mr-1 align-[-0.2em]"
+                    className="inline-block w-7 h-7 mr-1 mb-2 align-[-0.2em]"
                   />
                   Fibra
                 </span>{" "}
