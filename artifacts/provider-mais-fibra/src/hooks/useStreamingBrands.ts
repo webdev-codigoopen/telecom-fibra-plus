@@ -5,6 +5,7 @@ export type StreamingBrand = {
   name: string;
   logoUrl: string | null;
   sortOrder: number;
+  planCount?: number;
 };
 
 let cache: StreamingBrand[] | null = null;

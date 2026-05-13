@@ -3649,6 +3649,27 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-[#0D0D0D] truncate">{b.name}</div>
+                {(() => {
+                  const count = b.planCount ?? 0;
+                  if (count === 0) {
+                    return (
+                      <div
+                        className="inline-flex items-center gap-1 mt-0.5 text-[11px] font-semibold text-[#A06B00] bg-[#FFF8E1] border border-[#F0D78C] rounded px-1.5 py-0.5"
+                        data-testid={`streaming-brand-usage-${b.id}`}
+                      >
+                        Não usado em nenhum plano
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      className="text-[11px] text-[#7A7F8C] mt-0.5"
+                      data-testid={`streaming-brand-usage-${b.id}`}
+                    >
+                      {count === 1 ? "Usado em 1 plano" : `Usado em ${count} planos`}
+                    </div>
+                  );
+                })()}
                 {!b.logoUrl && (
                   <div className="text-[11px] text-[#A06B00]">Logo não definido</div>
                 )}

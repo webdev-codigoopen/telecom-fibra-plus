@@ -5,7 +5,7 @@ import {
   plansTable,
   planStreamingBrandsTable,
 } from "@workspace/db";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 import { stripHtml } from "../lib/sanitize";
@@ -16,8 +16,19 @@ const router: IRouter = Router();
 router.get("/streaming-brands", async (_req, res) => {
   try {
     const rows = await db
-      .select()
+      .select({
+        id: streamingBrandsTable.id,
+        name: streamingBrandsTable.name,
+        logoUrl: streamingBrandsTable.logoUrl,
+        sortOrder: streamingBrandsTable.sortOrder,
+        planCount: sql<number>`count(${planStreamingBrandsTable.planId})::int`,
+      })
       .from(streamingBrandsTable)
+      .leftJoin(
+        planStreamingBrandsTable,
+        eq(planStreamingBrandsTable.brandId, streamingBrandsTable.id),
+      )
+      .groupBy(streamingBrandsTable.id)
       .orderBy(streamingBrandsTable.sortOrder, streamingBrandsTable.id);
     res.json(rows);
   } catch (err) {
