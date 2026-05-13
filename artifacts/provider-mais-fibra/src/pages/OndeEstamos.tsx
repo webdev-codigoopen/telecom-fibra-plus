@@ -195,7 +195,7 @@ export default function OndeEstamos() {
                             <a
                               href={`tel:${phoneToTel(p)}`}
                               data-testid={`onde-estamos-phone-${city.slug}-${idx}`}
-                              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#122AD5] hover:underline"
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#122AD5] hover:underline"
                             >
                               <Phone size={12} />
                               {p}
