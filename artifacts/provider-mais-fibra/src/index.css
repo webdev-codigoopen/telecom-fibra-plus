@@ -376,3 +376,13 @@ img, video, svg, canvas, picture {
     line-height: 1.25 !important;
   }
 }
+
+/* Mobile: alinha todos os h2 à esquerda (exceto dentro do Admin) */
+@media (max-width: 639px) {
+  h2 {
+    text-align: left !important;
+  }
+  .admin-page h2 {
+    text-align: revert !important;
+  }
+}
