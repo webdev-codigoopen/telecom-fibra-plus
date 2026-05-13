@@ -291,7 +291,7 @@ export default function Header() {
               </div>
 
               {/* Nav links — distributed evenly */}
-              <nav className="relative flex-1 flex flex-col justify-start px-4 pt-2 pb-2 min-h-0">
+              <nav className="relative flex-shrink-0 flex flex-col px-4 pt-2 pb-2">
                 <div className="flex flex-col gap-2 sm:gap-1">
                   {navLinks.map((link, i) => {
                     const active = isActive(link);
