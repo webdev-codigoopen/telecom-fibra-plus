@@ -10,6 +10,18 @@ export type AppSettings = {
   recaptcha_site_key: string;
   recaptcha_secret_key: string;
   recaptcha_min_score: string;
+  ga4_measurement_id: string;
+  gtm_container_id: string;
+  google_ads_conversion_id: string;
+  google_ads_conversion_label: string;
+  meta_pixel_id: string;
+  meta_capi_token: string;
+  meta_capi_test_event_code: string;
+  gmb_profile_url: string;
+  google_places_api_key: string;
+  google_places_id: string;
+  reviews_min_rating: string;
+  reviews_show_count: string;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -24,6 +36,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
   recaptcha_min_score: "0.5",
+  ga4_measurement_id: "",
+  gtm_container_id: "",
+  google_ads_conversion_id: "",
+  google_ads_conversion_label: "",
+  meta_pixel_id: "",
+  meta_capi_token: "",
+  meta_capi_test_event_code: "",
+  gmb_profile_url: "",
+  google_places_api_key: "",
+  google_places_id: "",
+  reviews_min_rating: "4",
+  reviews_show_count: "6",
 };
 
 let cache: AppSettings | null = null;

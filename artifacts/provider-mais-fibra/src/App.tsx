@@ -3,6 +3,7 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { HelmetProvider } from "react-helmet-async";
 import { MotionConfig } from "framer-motion";
 import Home from "@/pages/Home";
+import MarketingTags from "@/components/MarketingTags";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const QuemSomos = lazy(() => import("@/pages/QuemSomos"));
@@ -70,6 +71,7 @@ function App() {
         >
           Pular para o conteúdo principal
         </a>
+        <MarketingTags />
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Suspense fallback={<RouteFallback />}>
             <Router />

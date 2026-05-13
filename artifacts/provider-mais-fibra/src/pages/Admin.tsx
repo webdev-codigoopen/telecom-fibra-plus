@@ -196,7 +196,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -783,6 +783,8 @@ export default function Admin() {
             { id: "interesses", label: "Interesses (Demanda)" },
             { id: "emails", label: "Relatórios por email" },
             { id: "seguranca", label: "Segurança" },
+            { id: "marketing", label: "Marketing" },
+            { id: "avaliacoes", label: "Avaliações" },
           ] as const).map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -846,6 +848,27 @@ export default function Admin() {
             baseUrl={baseUrl}
             onChange={fetchAppSettingsAdmin}
           />
+        )}
+
+        {!loading && activeTab === "marketing" && (
+          <MarketingSettings
+            settings={appSettings}
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            onChange={fetchAppSettingsAdmin}
+          />
+        )}
+
+        {!loading && activeTab === "avaliacoes" && (
+          <div className="space-y-6">
+            <ReviewsSettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
+            <ReviewsManager adminKey={adminKey} baseUrl={baseUrl} />
+          </div>
         )}
 
         {!loading && activeTab === "planos" && (
@@ -4498,6 +4521,672 @@ function RecaptchaSettings({
           )}
         </div>
       </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Marketing tab — Google + Meta tag IDs.
+// ---------------------------------------------------------------------------
+type MarketingSettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function MarketingSettings({ settings, adminKey, baseUrl, onChange }: MarketingSettingsProps) {
+  const [ga4, setGa4] = useState(settings.ga4_measurement_id);
+  const [gtm, setGtm] = useState(settings.gtm_container_id);
+  const [adsId, setAdsId] = useState(settings.google_ads_conversion_id);
+  const [adsLabel, setAdsLabel] = useState(settings.google_ads_conversion_label);
+  const [pixel, setPixel] = useState(settings.meta_pixel_id);
+  const [capi, setCapi] = useState(settings.meta_capi_token);
+  const [capiTest, setCapiTest] = useState(settings.meta_capi_test_event_code);
+  const [showCapi, setShowCapi] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGa4(settings.ga4_measurement_id);
+    setGtm(settings.gtm_container_id);
+    setAdsId(settings.google_ads_conversion_id);
+    setAdsLabel(settings.google_ads_conversion_label);
+    setPixel(settings.meta_pixel_id);
+    setCapi(settings.meta_capi_token);
+    setCapiTest(settings.meta_capi_test_event_code);
+  }, [
+    settings.ga4_measurement_id,
+    settings.gtm_container_id,
+    settings.google_ads_conversion_id,
+    settings.google_ads_conversion_label,
+    settings.meta_pixel_id,
+    settings.meta_capi_token,
+    settings.meta_capi_test_event_code,
+  ]);
+
+  const dirty =
+    ga4.trim() !== settings.ga4_measurement_id ||
+    gtm.trim() !== settings.gtm_container_id ||
+    adsId.trim() !== settings.google_ads_conversion_id ||
+    adsLabel.trim() !== settings.google_ads_conversion_label ||
+    pixel.trim() !== settings.meta_pixel_id ||
+    capi.trim() !== settings.meta_capi_token ||
+    capiTest.trim() !== settings.meta_capi_test_event_code;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({
+          ga4_measurement_id: ga4.trim(),
+          gtm_container_id: gtm.trim(),
+          google_ads_conversion_id: adsId.trim(),
+          google_ads_conversion_label: adsLabel.trim(),
+          meta_pixel_id: pixel.trim(),
+          meta_capi_token: capi.trim(),
+          meta_capi_test_event_code: capiTest.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6 max-w-3xl">
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">Ferramentas Google &amp; Meta</h2>
+        <p className="text-sm text-[#7A7F8C] mt-1 leading-relaxed">
+          Cole aqui os IDs das suas ferramentas. Cada campo só é ativado no site
+          quando preenchido — deixe em branco para não carregar.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-semibold text-[#0D0D0D]">Google</legend>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Google Tag Manager (Container ID)</span>
+            <input
+              type="text"
+              value={gtm}
+              onChange={(e) => setGtm(e.target.value)}
+              placeholder="GTM-XXXXXXX"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+              data-testid="gtm-id"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Google Analytics 4 (Measurement ID)</span>
+            <input
+              type="text"
+              value={ga4}
+              onChange={(e) => setGa4(e.target.value)}
+              placeholder="G-XXXXXXXXXX"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+              data-testid="ga4-id"
+            />
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+              <span>Google Ads — Conversion ID</span>
+              <input
+                type="text"
+                value={adsId}
+                onChange={(e) => setAdsId(e.target.value)}
+                placeholder="AW-XXXXXXXXX"
+                className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+                data-testid="ads-id"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+              <span>Google Ads — Conversion Label</span>
+              <input
+                type="text"
+                value={adsLabel}
+                onChange={(e) => setAdsLabel(e.target.value)}
+                placeholder="abcDEFghi123"
+                className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+                data-testid="ads-label"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-semibold text-[#0D0D0D]">Meta (Facebook / Instagram)</legend>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Meta Pixel ID</span>
+            <input
+              type="text"
+              value={pixel}
+              onChange={(e) => setPixel(e.target.value)}
+              placeholder="1234567890"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+              data-testid="meta-pixel"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Conversions API — Access Token (privado)</span>
+            <div className="relative">
+              <input
+                type={showCapi ? "text" : "password"}
+                value={capi}
+                onChange={(e) => setCapi(e.target.value)}
+                placeholder="EAA..."
+                className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono w-full pr-20"
+                data-testid="meta-capi-token"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCapi((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#7A7F8C] hover:text-[#0D0D0D] px-2 py-1"
+              >
+                {showCapi ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
+            <span className="text-[11px] text-[#7A7F8C]">
+              Apenas armazenado — o disparo do CAPI no servidor pode ser ativado depois.
+            </span>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] max-w-[260px]">
+            <span>Test Event Code (opcional)</span>
+            <input
+              type="text"
+              value={capiTest}
+              onChange={(e) => setCapiTest(e.target.value)}
+              placeholder="TEST12345"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+              data-testid="meta-capi-test"
+            />
+          </label>
+        </fieldset>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{errorMsg}</div>
+        )}
+
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#122AD5" }}
+            data-testid="marketing-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !dirty && <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Avaliações tab — Google Business config + min-rating filter.
+// ---------------------------------------------------------------------------
+function extractPlaceIdFromUrl(url: string): string | null {
+  const m1 = url.match(/[?&]place_id=([A-Za-z0-9_-]+)/);
+  if (m1) return m1[1] ?? null;
+  const m2 = url.match(/!1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)/);
+  if (m2) return m2[1] ?? null;
+  return null;
+}
+
+function ReviewsSettings({ settings, adminKey, baseUrl, onChange }: MarketingSettingsProps) {
+  const [profileUrl, setProfileUrl] = useState(settings.gmb_profile_url);
+  const [apiKey, setApiKey] = useState(settings.google_places_api_key);
+  const [placeId, setPlaceId] = useState(settings.google_places_id);
+  const [minRating, setMinRating] = useState(settings.reviews_min_rating || "4");
+  const [showCount, setShowCount] = useState(settings.reviews_show_count || "6");
+  const [showSecret, setShowSecret] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setProfileUrl(settings.gmb_profile_url);
+    setApiKey(settings.google_places_api_key);
+    setPlaceId(settings.google_places_id);
+    setMinRating(settings.reviews_min_rating || "4");
+    setShowCount(settings.reviews_show_count || "6");
+  }, [
+    settings.gmb_profile_url,
+    settings.google_places_api_key,
+    settings.google_places_id,
+    settings.reviews_min_rating,
+    settings.reviews_show_count,
+  ]);
+
+  const dirty =
+    profileUrl.trim() !== settings.gmb_profile_url ||
+    apiKey.trim() !== settings.google_places_api_key ||
+    placeId.trim() !== settings.google_places_id ||
+    minRating !== settings.reviews_min_rating ||
+    showCount.trim() !== settings.reviews_show_count;
+
+  const countInvalid = !/^([1-9]|1[0-2])$/.test(showCount.trim());
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (countInvalid) {
+      setErrorMsg("A quantidade exibida deve ser entre 1 e 12.");
+      return;
+    }
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({
+          gmb_profile_url: profileUrl.trim(),
+          google_places_api_key: apiKey.trim(),
+          google_places_id: placeId.trim(),
+          reviews_min_rating: minRating,
+          reviews_show_count: showCount.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function tryAutoExtract() {
+    const guess = extractPlaceIdFromUrl(profileUrl.trim());
+    if (guess) setPlaceId(guess);
+  }
+
+  async function handleImport() {
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/reviews/import-google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      setImportMsg(
+        `Importação concluída: ${body.imported ?? 0} novas, ${body.updated ?? 0} atualizadas (de ${body.total ?? 0}).`,
+      );
+      window.dispatchEvent(new CustomEvent("reviews:refresh"));
+    } catch (err) {
+      setImportMsg(err instanceof Error ? err.message : "Falha ao importar.");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6 max-w-3xl">
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">Google Meu Negócio — Avaliações</h2>
+        <p className="text-sm text-[#7A7F8C] mt-1 leading-relaxed">
+          Cole o link do seu perfil para o botão "Avalie a gente" aparecer no
+          site. Para puxar as avaliações automaticamente, configure também a
+          chave da Google Places API e o Place ID.
+        </p>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Link do Google Meu Negócio (perfil público)</span>
+          <input
+            type="url"
+            value={profileUrl}
+            onChange={(e) => setProfileUrl(e.target.value)}
+            placeholder="https://g.page/r/... ou https://maps.app.goo.gl/..."
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm"
+            data-testid="gmb-url"
+          />
+          <span className="text-[11px] text-[#7A7F8C]">
+            Aparece como botão "Avalie a gente no Google" abaixo dos depoimentos.
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Google Places API key (privada)</span>
+          <div className="relative">
+            <input
+              type={showSecret ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="AIza..."
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono w-full pr-20"
+              data-testid="places-api-key"
+            />
+            <button
+              type="button"
+              onClick={() => setShowSecret((v) => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#7A7F8C] hover:text-[#0D0D0D] px-2 py-1"
+            >
+              {showSecret ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+          <span className="text-[11px] text-[#7A7F8C]">
+            Crie em <a href="https://console.cloud.google.com/google/maps-apis/credentials" target="_blank" rel="noopener noreferrer" className="text-[#122AD5] font-semibold hover:underline">Google Cloud Console</a> — habilite o produto "Places API".
+          </span>
+        </label>
+
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1">
+            <span>Place ID</span>
+            <input
+              type="text"
+              value={placeId}
+              onChange={(e) => setPlaceId(e.target.value)}
+              placeholder="ChIJ..."
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm font-mono"
+              data-testid="place-id"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={tryAutoExtract}
+            className="px-3 py-2 rounded-md text-xs font-semibold text-[#122AD5] border border-[#122AD5]/30 hover:bg-[#122AD5]/5"
+          >
+            Tentar extrair do link
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Mostrar avaliações com no mínimo</span>
+            <select
+              value={minRating}
+              onChange={(e) => setMinRating(e.target.value)}
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm"
+              data-testid="reviews-min-rating"
+            >
+              <option value="1">1 estrela ou mais</option>
+              <option value="2">2 estrelas ou mais</option>
+              <option value="3">3 estrelas ou mais</option>
+              <option value="4">4 estrelas ou mais</option>
+              <option value="5">Apenas 5 estrelas</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Quantas exibir na home (1 a 12)</span>
+            <input
+              type="text"
+              value={showCount}
+              onChange={(e) => setShowCount(e.target.value)}
+              className={`border rounded-md px-3 py-2 bg-white text-sm ${
+                countInvalid && showCount.trim().length > 0
+                  ? "border-red-300"
+                  : "border-[#E0E3EB]"
+              }`}
+              data-testid="reviews-show-count"
+            />
+          </label>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{errorMsg}</div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            type="submit"
+            disabled={saving || !dirty}
+            className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ background: "#122AD5" }}
+            data-testid="reviews-settings-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !dirty && <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>}
+          <button
+            type="button"
+            onClick={handleImport}
+            disabled={importing || !apiKey.trim() || !placeId.trim()}
+            className="px-4 py-2 rounded-lg text-sm font-bold border border-[#122AD5] text-[#122AD5] hover:bg-[#122AD5]/5 transition-colors disabled:opacity-60"
+            data-testid="reviews-import"
+          >
+            {importing ? "Importando..." : "Importar do Google agora"}
+          </button>
+          {importMsg && <span className="text-xs text-[#0D0D0D]">{importMsg}</span>}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Avaliações manager — list / hide / delete / add manual.
+// ---------------------------------------------------------------------------
+type AdminReview = {
+  id: number;
+  source: string;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  rating: number;
+  text: string;
+  city: string | null;
+  visible: boolean;
+  postedAt: string | null;
+  createdAt: string;
+};
+
+function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
+  const [reviews, setReviews] = useState<AdminReview[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [rating, setRating] = useState("5");
+  const [text, setText] = useState("");
+  const [city, setCity] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/reviews/admin`, {
+        headers: { "X-Admin-Key": adminKey },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as AdminReview[];
+      setReviews(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar avaliações.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void reload();
+    const onRefresh = () => void reload();
+    window.addEventListener("reviews:refresh", onRefresh);
+    return () => window.removeEventListener("reviews:refresh", onRefresh);
+  }, [reload]);
+
+  async function toggleVisible(r: AdminReview) {
+    await fetch(`${baseUrl}/api/reviews/${r.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+      body: JSON.stringify({ visible: !r.visible }),
+    });
+    void reload();
+  }
+
+  async function deleteReview(r: AdminReview) {
+    if (!confirm(`Excluir a avaliação de ${r.authorName}?`)) return;
+    await fetch(`${baseUrl}/api/reviews/${r.id}`, {
+      method: "DELETE",
+      headers: { "X-Admin-Key": adminKey },
+    });
+    void reload();
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !text.trim()) return;
+    setCreating(true);
+    try {
+      await fetch(`${baseUrl}/api/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify({
+          authorName: name.trim(),
+          rating: parseInt(rating, 10),
+          text: text.trim(),
+          city: city.trim() || undefined,
+        }),
+      });
+      setName("");
+      setText("");
+      setCity("");
+      setRating("5");
+      void reload();
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6 max-w-3xl">
+      <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="font-bold text-[#0D0D0D] text-base">Avaliações cadastradas</h2>
+          <p className="text-sm text-[#7A7F8C] mt-1">
+            Avaliações importadas do Google e cadastradas manualmente. Apenas as
+            visíveis e dentro da faixa de estrelas configurada aparecem na home.
+          </p>
+        </div>
+        <button onClick={() => void reload()} className="text-xs text-[#122AD5] font-semibold hover:underline">
+          Recarregar
+        </button>
+      </header>
+
+      <form onSubmit={handleCreate} className="mb-6 space-y-3 border-b border-[#E0E3EB] pb-6">
+        <h3 className="text-sm font-semibold text-[#0D0D0D]">Adicionar avaliação manual</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nome do cliente"
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 text-sm sm:col-span-2"
+            data-testid="manual-review-name"
+          />
+          <select
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 text-sm"
+            data-testid="manual-review-rating"
+          >
+            <option value="5">5 estrelas</option>
+            <option value="4">4 estrelas</option>
+            <option value="3">3 estrelas</option>
+            <option value="2">2 estrelas</option>
+            <option value="1">1 estrela</option>
+          </select>
+        </div>
+        <input
+          type="text"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="Cidade (opcional)"
+          className="border border-[#E0E3EB] rounded-md px-3 py-2 text-sm w-full"
+        />
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Comentário"
+          rows={3}
+          className="border border-[#E0E3EB] rounded-md px-3 py-2 text-sm w-full"
+          data-testid="manual-review-text"
+        />
+        <button
+          type="submit"
+          disabled={creating || !name.trim() || !text.trim()}
+          className="px-4 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-60"
+          style={{ background: "#122AD5" }}
+          data-testid="manual-review-save"
+        >
+          {creating ? "Adicionando..." : "Adicionar avaliação"}
+        </button>
+      </form>
+
+      {loading && <div className="text-sm text-[#7A7F8C] py-6 text-center">Carregando...</div>}
+      {err && <div className="text-sm text-red-700">{err}</div>}
+      {!loading && reviews.length === 0 && (
+        <div className="text-sm text-[#7A7F8C] py-6 text-center">Nenhuma avaliação cadastrada ainda.</div>
+      )}
+
+      <ul className="space-y-3">
+        {reviews.map((r) => (
+          <li
+            key={r.id}
+            className={`border rounded-xl p-4 ${
+              r.visible ? "border-[#E0E3EB] bg-white" : "border-[#E0E3EB] bg-[#F5F7FA] opacity-70"
+            }`}
+            data-testid={`admin-review-${r.id}`}
+          >
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm text-[#0D0D0D]">{r.authorName}</span>
+                  <span
+                    className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                      r.source === "google"
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
+                  >
+                    {r.source}
+                  </span>
+                  <span className="text-xs text-amber-600">{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
+                  {r.city && <span className="text-xs text-[#7A7F8C]">· {r.city}</span>}
+                </div>
+                <p className="text-sm text-[#2A2D38] mt-2 leading-relaxed">{r.text}</p>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  onClick={() => void toggleVisible(r)}
+                  className="text-xs px-3 py-1 rounded-md border border-[#122AD5]/30 text-[#122AD5] hover:bg-[#122AD5]/5"
+                >
+                  {r.visible ? "Ocultar" : "Exibir"}
+                </button>
+                <button
+                  onClick={() => void deleteReview(r)}
+                  className="text-xs px-3 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

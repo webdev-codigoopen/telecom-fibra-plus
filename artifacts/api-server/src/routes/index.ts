@@ -8,6 +8,7 @@ import demandInterestsRouter from "./demand_interests";
 import appSettingsRouter from "./app_settings";
 import emailSubscriptionsRouter from "./email_subscriptions";
 import contactRouter from "./contact";
+import reviewsRouter from "./reviews";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(demandInterestsRouter);
 router.use(appSettingsRouter);
 router.use(emailSubscriptionsRouter);
 router.use(contactRouter);
+router.use(reviewsRouter);
 
 export default router;

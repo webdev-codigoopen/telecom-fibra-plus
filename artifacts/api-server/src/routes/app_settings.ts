@@ -31,6 +31,20 @@ export const SETTING_DEFAULTS = {
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
   recaptcha_min_score: "0.5",
+  // Marketing / analytics tags (all optional; injected only when filled)
+  ga4_measurement_id: "",
+  gtm_container_id: "",
+  google_ads_conversion_id: "",
+  google_ads_conversion_label: "",
+  meta_pixel_id: "",
+  meta_capi_token: "",
+  meta_capi_test_event_code: "",
+  // Google Reviews
+  gmb_profile_url: "",
+  google_places_api_key: "",
+  google_places_id: "",
+  reviews_min_rating: "4",
+  reviews_show_count: "6",
 } as const;
 
 const ALLOWED_KEYS = Object.keys(SETTING_DEFAULTS) as Array<
@@ -44,6 +58,9 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_email",
   "interest_notification_enabled",
   "recaptcha_secret_key",
+  "meta_capi_token",
+  "meta_capi_test_event_code",
+  "google_places_api_key",
 ]);
 
 function rowsToObject(
@@ -93,6 +110,22 @@ const settingsBodySchema = z
       .string()
       .trim()
       .regex(/^(0(\.\d+)?|1(\.0+)?)$/, "Use um valor entre 0 e 1, ex: 0.5")
+      .optional(),
+    ga4_measurement_id: z.string().trim().max(40).optional(),
+    gtm_container_id: z.string().trim().max(40).optional(),
+    google_ads_conversion_id: z.string().trim().max(40).optional(),
+    google_ads_conversion_label: z.string().trim().max(60).optional(),
+    meta_pixel_id: z.string().trim().max(40).optional(),
+    meta_capi_token: z.string().trim().max(300).optional(),
+    meta_capi_test_event_code: z.string().trim().max(40).optional(),
+    gmb_profile_url: z.string().trim().max(500).optional(),
+    google_places_api_key: z.string().trim().max(120).optional(),
+    google_places_id: z.string().trim().max(120).optional(),
+    reviews_min_rating: z.enum(["1", "2", "3", "4", "5"]).optional(),
+    reviews_show_count: z
+      .string()
+      .trim()
+      .regex(/^([1-9]|1[0-2])$/, "Entre 1 e 12")
       .optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No settings provided" });
