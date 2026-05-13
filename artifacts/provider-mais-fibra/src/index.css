@@ -11,8 +11,8 @@
 
 /* A11y — focus-visible outline for keyboard users */
 :focus-visible {
-  outline: 2px solid #122AD5;
-  outline-offset: 2px;
+  /* outline: 2px solid #122AD5; */
+  /* outline-offset: 2px; */
 }
 
 /* Montserrat — global UI font (self-hosted, stable paths for preload) */
