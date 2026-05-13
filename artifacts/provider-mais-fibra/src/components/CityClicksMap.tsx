@@ -1638,6 +1638,68 @@ function CityTrendPanel({
   const effectiveViewMode: "total" | "source" =
     viewMode === "source" && sortedSources.length === 0 ? "total" : viewMode;
 
+  const { topGain, topLoss } = useMemo(() => {
+    if (!points || !hasComparison) {
+      return {
+        topGain: null as { point: TrendPoint; delta: number } | null,
+        topLoss: null as { point: TrendPoint; delta: number } | null,
+      };
+    }
+    let gain: { point: TrendPoint; delta: number } | null = null;
+    let loss: { point: TrendPoint; delta: number } | null = null;
+    for (const p of points) {
+      if (p.previous == null) continue;
+      const d = p.total - p.previous;
+      if (d > 0 && (!gain || d > gain.delta)) gain = { point: p, delta: d };
+      if (d < 0 && (!loss || d < loss.delta)) loss = { point: p, delta: d };
+    }
+    return { topGain: gain, topLoss: loss };
+  }, [points, hasComparison]);
+
+  const showExtremes =
+    effectiveViewMode === "total" && hasComparison && showComparison;
+
+  const renderTotalDot = (dotProps: {
+    cx?: number;
+    cy?: number;
+    payload?: TrendPoint;
+  }) => {
+    const { cx, cy, payload } = dotProps;
+    if (cx == null || cy == null || !payload) return <g />;
+    let fill = "#0040FF";
+    let r = 3;
+    let stroke = "none";
+    let strokeWidth = 0;
+    if (showExtremes && topGain && payload.bucket === topGain.point.bucket) {
+      fill = "#0A7B2C";
+      r = 6;
+      stroke = "#FFFFFF";
+      strokeWidth = 2;
+    } else if (
+      showExtremes &&
+      topLoss &&
+      payload.bucket === topLoss.point.bucket
+    ) {
+      fill = "#A11A1A";
+      r = 6;
+      stroke = "#FFFFFF";
+      strokeWidth = 2;
+    }
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={r}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+      />
+    );
+  };
+
+  const formatExtremeDelta = (d: number) =>
+    `${d > 0 ? "+" : ""}${d} ${Math.abs(d) === 1 ? "clique" : "cliques"}`;
+
   return (
     <div
       className="mt-4 rounded-lg border border-[#FFD600] bg-[#FFFBE6] p-3"
@@ -1775,7 +1837,7 @@ function CityTrendPanel({
                 dataKey="total"
                 stroke="#0040FF"
                 strokeWidth={2}
-                dot={{ r: 3, fill: "#0040FF" }}
+                dot={renderTotalDot}
                 activeDot={{ r: 5 }}
                 isAnimationActive={false}
               />
@@ -1808,6 +1870,42 @@ function CityTrendPanel({
           </ResponsiveContainer>
         )}
       </div>
+      {showExtremes && points && points.length > 0 && (topGain || topLoss) && (
+        <p
+          className="mt-2 text-[11px] text-[#5C4500]"
+          data-testid="city-trend-extremes-caption"
+        >
+          {topGain && (
+            <span data-testid="city-trend-extreme-gain">
+              <span
+                className="inline-block rounded-full mr-1 align-middle"
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: "#0A7B2C",
+                }}
+              />
+              Maior alta: <strong>{topGain.point.label}</strong>{" "}
+              ({formatExtremeDelta(topGain.delta)} vs. anterior)
+            </span>
+          )}
+          {topGain && topLoss && <span className="mx-2">·</span>}
+          {topLoss && (
+            <span data-testid="city-trend-extreme-loss">
+              <span
+                className="inline-block rounded-full mr-1 align-middle"
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: "#A11A1A",
+                }}
+              />
+              Maior queda: <strong>{topLoss.point.label}</strong>{" "}
+              ({formatExtremeDelta(topLoss.delta)} vs. anterior)
+            </span>
+          )}
+        </p>
+      )}
       {effectiveViewMode === "source" && sortedSources.length > 0 && (
         <div
           className="mt-2 flex flex-wrap gap-x-3 gap-y-1"
