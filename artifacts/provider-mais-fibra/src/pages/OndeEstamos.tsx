@@ -54,7 +54,7 @@ export default function OndeEstamos() {
       <main className="flex-1 pt-16 md:pt-[88px]">
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
+          style={{ background: "#1934C2" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
