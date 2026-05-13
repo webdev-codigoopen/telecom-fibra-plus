@@ -135,7 +135,7 @@ app.use("/api", (req, res, next) => {
 // excluded so the SPA can bootstrap a token and submit credentials.
 app.use("/api", (req, res, next) => {
   const p = req.path;
-  if (p === "/auth/csrf" || p === "/auth/login" || p === "/auth/logout") {
+  if (p === "/auth/csrf" || p === "/auth/login") {
     next();
     return;
   }

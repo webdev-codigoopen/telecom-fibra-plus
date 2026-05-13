@@ -6,16 +6,18 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@uppy/aws-s3": "^5.0.0",
     "@uppy/core": "^5.0.0",
     "@uppy/dashboard": "^5.0.0",
-    "@uppy/react": "^5.0.0"
-  },
-  "peerDependencies": {
+    "@uppy/react": "^5.0.0",
     "react": ">=18"
   },
   "devDependencies": {
+    "@uppy/aws-s3": "^5.0.0",
+    "@uppy/core": "^5.0.0",
+    "@uppy/dashboard": "^5.0.0",
+    "@uppy/react": "^5.0.0",
     "@types/react": "catalog:"
   }
 }

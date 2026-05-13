@@ -72,7 +72,7 @@ catalogs:
 
 overrides:
   path-to-regexp@>=8.0.0 <8.4.0: ^8.4.0
-  lodash@<4.17.21: ^4.17.21
+  '@tootallnate/once': ^3.0.0
 
 importers:
 
@@ -623,7 +623,10 @@ importers:
         version: 0.31.9
 
   lib/object-storage-web:
-    dependencies:
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
       '@uppy/aws-s3':
         specifier: ^5.0.0
         version: 5.1.0(@uppy/core@5.2.0)
@@ -636,10 +639,6 @@ importers:
       '@uppy/react':
         specifier: ^5.0.0
         version: 5.2.0(@uppy/core@5.2.0)(@uppy/dashboard@5.1.1(@uppy/core@5.2.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-    devDependencies:
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.14
 
   scripts:
     dependencies:
@@ -2605,8 +2604,8 @@ packages:
     peerDependencies:
       react: ^18 || ^19
 
-  '@tootallnate/once@2.0.1':
-    resolution: {integrity: sha512-HqmEUIGRJ5fSXchkVgR5F7qn48bDBzv0kWj/Kfu5e6uci4UlEeng4331LnBkWffb++Ei3FOVLxo8JJWMFBDMeQ==}
+  '@tootallnate/once@3.0.1':
+    resolution: {integrity: sha512-VyMVKRrpHTT8PnotUeV8L/mDaMwD5DaAKCFLP73zAqAtvF0FCqky+Ki7BYbFCYQmqFyTe9316Ed5zS70QUR9eg==}
     engines: {node: '>= 10'}
 
   '@transloadit/prettier-bytes@0.3.5':
@@ -6763,7 +6762,7 @@ snapshots:
       '@tanstack/query-core': 5.90.20
       react: 19.1.0
 
-  '@tootallnate/once@2.0.1': {}
+  '@tootallnate/once@3.0.1': {}
 
   '@transloadit/prettier-bytes@0.3.5': {}
 
@@ -7854,7 +7853,7 @@ snapshots:
 
   http-proxy-agent@5.0.0:
     dependencies:
-      '@tootallnate/once': 2.0.1
+      '@tootallnate/once': 3.0.1
       agent-base: 6.0.2
       debug: 4.4.3
     transitivePeerDependencies:
