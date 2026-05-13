@@ -46,6 +46,23 @@ function apiPlanToPlan(p: ApiPlan): Plan {
 const PLAN_IMAGE_ASPECT = 16 / 9;
 const PLAN_IMAGE_MAX_WIDTH = 1200;
 
+type CleanupStatusResponse = {
+  status: {
+    startedAt: string;
+    finishedAt: string;
+    durationMs: number;
+    ok: boolean;
+    rowsRelabeled: number;
+    rowsRelabeledByUserAgent: number;
+    burstGroupsFound: number;
+    windowSeconds: number;
+    minBurst: number;
+    useUserAgent: boolean;
+    error: string | null;
+  } | null;
+  recordedAt?: string;
+};
+
 type ClickStat = {
   planSpeed: string;
   planPrice: string;
@@ -213,6 +230,7 @@ export default function Admin() {
     lastBotFetchAt: string | null;
   } | null>(null);
   const [previewHealthDismissed, setPreviewHealthDismissed] = useState(false);
+  const [cleanupStatus, setCleanupStatus] = useState<CleanupStatusResponse | null>(null);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -500,7 +518,7 @@ export default function Admin() {
       tsParams.set("bucket", range === "today" ? "hour" : "day");
       const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
 
-      const [statsRes, sourcesRes, prevRes, tsRes, healthRes] = await Promise.all([
+      const [statsRes, sourcesRes, prevRes, tsRes, healthRes, cleanupRes] = await Promise.all([
         adminFetch(url, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/sources`, { headers: { Authorization: `Bearer ${key}` } }),
         hasPrevious
@@ -508,6 +526,7 @@ export default function Admin() {
           : Promise.resolve(null),
         adminFetch(tsUrl, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { Authorization: `Bearer ${key}` } }),
+        adminFetch(`${baseUrl}/api/clicks/cleanup-status`, { headers: { Authorization: `Bearer ${key}` } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -543,6 +562,10 @@ export default function Admin() {
           }
           return data;
         });
+      }
+      if (cleanupRes.ok) {
+        const data = (await cleanupRes.json()) as typeof cleanupStatus;
+        setCleanupStatus(data);
       }
     } catch {
     } finally {
@@ -1651,6 +1674,104 @@ export default function Admin() {
                       Pré-visualizações reais (humanas) já descontam os acessos do WhatsApp/Facebook que apenas geram a prévia rica.{" "}
                       <span className="italic">Robôs filtrados</span> são identificados ao vivo pelo User-Agent e, em registros antigos, por um backfill que reclassifica rajadas suspeitas como <code className="text-[10px]">whatsapp-share-bot</code>.
                     </p>
+                  </div>
+                </div>
+              )}
+              {cleanupStatus && (
+                <div
+                  className="rounded-xl border px-4 py-3 mb-3"
+                  style={{
+                    background: cleanupStatus.status?.ok === false ? "#FFF0F0" : "#F5F7FA",
+                    borderColor: cleanupStatus.status?.ok === false ? "#F0B0B0" : "#E0E3EB",
+                  }}
+                >
+                  <div className="flex items-start gap-3 flex-wrap">
+                    <div
+                      className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
+                      style={{
+                        background:
+                          cleanupStatus.status == null
+                            ? "#A1A6B0"
+                            : cleanupStatus.status.ok
+                              ? "#0AAE67"
+                              : "#C73838",
+                      }}
+                      aria-hidden="true"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-[#2A2D38]">
+                          Limpeza de pré-visualizações de robôs
+                        </span>
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background:
+                              cleanupStatus.status == null
+                                ? "#EEF0F5"
+                                : cleanupStatus.status.ok
+                                  ? "#D4F4E2"
+                                  : "#F8D7D7",
+                            color:
+                              cleanupStatus.status == null
+                                ? "#7A7F8C"
+                                : cleanupStatus.status.ok
+                                  ? "#0A6B41"
+                                  : "#7A1A1A",
+                          }}
+                        >
+                          {cleanupStatus.status == null
+                            ? "Ainda não executou"
+                            : cleanupStatus.status.ok
+                              ? "OK"
+                              : "Falhou"}
+                        </span>
+                      </div>
+                      {cleanupStatus.status == null && (
+                        <p className="text-[12px] text-[#7A7F8C] mt-1 leading-relaxed">
+                          A limpeza noturna ainda não rodou desde que o servidor foi iniciado.
+                          Ela é executada automaticamente a cada 24 horas.
+                        </p>
+                      )}
+                      {cleanupStatus.status != null && (
+                        <>
+                          <p className="text-[12px] text-[#2A2D38] mt-1 leading-relaxed">
+                            Última execução em{" "}
+                            <strong>
+                              {new Date(cleanupStatus.status.finishedAt).toLocaleString("pt-BR")}
+                            </strong>{" "}
+                            ({Math.max(1, Math.round(cleanupStatus.status.durationMs / 1000))}s).{" "}
+                            {cleanupStatus.status.ok ? (
+                              <>
+                                <strong>{cleanupStatus.status.rowsRelabeled.toLocaleString("pt-BR")}</strong>{" "}
+                                {cleanupStatus.status.rowsRelabeled === 1
+                                  ? "linha reclassificada"
+                                  : "linhas reclassificadas"}{" "}
+                                como robô em{" "}
+                                <strong>{cleanupStatus.status.burstGroupsFound.toLocaleString("pt-BR")}</strong>{" "}
+                                {cleanupStatus.status.burstGroupsFound === 1
+                                  ? "rajada detectada"
+                                  : "rajadas detectadas"}
+                                .
+                              </>
+                            ) : (
+                              <span className="text-[#7A1A1A]">A execução falhou.</span>
+                            )}
+                          </p>
+                          {cleanupStatus.status.error && (
+                            <p className="text-[11px] text-[#7A1A1A] mt-1 leading-relaxed">
+                              Erro: <code className="text-[11px]">{cleanupStatus.status.error}</code>
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

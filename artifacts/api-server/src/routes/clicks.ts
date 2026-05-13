@@ -1,7 +1,11 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, planClicksTable } from "@workspace/db";
+import { db, planClicksTable, appSettingsTable } from "@workspace/db";
 import { and, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import {
+  BOT_CLEANUP_STATUS_KEY,
+  type BotCleanupStatus,
+} from "../lib/botClickBackfillScheduler";
 
 const router: IRouter = Router();
 
@@ -260,6 +264,30 @@ router.get("/clicks/preview-health", requireAdminKey, async (_req, res) => {
     });
   } catch {
     res.status(500).json({ error: "Failed to fetch preview health" });
+  }
+});
+
+router.get("/clicks/cleanup-status", requireAdminKey, async (_req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, BOT_CLEANUP_STATUS_KEY))
+      .limit(1);
+    const row = rows[0];
+    if (!row) {
+      res.json({ status: null });
+      return;
+    }
+    let status: BotCleanupStatus | null = null;
+    try {
+      status = JSON.parse(row.value) as BotCleanupStatus;
+    } catch {
+      status = null;
+    }
+    res.json({ status, recordedAt: row.updatedAt });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch cleanup status" });
   }
 });
 
