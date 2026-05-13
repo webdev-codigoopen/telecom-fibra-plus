@@ -151,10 +151,11 @@ type StoredFilters = {
   source: string;
   customFrom: string;
   customTo: string;
+  city: string | null;
 };
 
 function loadStoredFilters(): StoredFilters {
-  const fallback: StoredFilters = { range: "all", source: "", customFrom: "", customTo: "" };
+  const fallback: StoredFilters = { range: "all", source: "", customFrom: "", customTo: "", city: null };
   try {
     const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
     if (!raw) return fallback;
@@ -168,6 +169,7 @@ function loadStoredFilters(): StoredFilters {
       source: typeof parsed.source === "string" ? parsed.source : "",
       customFrom: typeof parsed.customFrom === "string" ? parsed.customFrom : "",
       customTo: typeof parsed.customTo === "string" ? parsed.customTo : "",
+      city: typeof parsed.city === "string" && parsed.city.length > 0 ? parsed.city : null,
     };
   } catch {
     return fallback;
@@ -219,7 +221,7 @@ export default function Admin() {
   const [customTo, setCustomTo] = useState<string>(() => loadStoredFilters().customTo);
   const [sourceStats, setSourceStats] = useState<SourceStat[]>([]);
   const [sourceFilter, setSourceFilter] = useState<string>(() => loadStoredFilters().source);
-  const [cityFilter, setCityFilter] = useState<string | null>(null);
+  const [cityFilter, setCityFilter] = useState<string | null>(() => loadStoredFilters().city);
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [chartView, setChartView] = useState<ChartView>(() => loadStoredUiState().chartView);
   const [dragId, setDragId] = useState<number | null>(null);
@@ -538,7 +540,7 @@ export default function Admin() {
       const stored = loadStoredFilters();
       const [plansRes] = await Promise.all([
         fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
-        fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, null),
+        fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, stored.city),
         fetchStreamingBrands(),
         fetchAppSettingsAdmin(),
       ]);
@@ -569,12 +571,12 @@ export default function Admin() {
     try {
       localStorage.setItem(
         FILTERS_STORAGE_KEY,
-        JSON.stringify({ range: statsRange, source: sourceFilter, customFrom, customTo }),
+        JSON.stringify({ range: statsRange, source: sourceFilter, customFrom, customTo, city: cityFilter }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [statsRange, sourceFilter, customFrom, customTo]);
+  }, [statsRange, sourceFilter, customFrom, customTo, cityFilter]);
 
   useEffect(() => {
     try {
