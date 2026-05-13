@@ -8,6 +8,10 @@ export type AppSettings = {
   interest_notification_enabled: string;
   interest_notification_frequency: string;
   interest_digest_last_sent_at: string;
+  whatsapp_notify_enabled: string;
+  whatsapp_notify_to: string;
+  whatsapp_notify_phone_number_id: string;
+  whatsapp_notify_access_token: string;
   recaptcha_enabled: string;
   recaptcha_site_key: string;
   recaptcha_secret_key: string;
@@ -43,6 +47,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   interest_notification_enabled: "false",
   interest_notification_frequency: "instant",
   interest_digest_last_sent_at: "",
+  whatsapp_notify_enabled: "false",
+  whatsapp_notify_to: "",
+  whatsapp_notify_phone_number_id: "",
+  whatsapp_notify_access_token: "",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",

@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailReportSubscriptionsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
+import { isWhatsappNotifyEnabled, sendWhatsappNotification } from "../lib/sendWhatsapp";
 import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 
@@ -128,8 +129,10 @@ router.post("/demand/interest", async (req, res) => {
       city,
     });
     res.status(201).json({ ok: true });
-    // Fire-and-forget admin notification email — never blocks or fails the request.
-    void notifyAdminOfNewInterest({ city, neighborhood, whatsapp, createdAt: new Date() });
+    // Fire-and-forget admin notifications (email + WhatsApp) — never blocks or fails the request.
+    const createdAt = new Date();
+    void notifyAdminOfNewInterest({ city, neighborhood, whatsapp, createdAt });
+    void notifyAdminOfNewInterestViaWhatsapp({ city, neighborhood, whatsapp, createdAt });
   } catch {
     res.status(500).json({ error: "Não foi possível registrar seu interesse. Tente novamente." });
   }
@@ -262,6 +265,43 @@ async function notifyAdminOfNewInterest(payload: {
     );
   } catch (err) {
     logger.error({ err }, "Failed to send interest notification email");
+  }
+}
+
+async function notifyAdminOfNewInterestViaWhatsapp(payload: {
+  city: string;
+  neighborhood: string;
+  whatsapp: string;
+  createdAt: Date;
+}): Promise<void> {
+  try {
+    if (!(await isWhatsappNotifyEnabled())) return;
+    const link = whatsappLink(payload.whatsapp);
+    const display = formatWhatsappDisplay(payload.whatsapp);
+    const timestampDisplay = new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+      timeZone: "America/Sao_Paulo",
+    }).format(payload.createdAt);
+    const text = [
+      "🔔 *Novo interesse no mapa de demanda*",
+      "",
+      `📍 *Cidade:* ${payload.city}`,
+      `🏘️ *Bairro/Rua:* ${payload.neighborhood}`,
+      `📱 *WhatsApp:* ${display}`,
+      `🕒 *Recebido em:* ${timestampDisplay}`,
+      "",
+      `Abrir conversa: ${link}`,
+    ].join("\n");
+    const result = await sendWhatsappNotification(text);
+    if (!result.ok) {
+      logger.error(
+        { error: result.error },
+        "Failed to send interest notification via WhatsApp",
+      );
+    }
+  } catch (err) {
+    logger.error({ err }, "Failed to send interest notification via WhatsApp");
   }
 }
 

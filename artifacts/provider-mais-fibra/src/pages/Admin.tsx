@@ -1073,6 +1073,12 @@ export default function Admin() {
               adminKey={adminKey}
               baseUrl={baseUrl}
             />
+            <WhatsappNotifySettings
+              settings={appSettings}
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onChange={fetchAppSettingsAdmin}
+            />
             <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
         )}
@@ -5043,6 +5049,287 @@ function InterestNotificationSettings({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+type WhatsappNotifySettingsProps = {
+  settings: AppSettings;
+  adminKey: string;
+  baseUrl: string;
+  onChange: () => void | Promise<void>;
+};
+
+function WhatsappNotifySettings({
+  settings,
+  adminKey,
+  baseUrl,
+  onChange,
+}: WhatsappNotifySettingsProps) {
+  const [enabled, setEnabled] = useState(
+    settings.whatsapp_notify_enabled === "true",
+  );
+  const [to, setTo] = useState(settings.whatsapp_notify_to);
+  const [phoneNumberId, setPhoneNumberId] = useState(
+    settings.whatsapp_notify_phone_number_id,
+  );
+  const [accessToken, setAccessToken] = useState(
+    settings.whatsapp_notify_access_token,
+  );
+  const [showToken, setShowToken] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    setEnabled(settings.whatsapp_notify_enabled === "true");
+    setTo(settings.whatsapp_notify_to);
+    setPhoneNumberId(settings.whatsapp_notify_phone_number_id);
+    setAccessToken(settings.whatsapp_notify_access_token);
+  }, [
+    settings.whatsapp_notify_enabled,
+    settings.whatsapp_notify_to,
+    settings.whatsapp_notify_phone_number_id,
+    settings.whatsapp_notify_access_token,
+  ]);
+
+  const trimmedTo = to.replace(/\D/g, "");
+  const dirty =
+    String(enabled) !== settings.whatsapp_notify_enabled ||
+    trimmedTo !== settings.whatsapp_notify_to ||
+    phoneNumberId.trim() !== settings.whatsapp_notify_phone_number_id ||
+    accessToken.trim() !== settings.whatsapp_notify_access_token;
+
+  const toInvalid = trimmedTo.length > 0 && (trimmedTo.length < 10 || trimmedTo.length > 15);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (toInvalid) {
+      setErrorMsg("Número de WhatsApp inválido. Use somente dígitos com DDI/DDD (ex.: 5577998444757).");
+      return;
+    }
+    setSaving(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          whatsapp_notify_enabled: enabled ? "true" : "false",
+          whatsapp_notify_to: trimmedTo,
+          whatsapp_notify_phone_number_id: phoneNumberId.trim(),
+          whatsapp_notify_access_token: accessToken.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const detail = body?.details?.fieldErrors
+          ? Object.entries(body.details.fieldErrors)
+              .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+              .join(" · ")
+          : null;
+        throw new Error(detail || body?.error || `HTTP ${res.status}`);
+      }
+      setSavedAt(Date.now());
+      await onChange();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleTest() {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings/whatsapp/test`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTestMsg({ ok: false, text: body?.error || `HTTP ${res.status}` });
+        return;
+      }
+      setTestMsg({
+        ok: true,
+        text: `Mensagem de teste enviada para ${trimmedTo || "o número configurado"}.`,
+      });
+    } catch (err) {
+      setTesting(false);
+      setTestMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : "Falha de rede.",
+      });
+      return;
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const canTest =
+    !dirty &&
+    trimmedTo.length >= 10 &&
+    phoneNumberId.trim().length > 0 &&
+    accessToken.trim().length > 0;
+
+  return (
+    <section
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      data-testid="whatsapp-notify-settings"
+    >
+      <header className="mb-4">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-bold text-[#0D0D0D] text-base">
+              Notificação por WhatsApp
+            </h2>
+            <p className="text-sm text-[#7A7F8C] mt-1 leading-relaxed">
+              Envie cada novo cadastro de <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>{" "}
+              para um número de WhatsApp do time, com cidade, bairro, link
+              direto e horário. Pode ser ativado ou desativado independentemente
+              do email.
+            </p>
+            <p className="text-xs text-[#7A7F8C] mt-2 leading-relaxed">
+              Use a{" "}
+              <a
+                href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#122AD5] font-semibold hover:underline"
+              >
+                WhatsApp Cloud API da Meta
+              </a>
+              . O número de destino precisa ter conversado com o número
+              remetente nas últimas 24h para receber mensagens livres.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm font-semibold text-[#0D0D0D] select-none">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="h-4 w-4 accent-[#0040FF]"
+              data-testid="whatsapp-notify-enabled"
+            />
+            Ativado
+          </label>
+        </div>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Número de destino (com DDI e DDD, somente dígitos)</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder="5577998444757"
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="whatsapp-notify-to"
+          />
+          {toInvalid && (
+            <span className="text-[11px] text-red-600 mt-1">
+              Use 10 a 15 dígitos. Ex.: 5577998444757.
+            </span>
+          )}
+        </label>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Phone Number ID (Meta)</span>
+            <input
+              type="text"
+              autoComplete="off"
+              value={phoneNumberId}
+              onChange={(e) => setPhoneNumberId(e.target.value)}
+              placeholder="123456789012345"
+              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+              data-testid="whatsapp-notify-phone-id"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+            <span>Access Token</span>
+            <div className="relative">
+              <input
+                type={showToken ? "text" : "password"}
+                autoComplete="new-password"
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="EAAG..."
+                className="w-full border border-[#E0E3EB] rounded-md px-3 py-2 pr-16 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                data-testid="whatsapp-notify-token"
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-[#0040FF] hover:underline"
+              >
+                {showToken ? "ocultar" : "mostrar"}
+              </button>
+            </div>
+          </label>
+        </div>
+
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="submit"
+            disabled={saving || !dirty || toInvalid}
+            className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+            data-testid="whatsapp-notify-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleTest()}
+            disabled={testing || !canTest}
+            className="text-sm font-semibold px-4 py-2 rounded-md border border-[#E0E3EB] text-[#0D0D0D] hover:border-[#0040FF]/50 disabled:opacity-50"
+            data-testid="whatsapp-notify-test"
+            title={
+              !canTest
+                ? "Salve as configurações antes de testar."
+                : "Enviar mensagem de teste"
+            }
+          >
+            {testing ? "Enviando..." : "Enviar teste"}
+          </button>
+          {savedAt && !dirty && (
+            <span className="text-xs text-emerald-700">Salvo.</span>
+          )}
+        </div>
+
+        {testMsg && (
+          <div
+            className={`rounded-lg px-4 py-2 text-sm border ${
+              testMsg.ok
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-red-50 border-red-200 text-red-700"
+            }`}
+            data-testid="whatsapp-notify-test-result"
+          >
+            {testMsg.text}
+          </div>
+        )}
+      </form>
     </section>
   );
 }

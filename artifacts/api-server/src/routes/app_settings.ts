@@ -18,6 +18,11 @@ export const SETTING_DEFAULTS = {
   interest_notification_enabled: "false",
   interest_notification_frequency: "instant",
   interest_digest_last_sent_at: "",
+  // WhatsApp lead notification (Meta Cloud API)
+  whatsapp_notify_enabled: "false",
+  whatsapp_notify_to: "",
+  whatsapp_notify_phone_number_id: "",
+  whatsapp_notify_access_token: "",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
@@ -58,6 +63,10 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "interest_notification_enabled",
   "interest_notification_frequency",
   "interest_digest_last_sent_at",
+  "whatsapp_notify_enabled",
+  "whatsapp_notify_to",
+  "whatsapp_notify_phone_number_id",
+  "whatsapp_notify_access_token",
   "recaptcha_secret_key",
   "meta_capi_token",
   "meta_capi_test_event_code",
@@ -108,6 +117,19 @@ const settingsBodySchema = z
       .optional(),
     interest_notification_enabled: z.enum(["true", "false"]).optional(),
     interest_notification_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
+    whatsapp_notify_enabled: z.enum(["true", "false"]).optional(),
+    whatsapp_notify_to: z
+      .string()
+      .trim()
+      .max(20)
+      .refine(
+        (v) => v === "" || /^\d{10,15}$/.test(v.replace(/\D/g, "")),
+        "Informe um número de WhatsApp válido com DDI/DDD (somente dígitos).",
+      )
+      .transform((v) => (v === "" ? "" : v.replace(/\D/g, "")))
+      .optional(),
+    whatsapp_notify_phone_number_id: z.string().trim().max(40).optional(),
+    whatsapp_notify_access_token: z.string().trim().max(500).optional(),
     recaptcha_enabled: z.enum(["true", "false"]).optional(),
     recaptcha_site_key: z.string().trim().max(120).optional(),
     recaptcha_secret_key: z.string().trim().max(120).optional(),
@@ -219,6 +241,36 @@ router.post("/settings/smtp/test", requireAdminKey, async (req, res) => {
       html: `<p>Este é um e-mail de teste enviado pelo painel.</p><p>Se você recebeu, o servidor de e-mail está configurado corretamente.</p>`,
       text: "Este é um e-mail de teste enviado pelo painel. Se você recebeu, o servidor de e-mail está configurado corretamente.",
     });
+    res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// WhatsApp test: tries to deliver a real WhatsApp message via Meta Cloud API
+// using the currently saved settings.
+// ---------------------------------------------------------------------------
+router.post("/settings/whatsapp/test", requireAdminKey, async (_req, res) => {
+  try {
+    const { sendWhatsappTest, isWhatsappNotifyConfigured } = await import(
+      "../lib/sendWhatsapp"
+    );
+    if (!(await isWhatsappNotifyConfigured())) {
+      res.status(400).json({
+        error:
+          "WhatsApp não configurado. Preencha o número de destino, o Phone Number ID e o Access Token.",
+      });
+      return;
+    }
+    const result = await sendWhatsappTest(
+      "✅ Teste — Provider Mais Fibra. Se você recebeu esta mensagem, as notificações por WhatsApp estão funcionando.",
+    );
+    if (!result.ok) {
+      res.status(400).json({ error: `Falha ao enviar: ${result.error}` });
+      return;
+    }
     res.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro desconhecido";
