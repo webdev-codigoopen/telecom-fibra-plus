@@ -48,6 +48,7 @@ type Props =
       clicks?: undefined;
       selectedCity?: string | null;
       onSelectCity?: (city: string | null) => void;
+      periodOverride?: { since?: string; until?: string };
     }
   | {
       clicks: CityClickEntry[];
@@ -55,6 +56,7 @@ type Props =
       baseUrl?: undefined;
       selectedCity?: undefined;
       onSelectCity?: undefined;
+      periodOverride?: undefined;
     };
 
 const VIEW_W = 720;
@@ -281,6 +283,19 @@ export default function CityClicksMap(props: Props) {
   const externalClicks = props.clicks;
   const selectedCity = props.selectedCity ?? null;
   const onSelectCity = props.onSelectCity;
+  const periodOverride = props.periodOverride;
+  const hasPeriodOverride = periodOverride !== undefined;
+  const overrideSince = periodOverride?.since;
+  const overrideUntil = periodOverride?.until;
+  const resolveWindow = (r: RangeId, cf: string, ct: string): Window | null => {
+    if (hasPeriodOverride) {
+      return {
+        ...(overrideSince ? { since: overrideSince } : {}),
+        ...(overrideUntil ? { until: overrideUntil } : {}),
+      };
+    }
+    return rangeToWindow(r, cf, ct);
+  };
 
   const [hovered, setHovered] = useState<string | null>(null);
   const [range, setRange] = useState<RangeId>("all");
@@ -380,7 +395,7 @@ export default function CityClicksMap(props: Props) {
 
   useEffect(() => {
     if (!isAdminMode || !adminKey || !baseUrl) return;
-    const win = rangeToWindow(range, customFrom, customTo);
+    const win = resolveWindow(range, customFrom, customTo);
     if (win === null) {
       // Custom range incomplete or invalid — don't fetch, keep current data.
       return;
@@ -440,7 +455,7 @@ export default function CityClicksMap(props: Props) {
         if (myReqId !== reqIdRef.current) return;
         setLoading(false);
       });
-  }, [isAdminMode, range, customFrom, customTo, adminKey, baseUrl]);
+  }, [isAdminMode, range, customFrom, customTo, adminKey, baseUrl, hasPeriodOverride, overrideSince, overrideUntil]);
 
   const effectiveEntries = isAdminMode ? entries : externalClicks ?? [];
 
@@ -674,7 +689,7 @@ export default function CityClicksMap(props: Props) {
 
   const exportRangeLabel = useMemo(() => {
     if (!isAdminMode) return null;
-    const win = rangeToWindow(range, customFrom, customTo);
+    const win = resolveWindow(range, customFrom, customTo);
     if (win === null) return null;
     if (!win.since && !win.until) return "tudo";
     const fmt = (iso: string, subtractDay = false) => {
@@ -693,7 +708,7 @@ export default function CityClicksMap(props: Props) {
     const until = win.until ? fmt(win.until, untilIsExclusive) : null;
     if (since && until) return since === until ? since : `${since}_a_${until}`;
     return since ?? until ?? "periodo";
-  }, [isAdminMode, range, customFrom, customTo]);
+  }, [isAdminMode, range, customFrom, customTo, hasPeriodOverride, overrideSince, overrideUntil]);
 
   const allCityNames = useMemo(() => {
     const set = new Set<string>();
@@ -870,7 +885,7 @@ export default function CityClicksMap(props: Props) {
           )}
         </div>
       </div>
-      {isAdminMode && (
+      {isAdminMode && !hasPeriodOverride && (
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Período do mapa">
           {RANGE_OPTIONS.map((opt) => {

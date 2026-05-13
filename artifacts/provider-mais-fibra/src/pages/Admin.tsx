@@ -11,6 +11,7 @@ import CityAccessDashboard from "../components/CityAccessDashboard";
 import AdminShell, { type AdminTabId } from "./admin/AdminShell";
 import DashboardOverview from "./admin/DashboardOverview";
 import WhatsAppOverview from "./admin/WhatsAppOverview";
+import CtasAnalytics from "./admin/CtasAnalytics";
 import { colorForSource } from "../lib/sourceColors";
 import {
   type StreamingBrand,
@@ -256,7 +257,7 @@ export default function Admin() {
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
   const ADMIN_TAB_STORAGE_KEY = "pmf-admin-active-tab";
   const ADMIN_TAB_VALID: AdminTabId[] = [
-    "dashboard", "mapa", "wpp", "ctas", "planos", "cidades", "bots",
+    "dashboard", "mapa", "wpp", "ctas", "ctas-config", "planos", "cidades", "bots",
     "interesses", "emails", "seguranca", "marketing", "avaliacoes", "duvidas", "historico",
   ];
   const [activeTab, setActiveTabState] = useState<AdminTabId>(() => {
@@ -1284,6 +1285,20 @@ export default function Admin() {
         }}
         onLogout={handleAdminLogout}
         topbarExtras={topbarExtras}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={(v) => {
+          setCustomFrom(v);
+          if (statsRange === "custom" && v && customTo) {
+            void fetchClickStats(adminKey, "custom", sourceFilter, v, customTo, cityFilter);
+          }
+        }}
+        onCustomToChange={(v) => {
+          setCustomTo(v);
+          if (statsRange === "custom" && customFrom && v) {
+            void fetchClickStats(adminKey, "custom", sourceFilter, customFrom, v, cityFilter);
+          }
+        }}
       >
         <main id="main-content" tabIndex={-1} className="focus:outline-none" style={{ outline: "none" }}>
         {loading && (
@@ -1314,6 +1329,7 @@ export default function Admin() {
                 setCityFilter(city);
                 void fetchClickStats(adminKey, statsRange, sourceFilter, customFrom, customTo, city);
               }}
+              periodOverride={periodWindow}
             />
           </div>
         )}
@@ -1348,6 +1364,15 @@ export default function Admin() {
         )}
 
         {!loading && activeTab === "ctas" && (
+          <CtasAnalytics
+            adminKey={adminKey}
+            baseUrl={baseUrl}
+            since={periodWindow.since}
+            until={periodWindow.until}
+          />
+        )}
+
+        {!loading && activeTab === "ctas-config" && (
           <CtaSettingsManager
             settings={appSettings}
             adminKey={adminKey}

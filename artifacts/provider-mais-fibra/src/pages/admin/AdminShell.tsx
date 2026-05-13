@@ -27,6 +27,7 @@ export type AdminTabId =
   | "mapa"
   | "wpp"
   | "ctas"
+  | "ctas-config"
   | "planos"
   | "cidades"
   | "bots"
@@ -39,7 +40,7 @@ export type AdminTabId =
   | "historico";
 
 const CONFIG_IDS: AdminTabId[] = [
-  "ctas", "interesses", "emails", "seguranca", "marketing",
+  "ctas-config", "interesses", "emails", "seguranca", "marketing",
   "avaliacoes", "duvidas", "historico",
 ];
 
@@ -58,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Canais",
     items: [
       { id: "wpp", label: "WhatsApp", icon: <MessageCircle /> },
+      { id: "ctas", label: "CTAs", icon: <Target /> },
     ],
   },
   {
@@ -75,7 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Configurações",
     collapsible: true,
     items: [
-      { id: "ctas", label: "CTAs", icon: <Target /> },
+      { id: "ctas-config", label: "CTAs (config)", icon: <Target /> },
       { id: "interesses", label: "Interesses", icon: <Bell /> },
       { id: "emails", label: "E-mails", icon: <Mail /> },
       { id: "seguranca", label: "Segurança", icon: <Lock /> },
@@ -91,7 +93,8 @@ export const ADMIN_TAB_LABEL: Record<AdminTabId, string> = {
   dashboard: "Painel de performance",
   mapa: "Mapa de cliques por cidade",
   wpp: "WhatsApp",
-  ctas: "Configurações · CTAs",
+  ctas: "CTAs · Análise",
+  "ctas-config": "Configurações · CTAs",
   planos: "Desempenho dos planos",
   cidades: "Cidades",
   bots: "Robôs vs. humanos",
@@ -123,10 +126,15 @@ type Props = {
   onLogout: () => void;
   children: ReactNode;
   topbarExtras?: ReactNode;
+  customFrom?: string;
+  customTo?: string;
+  onCustomFromChange?: (v: string) => void;
+  onCustomToChange?: (v: string) => void;
 };
 
 export default function AdminShell({
   active, onChange, period, onPeriodChange, onLogout, children, topbarExtras,
+  customFrom = "", customTo = "", onCustomFromChange, onCustomToChange,
 }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const configOpenInitial = CONFIG_IDS.includes(active);
@@ -276,6 +284,41 @@ export default function AdminShell({
                 );
               })}
             </div>
+            {period === "custom" && (
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }} data-testid="admin-custom-range">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => onCustomFromChange?.(e.target.value)}
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 6px",
+                    border: "1px solid var(--as-border)",
+                    borderRadius: 4,
+                    background: "var(--as-surface)",
+                    color: "var(--as-text)",
+                  }}
+                  aria-label="Data inicial"
+                  data-testid="admin-custom-from"
+                />
+                <span style={{ fontSize: 11, color: "var(--as-text3)" }}>→</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => onCustomToChange?.(e.target.value)}
+                  style={{
+                    fontSize: 11,
+                    padding: "3px 6px",
+                    border: "1px solid var(--as-border)",
+                    borderRadius: 4,
+                    background: "var(--as-surface)",
+                    color: "var(--as-text)",
+                  }}
+                  aria-label="Data final"
+                  data-testid="admin-custom-to"
+                />
+              </div>
+            )}
             {topbarExtras}
             <button
               type="button"
