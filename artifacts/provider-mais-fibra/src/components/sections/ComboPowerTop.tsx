@@ -63,7 +63,7 @@ export default function ComboPowerTop() {
 
       {/* 2. 900 mega + plus + WATCH/POWERTOP */}
       <div
-        className="flex items-center justify-center"
+        className="flex flex-col sm:flex-row items-center justify-center"
         style={{ gap: 17 }}
       >
         <img src={img900} alt="900 mega" width={232} height={85} style={{ display: "block" }} />
