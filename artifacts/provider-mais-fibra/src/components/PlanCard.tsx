@@ -160,10 +160,6 @@ export default function PlanCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.08, duration: 0.45 }}
       data-testid={`plan-card-${plan.speed}${idSuffix}`}
       className="plans-section__card relative flex flex-col w-full sm:w-[295px] sm:h-[490px]"
       style={{

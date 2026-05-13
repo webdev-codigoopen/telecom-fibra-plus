@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useRef, useState, useCallback } from "react";
 import { usePlans } from "../../hooks/usePlans";
 import PlanCard from "../PlanCard";
@@ -44,10 +43,7 @@ export default function Hero() {
       }}
     >
       <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-0">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+        <div
           className="text-center mx-auto"
           style={{ paddingTop: 21, paddingBottom: 21, marginBottom: 20 }}
         >
@@ -64,7 +60,7 @@ export default function Hero() {
             A <span style={{ fontWeight: 800 }}>conexão</span> ideal para o seu dia a dia está na{" "}
             <span style={{ fontWeight: 800 }}>Provider</span>
           </h2>
-        </motion.div>
+        </div>
 
         {/* Desktop grid — 4 cards × 295px + 3 × 20px gap = 1240px */}
         <div
