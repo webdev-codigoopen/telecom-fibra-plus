@@ -97,8 +97,8 @@ export default function QuemSomos() {
                 transition={{ duration: 0.6 }}
               >
                 <h1
-                  className="text-4xl sm:text-5xl font-black text-white mb-6 leading-tight"
-                  style={{ letterSpacing: "-0.02em" }}
+                  className="text-white mb-6 leading-tight"
+                  style={{ letterSpacing: "-0.02em", fontSize: 40, fontWeight: 500 }}
                 >
                   Conectando o Oeste da Bahia há mais de
                   <span style={{ color: "#95EB1D" }}> 8 anos</span>
