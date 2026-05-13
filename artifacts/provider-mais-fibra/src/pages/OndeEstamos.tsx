@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { MapPin, MessageCircle, Phone, Clock, MapPinned, Plus } from "lucide-react";
+import { MapPin, MessageCircle, Phone, Clock, MapPinned } from "lucide-react";
+
+const ICON_PLUS = `${import.meta.env.BASE_URL}images/icons/icone-plus.svg`;
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
@@ -66,7 +68,7 @@ export default function OndeEstamos() {
               >
                 Onde a Provider
                 <span style={{ color: "#95EB1D" }} className="font-semibold text-[#95eb1d] inline-flex items-center gap-1 align-middle">
-                  <Plus size={36} strokeWidth={3} />
+                  <img src={ICON_PLUS} alt="+" className="w-8 h-8" />
                   Fibra
                 </span>{" "}
                 está
