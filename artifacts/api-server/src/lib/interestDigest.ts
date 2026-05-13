@@ -1,16 +1,9 @@
-import { db, demandInterestsTable, appSettingsTable } from "@workspace/db";
-import { and, asc, gt, inArray, sql } from "drizzle-orm";
+import { db, demandInterestsTable, emailReportSubscriptionsTable } from "@workspace/db";
+import { and, asc, eq, gt } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import { logger } from "./logger";
 
 export type DigestFrequency = "daily" | "weekly";
-
-const SETTING_KEYS = [
-  "interest_notification_enabled",
-  "interest_notification_email",
-  "interest_notification_frequency",
-  "interest_digest_last_sent_at",
-] as const;
 
 function escapeHtml(s: string): string {
   return s
@@ -64,24 +57,6 @@ function isDueDigest(
   const elapsed = now.getTime() - lastSentAt.getTime();
   if (frequency === "daily") return elapsed >= 24 * 60 * 60 * 1000;
   return elapsed >= 7 * 24 * 60 * 60 * 1000;
-}
-
-async function readSettings(): Promise<Map<string, string>> {
-  const rows = await db
-    .select({ key: appSettingsTable.key, value: appSettingsTable.value })
-    .from(appSettingsTable)
-    .where(inArray(appSettingsTable.key, SETTING_KEYS as unknown as string[]));
-  return new Map(rows.map((r) => [r.key, r.value]));
-}
-
-async function writeLastSentAt(now: Date): Promise<void> {
-  await db
-    .insert(appSettingsTable)
-    .values({ key: "interest_digest_last_sent_at", value: now.toISOString() })
-    .onConflictDoUpdate({
-      target: appSettingsTable.key,
-      set: { value: now.toISOString(), updatedAt: sql`now()` },
-    });
 }
 
 function buildDigestEmail(
@@ -157,33 +132,9 @@ function buildDigestEmail(
   return { subject, html, text: textLines.join("\n") };
 }
 
-export async function sendDueInterestDigest(now: Date = new Date()): Promise<void> {
-  const settings = await readSettings();
-  const enabled = (settings.get("interest_notification_enabled") ?? "false") === "true";
-  const to = (settings.get("interest_notification_email") ?? "").trim();
-  const frequency = (settings.get("interest_notification_frequency") ?? "instant").trim();
-  if (!enabled || !to) return;
-  if (frequency !== "daily" && frequency !== "weekly") return;
-
-  const lastSentRaw = (settings.get("interest_digest_last_sent_at") ?? "").trim();
-  const lastSentAt = lastSentRaw ? new Date(lastSentRaw) : null;
-  const lastSentValid = lastSentAt && !Number.isNaN(lastSentAt.getTime()) ? lastSentAt : null;
-
-  if (!isDueDigest(frequency as DigestFrequency, lastSentValid, now)) return;
-
-  if (!(await isEmailConfigured())) {
-    logger.warn(
-      { to, frequency },
-      "Interest digest skipped: SMTP not configured",
-    );
-    return;
-  }
-
-  // Fetch interests created after the last digest. If none, still mark as sent
-  // so we don't re-check on every tick — but skip the email itself.
-  const conditions = lastSentValid
-    ? [gt(demandInterestsTable.createdAt, lastSentValid)]
-    : [];
+async function fetchInterestsSince(since: Date | null): Promise<
+  Array<{ city: string; neighborhood: string; whatsapp: string; createdAt: Date }>
+> {
   const baseSelect = db
     .select({
       city: demandInterestsTable.city,
@@ -192,26 +143,81 @@ export async function sendDueInterestDigest(now: Date = new Date()): Promise<voi
       createdAt: demandInterestsTable.createdAt,
     })
     .from(demandInterestsTable);
-  const filtered = conditions.length > 0
-    ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+  const filtered = since
+    ? baseSelect.where(gt(demandInterestsTable.createdAt, since))
     : baseSelect;
-  const rows = await filtered.orderBy(asc(demandInterestsTable.createdAt));
+  return filtered.orderBy(asc(demandInterestsTable.createdAt));
+}
 
-  if (rows.length === 0) {
-    await writeLastSentAt(now);
+export async function sendDueInterestDigest(now: Date = new Date()): Promise<void> {
+  // Fetch all enabled digest subscriptions (daily/weekly).
+  const subs = await db
+    .select()
+    .from(emailReportSubscriptionsTable)
+    .where(
+      and(
+        eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+        eq(emailReportSubscriptionsTable.enabled, true),
+      ),
+    );
+  const digestSubs = subs.filter(
+    (s) => s.frequency === "daily" || s.frequency === "weekly",
+  );
+  if (digestSubs.length === 0) return;
+
+  if (!(await isEmailConfigured())) {
+    logger.warn(
+      { count: digestSubs.length },
+      "Interest digest skipped: SMTP not configured",
+    );
     return;
   }
 
-  const { subject, html, text } = buildDigestEmail(
-    frequency as DigestFrequency,
-    rows,
-    lastSentValid,
-    now,
-  );
-  await sendEmail({ to, subject, html, text });
-  await writeLastSentAt(now);
-  logger.info(
-    { to, frequency, count: rows.length },
-    "Interest digest sent",
-  );
+  // Cache fetched interest rows per "since" timestamp to avoid re-querying for
+  // recipients that share the same cutoff.
+  const rowsCache = new Map<string, Awaited<ReturnType<typeof fetchInterestsSince>>>();
+
+  for (const sub of digestSubs) {
+    try {
+      const frequency = sub.frequency as DigestFrequency;
+      const lastSentAt = sub.lastSentAt ?? null;
+      if (!isDueDigest(frequency, lastSentAt, now)) continue;
+
+      const cacheKey = lastSentAt ? lastSentAt.toISOString() : "__all__";
+      let rows = rowsCache.get(cacheKey);
+      if (!rows) {
+        rows = await fetchInterestsSince(lastSentAt);
+        rowsCache.set(cacheKey, rows);
+      }
+
+      if (rows.length === 0) {
+        await db
+          .update(emailReportSubscriptionsTable)
+          .set({ lastSentAt: now, updatedAt: now })
+          .where(eq(emailReportSubscriptionsTable.id, sub.id));
+        continue;
+      }
+
+      const { subject, html, text } = buildDigestEmail(
+        frequency,
+        rows,
+        lastSentAt,
+        now,
+      );
+      await sendEmail({ to: sub.email, subject, html, text });
+      await db
+        .update(emailReportSubscriptionsTable)
+        .set({ lastSentAt: now, updatedAt: now })
+        .where(eq(emailReportSubscriptionsTable.id, sub.id));
+      logger.info(
+        { to: sub.email, frequency, count: rows.length },
+        "Interest digest sent",
+      );
+    } catch (err) {
+      logger.error(
+        { err, subId: sub.id, email: sub.email },
+        "Failed to send interest digest to recipient",
+      );
+    }
+  }
 }

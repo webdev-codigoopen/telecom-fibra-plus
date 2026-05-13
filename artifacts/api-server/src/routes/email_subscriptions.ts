@@ -155,6 +155,200 @@ const sendNowSchema = z.object({
   frequency: z.enum(["weekly", "monthly"]),
 });
 
+// ---------------------------------------------------------------------------
+// Interest notification recipients (multi-recipient version of the single
+// `interest_notification_email` setting). Stored in the same table with
+// reportType = "interest_notification".
+// ---------------------------------------------------------------------------
+
+const interestCreateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  frequency: z.enum(["instant", "daily", "weekly"]),
+  enabled: z.boolean().optional(),
+});
+
+const interestUpdateSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  frequency: z.enum(["instant", "daily", "weekly"]).optional(),
+  enabled: z.boolean().optional(),
+});
+
+// One-time migration: if no interest_notification rows exist but the legacy
+// single-email setting is configured, seed a subscription from it and disable
+// the legacy flag so we don't double-send.
+async function migrateLegacyInterestEmail(): Promise<void> {
+  try {
+    const existing = await db
+      .select({ id: emailReportSubscriptionsTable.id })
+      .from(emailReportSubscriptionsTable)
+      .where(eq(emailReportSubscriptionsTable.reportType, "interest_notification"))
+      .limit(1);
+    if (existing.length > 0) return;
+    const { appSettingsTable } = await import("@workspace/db");
+    const rows = await db
+      .select({ key: appSettingsTable.key, value: appSettingsTable.value })
+      .from(appSettingsTable);
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const legacyEmail = (map.get("interest_notification_email") ?? "").trim();
+    if (!legacyEmail) return;
+    const legacyEnabled =
+      (map.get("interest_notification_enabled") ?? "false") === "true";
+    const legacyFreqRaw = (map.get("interest_notification_frequency") ?? "instant").trim();
+    const frequency: "instant" | "daily" | "weekly" =
+      legacyFreqRaw === "daily" || legacyFreqRaw === "weekly"
+        ? legacyFreqRaw
+        : "instant";
+    await db
+      .insert(emailReportSubscriptionsTable)
+      .values({
+        email: legacyEmail.toLowerCase(),
+        reportType: "interest_notification",
+        frequency,
+        enabled: legacyEnabled,
+      });
+    // Disable the legacy single-email flag so the old code paths stop firing.
+    await db
+      .insert(appSettingsTable)
+      .values({ key: "interest_notification_enabled", value: "false" })
+      .onConflictDoUpdate({
+        target: appSettingsTable.key,
+        set: { value: "false" },
+      });
+    logger.info(
+      { email: legacyEmail, frequency, enabled: legacyEnabled },
+      "Migrated legacy interest_notification_email to subscriptions table",
+    );
+  } catch (err) {
+    logger.error({ err }, "Failed to migrate legacy interest notification email");
+  }
+}
+
+router.get(
+  "/email-subscriptions/interest-notification",
+  requireAdminKey,
+  async (_req, res) => {
+    try {
+      await migrateLegacyInterestEmail();
+      const rows = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(eq(emailReportSubscriptionsTable.reportType, "interest_notification"))
+        .orderBy(asc(emailReportSubscriptionsTable.createdAt));
+      res.json({ items: rows, emailConfigured: await isEmailConfigured() });
+    } catch (err) {
+      logger.error({ err }, "Failed to list interest notification subscriptions");
+      res.status(500).json({ error: "Failed to list interest notification subscriptions" });
+    }
+  },
+);
+
+router.post(
+  "/email-subscriptions/interest-notification",
+  requireAdminKey,
+  async (req, res) => {
+    const parsed = interestCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Dados inválidos.", details: parsed.error.flatten() });
+      return;
+    }
+    try {
+      const existing = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+            eq(emailReportSubscriptionsTable.email, parsed.data.email),
+          ),
+        );
+      if (existing.length > 0) {
+        res.status(409).json({
+          error: "Esse email já está cadastrado para receber notificações.",
+        });
+        return;
+      }
+      const [row] = await db
+        .insert(emailReportSubscriptionsTable)
+        .values({
+          email: parsed.data.email,
+          frequency: parsed.data.frequency,
+          reportType: "interest_notification",
+          enabled: parsed.data.enabled ?? true,
+        })
+        .returning();
+      res.status(201).json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to create interest notification subscription");
+      res.status(500).json({ error: "Failed to create interest notification subscription" });
+    }
+  },
+);
+
+router.patch(
+  "/email-subscriptions/interest-notification/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = interestUpdateSchema.safeParse(req.body);
+    if (!parsed.success || Object.keys(parsed.data).length === 0) {
+      res.status(400).json({ error: "Dados inválidos." });
+      return;
+    }
+    try {
+      const [row] = await db
+        .update(emailReportSubscriptionsTable)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          ),
+        )
+        .returning();
+      if (!row) {
+        res.status(404).json({ error: "Não encontrado." });
+        return;
+      }
+      res.json(row);
+    } catch (err) {
+      logger.error({ err }, "Failed to update interest notification subscription");
+      res.status(500).json({ error: "Failed to update interest notification subscription" });
+    }
+  },
+);
+
+router.delete(
+  "/email-subscriptions/interest-notification/:id",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    try {
+      await db
+        .delete(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          ),
+        );
+      res.json({ ok: true });
+    } catch (err) {
+      logger.error({ err }, "Failed to delete interest notification subscription");
+      res.status(500).json({ error: "Failed to delete interest notification subscription" });
+    }
+  },
+);
+
 router.post(
   "/email-subscriptions/city-comparison/:id/send-now",
   requireAdminKey,

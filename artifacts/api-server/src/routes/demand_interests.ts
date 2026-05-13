@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { createHash } from "crypto";
-import { db, demandInterestsTable, planClicksTable, appSettingsTable } from "@workspace/db";
+import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailReportSubscriptionsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { logger } from "../lib/logger";
@@ -170,7 +170,24 @@ async function notifyAdminOfNewInterest(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
-    const rows = await db
+    // Collect all enabled "instant" recipients from the subscriptions table.
+    const subs = await db
+      .select({
+        email: emailReportSubscriptionsTable.email,
+      })
+      .from(emailReportSubscriptionsTable)
+      .where(
+        and(
+          eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          eq(emailReportSubscriptionsTable.frequency, "instant"),
+          eq(emailReportSubscriptionsTable.enabled, true),
+        ),
+      );
+
+    // Backward-compat: if the legacy single-email setting is still enabled and
+    // set to "instant", include it too. This keeps things working until the
+    // admin opens the new UI (which migrates the legacy setting away).
+    const settingRows = await db
       .select({ key: appSettingsTable.key, value: appSettingsTable.value })
       .from(appSettingsTable)
       .where(
@@ -180,16 +197,22 @@ async function notifyAdminOfNewInterest(payload: {
           "interest_notification_frequency",
         ]),
       );
-    const map = new Map(rows.map((r) => [r.key, r.value]));
-    const enabled = (map.get("interest_notification_enabled") ?? "false") === "true";
-    const to = (map.get("interest_notification_email") ?? "").trim();
-    const frequency = (map.get("interest_notification_frequency") ?? "instant").trim();
-    if (!enabled || !to) return;
-    // Daily/weekly digests are sent by the scheduler — skip per-event email.
-    if (frequency !== "instant") return;
+    const settingsMap = new Map(settingRows.map((r) => [r.key, r.value]));
+    const legacyEnabled =
+      (settingsMap.get("interest_notification_enabled") ?? "false") === "true";
+    const legacyEmail = (settingsMap.get("interest_notification_email") ?? "").trim();
+    const legacyFreq = (settingsMap.get("interest_notification_frequency") ?? "instant").trim();
+
+    const recipients = new Set<string>();
+    for (const s of subs) recipients.add(s.email.trim().toLowerCase());
+    if (legacyEnabled && legacyEmail && legacyFreq === "instant") {
+      recipients.add(legacyEmail.toLowerCase());
+    }
+    if (recipients.size === 0) return;
+
     if (!(await isEmailConfigured())) {
       logger.warn(
-        { to },
+        { count: recipients.size },
         "Interest notification skipped: SMTP not configured",
       );
       return;
@@ -230,7 +253,13 @@ async function notifyAdminOfNewInterest(payload: {
       `Recebido em: ${timestampDisplay}`,
       `Link: ${link}`,
     ].join("\n");
-    await sendEmail({ to, subject, html, text });
+    await Promise.all(
+      Array.from(recipients).map((to) =>
+        sendEmail({ to, subject, html, text }).catch((err) => {
+          logger.error({ err, to }, "Failed to send interest notification email to recipient");
+        }),
+      ),
+    );
   } catch (err) {
     logger.error({ err }, "Failed to send interest notification email");
   }

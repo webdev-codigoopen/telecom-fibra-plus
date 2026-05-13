@@ -1070,10 +1070,8 @@ export default function Admin() {
         {!loading && activeTab === "interesses" && (
           <div className="space-y-6">
             <InterestNotificationSettings
-              settings={appSettings}
               adminKey={adminKey}
               baseUrl={baseUrl}
-              onChange={fetchAppSettingsAdmin}
             />
             <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
@@ -4699,182 +4697,352 @@ function EmailReportSubscriptionsManager({
 }
 
 type InterestNotificationSettingsProps = {
-  settings: AppSettings;
   adminKey: string;
   baseUrl: string;
-  onChange: () => void | Promise<void>;
 };
 
+type InterestRecipient = {
+  id: number;
+  email: string;
+  reportType: string;
+  frequency: "instant" | "daily" | "weekly";
+  enabled: boolean;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function interestFreqLabel(f: "instant" | "daily" | "weekly"): string {
+  if (f === "instant") return "Instantâneo (1 email por cadastro)";
+  if (f === "daily") return "Diário (resumo)";
+  return "Semanal (resumo)";
+}
+
 function InterestNotificationSettings({
-  settings,
   adminKey,
   baseUrl,
-  onChange,
 }: InterestNotificationSettingsProps) {
-  const [email, setEmail] = useState(settings.interest_notification_email);
-  const [enabled, setEnabled] = useState(
-    settings.interest_notification_enabled === "true",
-  );
-  const initialFrequency =
-    settings.interest_notification_frequency === "daily" ||
-    settings.interest_notification_frequency === "weekly"
-      ? settings.interest_notification_frequency
-      : "instant";
-  const [frequency, setFrequency] = useState<"instant" | "daily" | "weekly">(
-    initialFrequency,
-  );
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [items, setItems] = useState<InterestRecipient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [emailConfigured, setEmailConfigured] = useState<boolean>(true);
+  const [newEmail, setNewEmail] = useState("");
+  const [newFreq, setNewFreq] = useState<"instant" | "daily" | "weekly">("instant");
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    setEmail(settings.interest_notification_email);
-    setEnabled(settings.interest_notification_enabled === "true");
-    setFrequency(
-      settings.interest_notification_frequency === "daily" ||
-        settings.interest_notification_frequency === "weekly"
-        ? settings.interest_notification_frequency
-        : "instant",
-    );
-  }, [
-    settings.interest_notification_email,
-    settings.interest_notification_enabled,
-    settings.interest_notification_frequency,
-  ]);
-
-  const currentFrequencyNormalized =
-    settings.interest_notification_frequency === "daily" ||
-    settings.interest_notification_frequency === "weekly"
-      ? settings.interest_notification_frequency
-      : "instant";
-  const dirty =
-    email.trim() !== settings.interest_notification_email ||
-    String(enabled) !== settings.interest_notification_enabled ||
-    frequency !== currentFrequencyNormalized;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await adminFetch(`${baseUrl}/api/settings`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${adminKey}`,
-        },
-        body: JSON.stringify({
-          interest_notification_email: email.trim(),
-          interest_notification_enabled: enabled ? "true" : "false",
-          interest_notification_frequency: frequency,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? `HTTP ${res.status}`);
-      }
-      setSavedAt(Date.now());
-      await onChange();
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar.");
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: { items: InterestRecipient[]; emailConfigured: boolean } =
+        await res.json();
+      setItems(data.items);
+      setEmailConfigured(data.emailConfigured);
+    } catch {
+      setErrorMsg("Não foi possível carregar os destinatários.");
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({ email: newEmail.trim(), frequency: newFreq }),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}) as { error?: string });
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setNewEmail("");
+      setNewFreq("instant");
+      setFeedback("Destinatário adicionado.");
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível adicionar.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function toggleEnabled(sub: InterestRecipient) {
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification/${sub.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({ enabled: !sub.enabled }),
+        },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível atualizar o destinatário.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function changeFrequency(sub: InterestRecipient, freq: "instant" | "daily" | "weekly") {
+    if (freq === sub.frequency) return;
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification/${sub.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({ frequency: freq }),
+        },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível atualizar a frequência.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(sub: InterestRecipient) {
+    if (!confirm(`Remover ${sub.email}?`)) return;
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification/${sub.id}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível remover o destinatário.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function formatTimestamp(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   return (
     <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
-      <header className="mb-4">
+      <header className="mb-5">
         <h2 className="font-bold text-[#0D0D0D] text-base">
           Notificação por email
         </h2>
         <p className="text-sm text-[#7A7F8C] mt-1">
-          Receba um email com os novos cadastros feitos em{" "}
+          Cadastre quantos destinatários quiser para receber os novos cadastros
+          feitos em{" "}
           <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>,
           com cidade, bairro, WhatsApp e link direto para iniciar a conversa.
-          Escolha "instantâneo" para receber um email a cada cadastro, ou um
-          resumo "diário" / "semanal" agrupando todos os interesses do período.
+          Cada destinatário pode escolher "instantâneo" (1 email por cadastro)
+          ou um resumo "diário" / "semanal".
         </p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[260px]">
-            <span>Email do destinatário</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="time@providermaisfibra.com.br"
-              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
-              data-testid="interest-notification-email"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] min-w-[160px]">
-            <span>Frequência</span>
-            <select
-              value={frequency}
-              onChange={(e) =>
-                setFrequency(e.target.value as "instant" | "daily" | "weekly")
-              }
-              className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
-              data-testid="interest-notification-frequency"
-            >
-              <option value="instant">Instantâneo (1 email por cadastro)</option>
-              <option value="daily">Diário (resumo)</option>
-              <option value="weekly">Semanal (resumo)</option>
-            </select>
-          </label>
-          <label
-            className="flex items-center gap-2 text-sm text-[#2A2D38] pb-2"
-            data-testid="interest-notification-enabled-label"
-          >
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="h-4 w-4 accent-[#0040FF]"
-              data-testid="interest-notification-enabled"
-            />
-            Enviar emails
-          </label>
+      {!emailConfigured && (
+        <div
+          className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 mb-4 text-sm"
+          data-testid="interest-email-not-configured-warning"
+        >
+          <strong>Envio de email ainda não configurado.</strong> Configure o
+          SMTP na aba "Relatórios por email" para que as notificações sejam
+          enviadas. Você pode cadastrar destinatários mesmo assim.
         </div>
+      )}
 
-        {enabled && frequency !== "instant" && (
-          <p className="text-xs text-[#7A7F8C]">
-            O resumo {frequency === "daily" ? "diário" : "semanal"} é enviado
-            automaticamente a cada {frequency === "daily" ? "24 horas" : "7 dias"}{" "}
-            com todos os interesses recebidos no período. Períodos sem novos
-            cadastros não geram email.
-          </p>
-        )}
-
-        {errorMsg && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
-            {errorMsg}
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            type="submit"
-            disabled={saving || !dirty}
-            className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all hover:opacity-90 disabled:opacity-60"
-            style={{ background: "#122AD5" }}
-            data-testid="interest-notification-save"
+      <form
+        onSubmit={handleAdd}
+        className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-[#E0E3EB] bg-[#F8FAFF]"
+      >
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[220px]">
+          <span>Email do destinatário</span>
+          <input
+            type="email"
+            required
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="time@providermaisfibra.com.br"
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-notification-email"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Frequência</span>
+          <select
+            value={newFreq}
+            onChange={(e) =>
+              setNewFreq(e.target.value as "instant" | "daily" | "weekly")
+            }
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-notification-frequency"
           >
-            {saving ? "Salvando..." : "Salvar"}
-          </button>
-          {savedAt && !dirty && (
-            <span className="text-xs text-[#0A1995] font-semibold">Salvo!</span>
-          )}
-          {enabled && !email.trim() && (
-            <span className="text-xs text-amber-700">
-              Informe um email para começar a receber notificações.
-            </span>
-          )}
-        </div>
+            <option value="instant">Instantâneo (1 email por cadastro)</option>
+            <option value="daily">Diário (resumo)</option>
+            <option value="weekly">Semanal (resumo)</option>
+          </select>
+        </label>
+        <button
+          type="submit"
+          disabled={submitting || !newEmail.trim()}
+          className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+          data-testid="interest-notification-add"
+        >
+          {submitting ? "Adicionando..." : "Adicionar destinatário"}
+        </button>
       </form>
+
+      {feedback && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-2 text-sm mb-4">
+          {feedback}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="text-xs text-[#7A7F8C] mb-2">
+        {loading
+          ? "Carregando..."
+          : items.length === 1
+            ? "1 destinatário cadastrado"
+            : `${items.length} destinatários cadastrados`}
+      </div>
+
+      {!loading && items.length === 0 ? (
+        <div className="text-center text-[#7A7F8C] py-12 border border-dashed border-[#E0E3EB] rounded-xl">
+          Nenhum destinatário cadastrado ainda.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#E0E3EB] rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F5F7FA] text-[#7A7F8C] text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Email</th>
+                <th className="text-left px-3 py-2 font-semibold">Frequência</th>
+                <th className="text-left px-3 py-2 font-semibold">Status</th>
+                <th className="text-left px-3 py-2 font-semibold">Último envio</th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((sub) => (
+                <tr
+                  key={sub.id}
+                  className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
+                  data-testid={`interest-notification-row-${sub.id}`}
+                >
+                  <td className="px-3 py-2 text-[#0D0D0D] font-medium">
+                    {sub.email}
+                  </td>
+                  <td className="px-3 py-2 text-[#2A2D38]">
+                    <select
+                      value={sub.frequency}
+                      onChange={(e) =>
+                        void changeFrequency(
+                          sub,
+                          e.target.value as "instant" | "daily" | "weekly",
+                        )
+                      }
+                      disabled={busyId === sub.id}
+                      className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-xs text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 disabled:opacity-50"
+                      data-testid={`interest-notification-frequency-${sub.id}`}
+                    >
+                      <option value="instant">{interestFreqLabel("instant")}</option>
+                      <option value="daily">{interestFreqLabel("daily")}</option>
+                      <option value="weekly">{interestFreqLabel("weekly")}</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        sub.enabled
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB]"
+                      }`}
+                    >
+                      {sub.enabled ? "Ativo" : "Pausado"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
+                    {formatTimestamp(sub.lastSentAt)}
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <div className="inline-flex flex-wrap gap-1.5 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void toggleEnabled(sub)}
+                        disabled={busyId === sub.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                        data-testid={`interest-notification-toggle-${sub.id}`}
+                      >
+                        {sub.enabled ? "Pausar" : "Ativar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(sub)}
+                        disabled={busyId === sub.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
+                        data-testid={`interest-notification-remove-${sub.id}`}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
