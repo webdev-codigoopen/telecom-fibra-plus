@@ -61,13 +61,6 @@ export default function OndeEstamos() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
-              >
-                <MapPin size={12} style={{ color: "#95EB1D" }} />
-                <span className="text-[#95EB1D]">Nossas Cidades</span>
-              </div>
               <h1
                 className="text-4xl sm:text-5xl font-black text-white mb-4"
                 style={{ letterSpacing: "-0.02em" }}
