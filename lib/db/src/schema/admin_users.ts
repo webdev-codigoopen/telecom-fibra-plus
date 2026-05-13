@@ -26,12 +26,10 @@ export const adminAuditLogTable = pgTable("admin_audit_log", {
   userId: integer("user_id"),
   email: text("email"),
   action: text("action").notNull(),
-  method: text("method").notNull(),
-  path: text("path").notNull(),
+  target: text("target"),
+  payloadSummary: jsonb("payload_summary").$type<Record<string, unknown>>(),
   ip: text("ip"),
   userAgent: text("user_agent"),
-  status: text("status").notNull().default("ok"),
-  payload: jsonb("payload"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

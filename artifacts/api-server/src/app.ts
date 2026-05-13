@@ -93,9 +93,10 @@ app.use(cookieParser());
 
 // ---------------------------------------------------------------------------
 // Rate limiting. A wide global limit catches scraping and abuse, and a tight
-// limit on admin-protected endpoints catches credential-stuffing style attacks
-// against the X-Admin-Key header. Public form endpoints (/contact, /demand)
-// keep their own per-IP buckets with stricter business rules.
+// limit on admin-authenticated requests catches credential-stuffing style
+// attacks against the Authorization: Bearer header / pmf_admin cookie.
+// Public form endpoints (/contact, /demand) keep their own per-IP buckets
+// with stricter business rules.
 // ---------------------------------------------------------------------------
 const skipReadHealth = (req: Request) =>
   req.path === "/health" || req.path === "/healthz";
@@ -119,20 +120,26 @@ const adminLimiter = rateLimit({
 });
 
 app.use("/api", globalLimiter);
-// Tighten any request that carries the admin header (login attempts and
-// authenticated mutations alike). This caps brute-force attempts on the key.
+// Tighten any request that carries an admin credential (login attempts and
+// authenticated mutations alike). This caps brute-force attempts on the JWT.
 app.use("/api", (req, res, next) => {
-  if (req.headers["x-admin-key"]) {
+  const authz = req.headers["authorization"];
+  const cookies = (req as unknown as { cookies?: Record<string, string> })
+    .cookies;
+  const hasBearer = typeof authz === "string" && /^bearer\s+\S+/i.test(authz);
+  const hasCookie = !!cookies?.["pmf_admin"];
+  if (hasBearer || hasCookie) {
     adminLimiter(req, res, next);
     return;
   }
   next();
 });
 
-// CSRF protection. Enforced only on cookie-authenticated mutations; header-bearer
-// requests (X-Admin-Key / Authorization: Bearer) are CSRF-immune by construction
-// and skipped inside the middleware. The /auth/csrf endpoint and /auth/login are
-// excluded so the SPA can bootstrap a token and submit credentials.
+// CSRF protection. Enforced on EVERY authenticated mutation regardless of
+// transport (cookie OR Authorization: Bearer). Skipped only for read-only
+// verbs and for unauthenticated public mutations (no cookie + no bearer).
+// The /auth/csrf endpoint and /auth/login are excluded so the SPA can
+// bootstrap a token and submit credentials.
 app.use("/api", (req, res, next) => {
   const p = req.path;
   if (p === "/auth/csrf" || p === "/auth/login") {

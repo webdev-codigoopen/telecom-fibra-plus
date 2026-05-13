@@ -160,7 +160,7 @@ router.get("/admin/audit", requireAdmin, async (req, res) => {
   const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   const conds = [gte(adminAuditLogTable.createdAt, since)];
   if (email) conds.push(eq(adminAuditLogTable.email, email));
-  if (action) conds.push(like(adminAuditLogTable.path, `%${action}%`));
+  if (action) conds.push(like(adminAuditLogTable.action, `%${action}%`));
   const where = conds.length === 1 ? conds[0]! : and(...conds);
   const rows = await db
     .select()

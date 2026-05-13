@@ -4,20 +4,13 @@ import type { Request, Response, NextFunction } from "express";
 // ---------------------------------------------------------------------------
 // CSRF protection — double-submit cookie pattern via csrf-csrf.
 //
-// Threat model: a CSRF attack only works when the browser auto-attaches an
-// auth credential to a forged cross-site request. That happens with our
-// `pmf_admin` session cookie. It does NOT happen with the X-Admin-Key /
-// Authorization: Bearer headers, because no other origin can read or set
-// those headers on the victim's behalf (same-origin policy + CORS).
-//
 // Per task #126 acceptance, CSRF is required for ALL authenticated admin
-// mutations regardless of transport (cookie OR header bearer). The only
-// requests we skip are:
+// mutations regardless of transport (cookie OR Authorization: Bearer).
+// The only requests we skip are:
 //   1. Read-only verbs (GET/HEAD/OPTIONS) — no state change.
 //   2. Public unauthenticated mutations (no `pmf_admin` cookie AND no
-//      header bearer) — these are open endpoints like /clicks and
-//      /demand/interest where there is no auth credential to ride on,
-//      so CSRF is structurally inapplicable.
+//      Authorization: Bearer header) — open endpoints like /clicks and
+//      /demand/interest, where there is no auth credential to ride on.
 //
 // We decide by inspecting the raw request directly (cookies + headers),
 // NOT via `req.adminAuthSource`, because the CSRF middleware runs BEFORE
@@ -64,9 +57,6 @@ export function issueCsrfToken(req: Request, res: Response): string {
 }
 
 function hasHeaderBearer(req: Request): boolean {
-  const xKey = req.headers["x-admin-key"];
-  if (typeof xKey === "string" && xKey.length > 0) return true;
-  if (Array.isArray(xKey) && xKey.some((v) => v && v.length > 0)) return true;
   const authz = req.headers["authorization"];
   if (typeof authz === "string" && /^bearer\s+\S+/i.test(authz)) return true;
   return false;

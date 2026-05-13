@@ -219,7 +219,7 @@ export default function Admin() {
   const fetchAppSettingsAdmin = useCallback(async () => {
     try {
       const res = await adminFetch(`${baseUrl}/api/settings/admin`, {
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ` },
       });
       if (!res.ok) return;
       const data = (await res.json()) as Partial<AppSettings>;
@@ -492,13 +492,13 @@ export default function Admin() {
       const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
 
       const [statsRes, sourcesRes, prevRes, tsRes, healthRes] = await Promise.all([
-        adminFetch(url, { headers: { "X-Admin-Key": key } }),
-        adminFetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(url, { headers: { Authorization: `Bearer ` } }),
+        adminFetch(`${baseUrl}/api/clicks/sources`, { headers: { Authorization: `Bearer ` } }),
         hasPrevious
-          ? adminFetch(prevUrl, { headers: { "X-Admin-Key": key } })
+          ? adminFetch(prevUrl, { headers: { Authorization: `Bearer ` } })
           : Promise.resolve(null),
-        adminFetch(tsUrl, { headers: { "X-Admin-Key": key } }),
-        adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(tsUrl, { headers: { Authorization: `Bearer ` } }),
+        adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { Authorization: `Bearer ` } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -546,7 +546,7 @@ export default function Admin() {
     setError(null);
     try {
       const verify = await adminFetch(`${baseUrl}/api/plans/admin/verify`, {
-        headers: { "X-Admin-Key": key },
+        headers: { Authorization: `Bearer ` },
       });
       if (verify.status === 401) {
         setAuthed(false);
@@ -558,7 +558,7 @@ export default function Admin() {
 
       const stored = loadStoredFilters();
       const [plansRes] = await Promise.all([
-        adminFetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(`${baseUrl}/api/plans`, { headers: { Authorization: `Bearer ` } }),
         fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, stored.city),
         fetchStreamingBrands(),
         fetchAppSettingsAdmin(),
@@ -671,7 +671,7 @@ export default function Admin() {
         method,
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify(plan),
       });
@@ -695,7 +695,7 @@ export default function Admin() {
     try {
       const res = await adminFetch(`${baseUrl}/api/plans/${id}`, {
         method: "DELETE",
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchPlans(adminKey);
@@ -717,7 +717,7 @@ export default function Admin() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify({ order: newPlans.map((p) => p.id) }),
       });
@@ -1267,7 +1267,7 @@ export default function Admin() {
                         const qs = params.toString();
                         const res = await adminFetch(
                           `${baseUrl}/api/clicks/export${qs ? `?${qs}` : ""}`,
-                          { headers: { "X-Admin-Key": adminKey } },
+                          { headers: { Authorization: `Bearer ` } },
                         );
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
@@ -1333,7 +1333,7 @@ export default function Admin() {
                         const qs = params.toString();
                         const res = await adminFetch(
                           `${baseUrl}/api/clicks/export/raw${qs ? `?${qs}` : ""}`,
-                          { headers: { "X-Admin-Key": adminKey } },
+                          { headers: { Authorization: `Bearer ` } },
                         );
                         if (!res.ok) throw new Error(`HTTP ${res.status}`);
                         const blob = await res.blob();
@@ -2325,7 +2325,7 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify({
           name,
@@ -2874,7 +2874,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     try {
       const res = await adminFetch(`${baseUrl}/api/streaming-brands/reorder`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({ order: next.map((b) => b.id) }),
       });
       if (!res.ok) {
@@ -2927,7 +2927,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     void (async () => {
       try {
         const res = await adminFetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
-          headers: { "X-Admin-Key": adminKey },
+          headers: { Authorization: `Bearer ` },
           signal: controller.signal,
         });
         if (!res.ok) return;
@@ -2974,7 +2974,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     void (async () => {
       try {
         const res = await adminFetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
-          headers: { "X-Admin-Key": adminKey },
+          headers: { Authorization: `Bearer ` },
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;
@@ -3024,7 +3024,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     try {
       const reqRes = await adminFetch(`${baseUrl}/api/storage/uploads/request-url`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
       });
       if (!reqRes.ok) throw new Error("Falha ao obter URL de upload.");
@@ -3059,7 +3059,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
       const method = editing ? "PUT" : "POST";
       const res = await adminFetch(url, {
         method,
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body,
       });
       if (!res.ok) {
@@ -3088,7 +3088,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     try {
       const res = await adminFetch(`${baseUrl}/api/streaming-brands/${id}`, {
         method: "DELETE",
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ` },
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -3481,7 +3481,7 @@ function CtaSettingsManager({ settings, adminKey, baseUrl, onChange }: CtaSettin
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify({
           whatsapp_number: form.whatsapp_number.trim(),
@@ -3700,10 +3700,10 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
       const qs = params.toString();
       const [listRes, citiesRes] = await Promise.all([
         adminFetch(`${baseUrl}/api/demand/interests${qs ? `?${qs}` : ""}`, {
-          headers: { "X-Admin-Key": adminKey },
+          headers: { Authorization: `Bearer ` },
         }),
         adminFetch(`${baseUrl}/api/demand/interests/cities`, {
-          headers: { "X-Admin-Key": adminKey },
+          headers: { Authorization: `Bearer ` },
         }),
       ]);
       if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
@@ -3729,7 +3729,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
     try {
       const res = await adminFetch(`${baseUrl}/api/demand/interests/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3771,7 +3771,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
       const qs = params.toString();
       const res = await adminFetch(
         `${baseUrl}/api/demand/interests/export${qs ? `?${qs}` : ""}`,
-        { headers: { "X-Admin-Key": adminKey } },
+        { headers: { Authorization: `Bearer ` } },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
@@ -4073,7 +4073,7 @@ function EmailReportSubscriptionsManager({
     try {
       const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison`,
-        { headers: { "X-Admin-Key": adminKey } },
+        { headers: { Authorization: `Bearer ` } },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: { items: EmailSubscription[]; emailConfigured: boolean } =
@@ -4103,7 +4103,7 @@ function EmailReportSubscriptionsManager({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Admin-Key": adminKey,
+            Authorization: `Bearer `,
           },
           body: JSON.stringify({ email: newEmail.trim(), frequency: newFreq }),
         },
@@ -4135,7 +4135,7 @@ function EmailReportSubscriptionsManager({
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            "X-Admin-Key": adminKey,
+            Authorization: `Bearer `,
           },
           body: JSON.stringify({ enabled: !sub.enabled }),
         },
@@ -4156,7 +4156,7 @@ function EmailReportSubscriptionsManager({
     try {
       const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison/${sub.id}`,
-        { method: "DELETE", headers: { "X-Admin-Key": adminKey } },
+        { method: "DELETE", headers: { Authorization: `Bearer ` } },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchData();
@@ -4178,7 +4178,7 @@ function EmailReportSubscriptionsManager({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-Admin-Key": adminKey,
+            Authorization: `Bearer `,
           },
           body: JSON.stringify({ frequency: sub.frequency }),
         },
@@ -4429,7 +4429,7 @@ function InterestNotificationSettings({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify({
           interest_notification_email: email.trim(),
@@ -4575,7 +4575,7 @@ function RecaptchaSettings({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          "X-Admin-Key": adminKey,
+          Authorization: `Bearer `,
         },
         body: JSON.stringify({
           recaptcha_enabled: enabled ? "true" : "false",
@@ -4776,7 +4776,7 @@ function MarketingSettings({ settings, adminKey, baseUrl, onChange }: MarketingS
     try {
       const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({
           ga4_measurement_id: ga4.trim(),
           gtm_container_id: gtm.trim(),
@@ -4989,7 +4989,7 @@ function ReviewsSettings({ settings, adminKey, baseUrl, onChange }: MarketingSet
     try {
       const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({
           gmb_profile_url: profileUrl.trim(),
           google_places_api_key: apiKey.trim(),
@@ -5022,7 +5022,7 @@ function ReviewsSettings({ settings, adminKey, baseUrl, onChange }: MarketingSet
     try {
       const res = await adminFetch(`${baseUrl}/api/reviews/import-google`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
@@ -5203,7 +5203,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
     setErr(null);
     try {
       const res = await adminFetch(`${baseUrl}/api/reviews/admin`, {
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ` },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as AdminReview[];
@@ -5225,7 +5225,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
   async function toggleVisible(r: AdminReview) {
     await adminFetch(`${baseUrl}/api/reviews/${r.id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
       body: JSON.stringify({ visible: !r.visible }),
     });
     void reload();
@@ -5235,7 +5235,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
     if (!confirm(`Excluir a avaliação de ${r.authorName}?`)) return;
     await adminFetch(`${baseUrl}/api/reviews/${r.id}`, {
       method: "DELETE",
-      headers: { "X-Admin-Key": adminKey },
+      headers: { Authorization: `Bearer ` },
     });
     void reload();
   }
@@ -5247,7 +5247,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
     try {
       await adminFetch(`${baseUrl}/api/reviews`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({
           authorName: name.trim(),
           rating: parseInt(rating, 10),
@@ -5445,7 +5445,7 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
     try {
       const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({
           smtp_host: host.trim(),
           smtp_port: port.trim(),
@@ -5484,7 +5484,7 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
     try {
       const res = await adminFetch(`${baseUrl}/api/settings/smtp/test`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ` },
         body: JSON.stringify({ to: testTo.trim() }),
       });
       const body = await res.json().catch(() => ({}));
@@ -5685,11 +5685,10 @@ type AuditLogItem = {
   userId: number | null;
   email: string | null;
   action: string;
-  method: string;
-  path: string;
+  target: string | null;
+  payloadSummary: Record<string, unknown> | null;
   ip: string | null;
   userAgent: string | null;
-  status: string;
   createdAt: string;
 };
 
@@ -5709,7 +5708,7 @@ function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
       if (emailFilter.trim()) qs.set("email", emailFilter.trim());
       if (actionFilter.trim()) qs.set("action", actionFilter.trim());
       const res = await adminFetch(`${baseUrl}/api/admin/audit?${qs.toString()}`, {
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ${adminKey}` },
         credentials: "include",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -5746,7 +5745,7 @@ function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
         />
         <input
           type="text"
-          placeholder="Filtrar por endpoint (ex: /plans)"
+          placeholder="Filtrar por ação (ex: update:plans)"
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
           className="px-3 py-1.5 text-sm border border-[#E0E3EB] rounded-md min-w-[220px]"
@@ -5773,10 +5772,10 @@ function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
             <tr className="text-left text-xs text-[#7A7F8C] border-b border-[#E0E3EB]">
               <th className="py-2 pr-3">Data</th>
               <th className="py-2 pr-3">Usuário</th>
-              <th className="py-2 pr-3">Método</th>
-              <th className="py-2 pr-3">Endpoint</th>
+              <th className="py-2 pr-3">Ação</th>
+              <th className="py-2 pr-3">Alvo</th>
               <th className="py-2 pr-3">IP</th>
-              <th className="py-2 pr-3">Status</th>
+              <th className="py-2 pr-3">Resumo</th>
             </tr>
           </thead>
           <tbody>
@@ -5791,13 +5790,11 @@ function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
                   {new Date(it.createdAt).toLocaleString("pt-BR")}
                 </td>
                 <td className="py-2 pr-3 text-[#0D0D0D]">{it.email ?? "—"}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C]">{it.method}</td>
-                <td className="py-2 pr-3 font-mono text-xs text-[#0D0D0D] break-all">{it.path}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#0D0D0D]">{it.action}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C] break-all">{it.target ?? "—"}</td>
                 <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C]">{it.ip ?? "—"}</td>
-                <td className="py-2 pr-3">
-                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-                    it.status === "ok" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
-                  }`}>{it.status}</span>
+                <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C] break-all">
+                  {it.payloadSummary ? JSON.stringify(it.payloadSummary) : "—"}
                 </td>
               </tr>
             ))}
@@ -5823,7 +5820,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
     try {
       const res = await adminFetch(`${baseUrl}/api/auth/me`, {
         credentials: "include",
-        headers: { "X-Admin-Key": adminKey },
+        headers: { Authorization: `Bearer ` },
       });
       if (!res.ok) return;
       const data = (await res.json()) as { totpEnabled?: boolean; recoveryCodesRemaining?: number };
@@ -5841,7 +5838,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
       const res = await adminFetch(`${baseUrl}/api/auth/2fa/setup`, {
         method: "POST",
         credentials: "include",
-        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer `, "Content-Type": "application/json" },
         body: "{}",
       });
       const data = await res.json().catch(() => ({}));
@@ -5862,7 +5859,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
       const res = await adminFetch(`${baseUrl}/api/auth/2fa/enable`, {
         method: "POST",
         credentials: "include",
-        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer `, "Content-Type": "application/json" },
         body: JSON.stringify({ code: code.trim() }),
       });
       const data = await res.json().catch(() => ({}));
@@ -5886,7 +5883,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
       const res = await adminFetch(`${baseUrl}/api/auth/2fa/disable`, {
         method: "POST",
         credentials: "include",
-        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer `, "Content-Type": "application/json" },
         body: JSON.stringify({ password: disablePassword }),
       });
       const data = await res.json().catch(() => ({}));
