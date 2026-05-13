@@ -34,9 +34,6 @@ type BotSummary = {
   otherHumans: number;
 };
 
-type InterestRow = { id: number };
-type InterestsResponse = { rows?: InterestRow[] } | InterestRow[];
-
 type Props = {
   adminKey: string;
   baseUrl: string;
@@ -66,11 +63,8 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
     if (until) params.set("until", until);
     const seriesParams = new URLSearchParams(params);
     seriesParams.set("bucket", "day");
-    const interestParams = new URLSearchParams(params);
-    interestParams.set("limit", "1000");
     const qs = params.toString() ? `?${params.toString()}` : "";
     const sQs = `?${seriesParams.toString()}`;
-    const iQs = `?${interestParams.toString()}`;
     Promise.all([
       adminFetch(`${baseUrl}/api/clicks/stats${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
@@ -81,17 +75,16 @@ export default function DashboardOverview({ adminKey, baseUrl, since, until }: P
       adminFetch(`${baseUrl}/api/clicks/bot-summary${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
       }).then((r) => (r.ok ? r.json() : null)) as Promise<BotSummary | null>,
-      adminFetch(`${baseUrl}/api/demand/interests${iQs}`, {
+      adminFetch(`${baseUrl}/api/demand/interests/count${qs}`, {
         headers: { Authorization: `Bearer ${adminKey}` },
-      }).then((r) => (r.ok ? r.json() : null)) as Promise<InterestsResponse | null>,
+      }).then((r) => (r.ok ? r.json() : null)) as Promise<{ total?: number } | null>,
     ])
       .then(([s, t, b, i]) => {
         if (cancelled) return;
         setStats(Array.isArray(s) ? s : []);
         setSeries(Array.isArray(t) ? t : []);
         setBots(b);
-        const rows = Array.isArray(i) ? i : (i?.rows ?? []);
-        setInterestCount(Array.isArray(rows) ? rows.length : 0);
+        setInterestCount(typeof i?.total === "number" ? i.total : 0);
       })
       .catch(() => {
         if (cancelled) return;

@@ -330,6 +330,30 @@ function parseDate(value: unknown): Date | undefined {
   return d;
 }
 
+router.get("/demand/interests/count", requireAdminKey, async (req, res) => {
+  try {
+    const sinceDate = parseDate(req.query["since"]);
+    const untilDate = parseDate(req.query["until"]);
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, MAX_CITY_LEN)
+      : undefined;
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
+    if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
+    if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
+    const baseSelect = db
+      .select({ total: sql<number>`cast(count(*) as int)` })
+      .from(demandInterestsTable);
+    const filtered = conditions.length > 0
+      ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+      : baseSelect;
+    const rows = await filtered;
+    res.json({ total: rows[0]?.total ?? 0 });
+  } catch {
+    res.status(500).json({ error: "Failed to count interests" });
+  }
+});
+
 router.get("/demand/interests", requireAdminKey, async (req, res) => {
   try {
     const sinceDate = parseDate(req.query["since"]);

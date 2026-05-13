@@ -143,7 +143,12 @@ export default function AdminShell({
             <div className="admin-logo-sub">Painel admin</div>
           </div>
         </div>
-        <nav className="admin-sidebar-nav">
+        <nav
+          className="admin-sidebar-nav"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label="Seções do painel"
+        >
           {NAV_GROUPS.map((group) => {
             if (group.collapsible) {
               const isOpen = configOpen || CONFIG_IDS.includes(active);
@@ -176,6 +181,9 @@ export default function AdminShell({
                     <button
                       key={item.id}
                       type="button"
+                      role="tab"
+                      aria-selected={active === item.id}
+                      tabIndex={active === item.id ? 0 : -1}
                       className={`admin-nav-item${active === item.id ? " active" : ""}`}
                       onClick={() => { onChange(item.id); setDrawerOpen(false); }}
                       data-testid={`admin-nav-${item.id}`}
@@ -195,6 +203,9 @@ export default function AdminShell({
                   <button
                     key={item.id}
                     type="button"
+                    role="tab"
+                    aria-selected={active === item.id}
+                    tabIndex={active === item.id ? 0 : -1}
                     className={`admin-nav-item${active === item.id ? " active" : ""}`}
                     onClick={() => { onChange(item.id); setDrawerOpen(false); }}
                     data-testid={`admin-nav-${item.id}`}

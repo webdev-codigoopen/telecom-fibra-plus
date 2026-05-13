@@ -1119,6 +1119,54 @@ export default function Admin() {
     } catch { /* ignore */ }
   };
 
+  const exportCitiesCsv = async () => {
+    const params = new URLSearchParams();
+    if (periodWindow.since) params.set("since", periodWindow.since);
+    if (periodWindow.until) params.set("until", periodWindow.until);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    try {
+      const res = await adminFetch(`${baseUrl}/api/clicks/cities-conversion${qs}`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const rows: Array<{ city?: string; totalClicks?: number; total?: number; conversions?: number }> =
+        Array.isArray(data) ? data : (data?.rows ?? []);
+      const escape = (val: string | number): string => {
+        let s = String(val ?? "");
+        if (s.length > 0 && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+        if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+      };
+      const total = rows.reduce((acc, r) => acc + (r.totalClicks ?? r.total ?? 0), 0);
+      const csvRows = rows
+        .map((r) => ({
+          city: r.city ?? "",
+          clicks: r.totalClicks ?? r.total ?? 0,
+          conversions: r.conversions ?? 0,
+        }))
+        .filter((r) => r.clicks > 0)
+        .sort((a, b) => b.clicks - a.clicks)
+        .map((r) => [
+          escape(r.city),
+          escape(r.clicks),
+          escape(r.conversions),
+          escape(total > 0 ? ((r.clicks / total) * 100).toFixed(1) : "0"),
+        ].join(","));
+      const csv = "\uFEFF" + ["Cidade,Cliques,Conversões,Participação (%)", ...csvRows].join("\n") + "\n";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.download = `cidades-${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
   const handleAdminLogout = async () => {
     try {
       await adminFetch(`${baseUrl}/api/auth/logout`, {
@@ -1150,13 +1198,7 @@ export default function Admin() {
 
   const topbarExtras = (
     <>
-      <details
-        style={{ position: "relative" }}
-        onToggle={(e) => {
-          // close on outside click handled natively by <details>
-          void e;
-        }}
-      >
+      <details style={{ position: "relative" }}>
         <summary
           className="admin-btn-outline"
           style={{ listStyle: "none", cursor: "pointer" }}
@@ -1174,7 +1216,7 @@ export default function Admin() {
             borderRadius: "var(--as-radius-sm)",
             boxShadow: "0 4px 12px rgba(0,0,0,.08)",
             zIndex: 30,
-            minWidth: 180,
+            minWidth: 200,
             overflow: "hidden",
           }}
         >
@@ -1184,7 +1226,7 @@ export default function Admin() {
             style={menuItemStyle}
             data-testid="admin-export-csv"
           >
-            CSV (agregado)
+            Cliques · CSV (agregado)
           </button>
           <button
             type="button"
@@ -1192,7 +1234,15 @@ export default function Admin() {
             style={menuItemStyle}
             data-testid="admin-export-csv-raw"
           >
-            CSV (bruto)
+            Cliques · CSV (bruto)
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportCitiesCsv()}
+            style={menuItemStyle}
+            data-testid="admin-export-cities-csv"
+          >
+            Cidades · CSV
           </button>
         </div>
       </details>
