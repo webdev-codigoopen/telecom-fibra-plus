@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard — Provedor de Internet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#F7F6F3;
+  --surface:#FFFFFF;
+  --border:#E8E6E0;
+  --border2:#D4D1C8;
+  --text:#1A1916;
+  --text2:#6B6860;
+  --text3:#A8A59E;
+  --blue:#185FA5;
+  --blue-lt:#E6F1FB;
+  --blue-md:#378ADD;
+  --green:#3B6D11;
+  --green-lt:#EAF3DE;
+  --amber:#854F0B;
+  --amber-lt:#FAEEDA;
+  --amber-md:#EF9F27;
+  --red:#A32D2D;
+  --red-lt:#FCEBEB;
+  --wpp:#0F6E56;
+  --wpp-lt:#E1F5EE;
+  --radius:10px;
+  --radius-sm:6px;
+  --sidebar:220px;
+  --font:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;display:flex;min-height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.logo-mark{width:28px;height:28px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:500;flex-shrink:0}
+.logo-text{font-size:13px;font-weight:500;color:var(--text)}
+.logo-sub{font-size:11px;color:var(--text3)}
+.sidebar-nav{padding:.75rem 0;flex:1}
+.nav-section{padding:.25rem .75rem .1rem;font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-top:.5rem}
+.nav-item{display:flex;align-items:center;gap:8px;padding:.45rem .85rem;margin:.1rem .5rem;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--text2);transition:background .15s,color .15s}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--blue-lt);color:var(--blue);font-weight:500}
+.nav-item i{font-size:14px;width:16px;text-align:center}
+.sidebar-footer{padding:.75rem;border-top:1px solid var(--border);font-size:11px;color:var(--text3);text-align:center}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.page-title{font-size:15px;font-weight:500}
+.page-sub{font-size:12px;color:var(--text3)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.period-tabs{display:flex;background:var(--bg);border-radius:var(--radius-sm);padding:2px;gap:2px}
+.ptab{font-size:12px;padding:4px 10px;border-radius:4px;cursor:pointer;color:var(--text2);border:none;background:transparent}
+.ptab.act{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.btn-outline{font-size:12px;padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:5px}
+.btn-outline:hover{background:var(--bg)}
+.btn-primary{font-size:12px;padding:5px 14px;border-radius:var(--radius-sm);border:none;background:var(--blue);color:#fff;cursor:pointer}
+
+/* CONTENT */
+.content{padding:1.25rem 1.5rem;flex:1}
+.section-title{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin:1.5rem 0 .65rem}
+.section-title:first-child{margin-top:0}
+
+/* CARDS */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1rem;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent,var(--border))}
+.mc-label{font-size:11px;color:var(--text2);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+.mc-value{font-size:24px;font-weight:300;color:var(--text);font-family:var(--mono);letter-spacing:-.5px}
+.mc-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.up{color:var(--green)}.dn{color:var(--red)}
+.card-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:.75rem;display:flex;justify-content:space-between;align-items:center}
+.card-sub{font-size:11px;font-weight:400;color:var(--text3)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;gap:3px}
+.b-blue{background:var(--blue-lt);color:var(--blue)}
+.b-green{background:var(--green-lt);color:var(--green)}
+.b-amber{background:var(--amber-lt);color:var(--amber)}
+.b-red{background:var(--red-lt);color:var(--red)}
+.b-gray{background:#F1EFE8;color:#5F5E5A}
+.b-wpp{background:var(--wpp-lt);color:var(--wpp)}
+
+/* PILLS / FILTER */
+.pill-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:.85rem}
+.pill{font-size:12px;padding:4px 12px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;color:var(--text2);background:transparent;transition:all .15s}
+.pill:hover{border-color:var(--blue);color:var(--blue)}
+.pill.p-act{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pill.p-g{background:var(--green);color:#fff;border-color:var(--green)}
+.pill.p-a{background:var(--amber);color:#fff;border-color:var(--amber)}
+
+/* LISTS */
+.row-list{list-style:none}
+.row-list li{display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;gap:6px}
+.row-list li:last-child{border-bottom:none}
+.rk{font-size:11px;color:var(--text3);width:16px;flex-shrink:0}
+.nm{flex:1;color:var(--text)}
+.vl{font-size:12px;color:var(--text2)}
+.bar-wrap{width:56px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-left:4px}
+.bar-fill{height:100%;border-radius:2px}
+.city-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* FUNIL */
+.funnel-step{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.funnel-bar{height:26px;border-radius:4px;display:flex;align-items:center;padding:0 10px;font-size:12px;font-weight:500;min-width:50px;transition:width .4s}
+.funnel-label{font-size:12px;color:var(--text2);width:100px;flex-shrink:0}
+.funnel-pct{font-size:11px;color:var(--text3);margin-left:auto;min-width:38px;text-align:right}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:11px;font-weight:500;color:var(--text3);text-align:left;padding:5px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{font-size:12px;color:var(--text);padding:6px 8px;border-bottom:1px solid var(--border)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafaf8}
+
+/* MAP */
+#leafmap{width:100%;height:400px;border-radius:0 0 var(--radius) var(--radius)}
+.map-ctrl{padding:.6rem .9rem;border-bottom:1px solid var(--border);display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.map-footer{padding:.5rem .9rem;font-size:11px;color:var(--text3);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.legend-row{display:flex;gap:12px;flex-wrap:wrap}
+.leg-i{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2)}
+.leg-d{width:9px;height:9px;border-radius:50%}
+
+/* HEATMAP */
+.hm-wrap{display:flex;gap:3px;margin-bottom:3px}
+.hm-lbl{width:26px;font-size:9px;color:var(--text3);text-align:right;flex-shrink:0;line-height:10px;padding-top:0px}
+.hm-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;flex:1}
+.hm-cell{height:10px;border-radius:2px}
+.h0{background:#F1EFE8}.h1{background:#B5D4F4}.h2{background:#378ADD}.h3{background:#185FA5}.h4{background:#042C53}
+
+/* SEG BAR */
+.seg{display:flex;height:7px;border-radius:4px;overflow:hidden;gap:1px;margin:.4rem 0}
+
+/* PLAN CARDS */
+.plan-card{border:1px solid var(--border);border-radius:var(--radius);padding:.85rem 1rem;position:relative}
+.plan-speed{font-size:18px;font-weight:500;font-family:var(--mono)}
+.plan-price{font-size:11px;color:var(--text3);margin-top:1px}
+.plan-stat{font-size:13px;font-weight:500;margin-top:.6rem}
+.plan-conv{font-size:11px;color:var(--text3)}
+.plan-bar{height:3px;background:var(--border);border-radius:2px;margin-top:.6rem;overflow:hidden}
+.plan-bar-fill{height:100%;border-radius:2px;background:var(--blue)}
+
+/* STATUS DOT */
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.pulse{animation:p 2s infinite}
+@keyframes p{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ALERT BOX */
+.alert{border-radius:var(--radius-sm);padding:.7rem .9rem;display:flex;gap:9px;align-items:flex-start;margin-bottom:8px}
+.alert-amber{background:var(--amber-lt);border:1px solid #D4A046}
+.alert-green{background:var(--green-lt);border:1px solid #8BC34A}
+.alert-blue{background:var(--blue-lt);border:1px solid #90BEE8}
+.alert i{font-size:15px;margin-top:1px;flex-shrink:0}
+.alert-txt{font-size:12px;line-height:1.55}
+.alert-title{font-weight:500;font-size:12px;margin-bottom:2px}
+
+/* CHART WRAP */
+.chart-wrap{position:relative;width:100%}
+
+/* DIVIDER */
+hr.dv{border:none;border-top:1px solid var(--border);margin:1.5rem 0}
+
+/* SECTION HEADER WITH ICON */
+.sec-hdr{display:flex;align-items:center;gap:8px;padding:.6rem .85rem;border-radius:var(--radius-sm);margin-bottom:1rem}
+.sec-hdr-wpp{background:var(--wpp-lt);border:1px solid #5DCAA5}
+.sec-hdr-frm{background:var(--blue-lt);border:1px solid #90BEE8}
+.sec-hdr i{font-size:18px}
+.sec-hdr-ttl{font-size:13px;font-weight:500}
+.sec-hdr-sub{font-size:11px;color:var(--text3)}
+
+/* SCROLL */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .sidebar{display:none}
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
+  .content{padding:1rem}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark"><i class="fa-solid fa-wifi" style="font-size:12px"></i></div>
+    <div>
+      <div class="logo-text">NetOeste</div>
+      <div class="logo-sub">Painel admin</div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Visão geral</div>
+    <div class="nav-item active" onclick="showSection('overview')"><i class="fa-solid fa-chart-pie"></i> Dashboard</div>
+    <div class="nav-item" onclick="showSection('map-sec')"><i class="fa-solid fa-map-location-dot"></i> Mapa de cliques</div>
+
+    <div class="nav-section">Canais</div>
+    <div class="nav-item" onclick="showSection('wpp-sec')"><i class="fa-brands fa-whatsapp"></i> WhatsApp</div>
+    <div class="nav-item" onclick="showSection('form-sec')"><i class="fa-solid fa-envelope-open-text"></i> Formulário</div>
+    <div class="nav-item" onclick="showSection('cta-sec')"><i class="fa-solid fa-bullseye"></i> CTAs</div>
+
+    <div class="nav-section">Planos</div>
+    <div class="nav-item" onclick="showSection('plans-sec')"><i class="fa-solid fa-bolt"></i> Desempenho</div>
+    <div class="nav-item" onclick="showSection('cities-sec')"><i class="fa-solid fa-city"></i> Cidades</div>
+
+    <div class="nav-section">Segurança</div>
+    <div class="nav-item" onclick="showSection('bots-sec')"><i class="fa-solid fa-shield-halved"></i> Robôs vs. humanos</div>
+  </nav>
+  <div class="sidebar-footer">v1.0 · Replit Build</div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="page-title">Painel de performance</div>
+        <div class="page-sub" id="topbar-sub">Últimos 30 dias · Atualizado agora</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="period-tabs">
+        <button class="ptab" onclick="setPeriod('hoje',this)">Hoje</button>
+        <button class="ptab" onclick="setPeriod('7',this)">7 dias</button>
+        <button class="ptab act" onclick="setPeriod('30',this)">30 dias</button>
+        <button class="ptab" onclick="setPeriod('90',this)">90 dias</button>
+      </div>
+      <button class="btn-outline"><i class="fa-solid fa-download"></i> Exportar</button>
+      <button class="btn-primary">+ Novo plano</button>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ═══ OVERVIEW KPIs ═══ -->
+    <div id="overview">
+      <div class="section-title">visão geral</div>
+      <div class="grid-4">
+        <div class="metric-card" style="--accent:var(--blue)">
+          <div class="mc-label"><i class="fa-solid fa-eye" style="color:var(--blue)"></i> Acessos totais</div>
+          <div class="mc-value" id="kpi-acessos">1.284</div>
+          <div class="mc-sub"><span class="up">↑ 12%</span> vs período anterior</div>
+        </div>
+        <div class="metric-card" style="--accent:#378ADD">
+          <div class="mc-label"><i class="fa-solid fa-computer-mouse" style="color:var(--blue-md)"></i> Cliques em CTAs</div>
+          <div class="mc-value" id="kpi-cliques">347</div>
+          <div class="mc-sub"><span class="up">↑ 8%</span> · taxa 27%</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--wpp)">
+          <div class="mc-label"><i class="fa-brands fa-whatsapp" style="color:var(--wpp)"></i> Conversões WhatsApp</div>
+          <div class="mc-value" id="kpi-conv">61</div>
+          <div class="mc-sub"><span class="up">↑ 5%</span> · 17,6% dos cliques</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--green)">
+          <div class="mc-label"><i class="fa-solid fa-shield-check" style="color:var(--green)"></i> Robôs detectados</div>
+          <div class="mc-value">0</div>
+          <div class="mc-sub" style="color:var(--green)">Tráfego limpo hoje</div>
+        </div>
+      </div>
+
+      <!-- GRÁFICOS PRINCIPAIS -->
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-title">Cliques por dia <span class="card-sub">últimos 14 dias</span></div>
+          <div class="chart-wrap" style="height:160px"><canvas id="clicksChart" role="img" aria-label="Cliques diários">.</canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Funil de conversão <span class="card-sub">WhatsApp</span></div>
+          <div id="funil-main"></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ PLANOS ═══ -->
+    <div id="plans-sec">
+      <div class="section-title">desempenho por plano</div>
+      <div class="grid-4" id="plan-cards"></div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ MAPA ═══ -->
+    <div id="map-sec">
+      <div class="section-title">mapa de cliques por cidade</div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:.85rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="font-size:13px;font-weight:500">Mapa de cliques por cidade</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px">Bolhas maiores = mais cliques no CTA. Total: <strong id="map-total" style="color:var(--text)">1.129</strong></div>
+          </div>
+          <button class="btn-outline"><i class="fa-solid fa-file-csv"></i> Exportar CSV</button>
+        </div>
+        <div class="map-ctrl">
+          <button class="pill p-act" onclick="setPeriodMap('30',this)">Tudo</button>
+          <button class="pill" onclick="setPeriodMap('hoje',this)">Hoje</button>
+          <button class="pill" onclick="setPeriodMap('7',this)">7 dias</button>
+          <button class="pill" onclick="setPeriodMap('30',this)">30 dias</button>
+          <button class="pill" onclick="setPeriodMap('90',this)">90 dias</button>
+          <button class="pill" onclick="setPeriodMap('custom',this)">Personalizado</button>
+        </div>
+        <div class="map-ctrl" style="padding-top:.4rem">
+          <button class="pill p-act" id="mbtn-vol" onclick="setMapMode('vol')">Cor por volume</button>
+          <button class="pill" id="mbtn-cres" onclick="setMapMode('cres')">Cor por crescimento</button>
+          <button class="pill" id="mbtn-conv" onclick="setMapMode('conv')">Cor por conversão</button>
+        </div>
+        <div id="leafmap"></div>
+        <div class="map-footer">
+          <div class="legend-row" id="map-legend"></div>
+          <div>© OpenStreetMap · © CARTO</div>
+        </div>
+      </div>
+
+      <!-- TOP CIDADES -->
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-title">Top cidades — acessos <span class="card-sub">por GPS/IP</span></div>
+          <ul class="row-list" id="city-list"></ul>
+        </div>
+        <div class="card" id="no-coverage-card">
+          <div class="card-title">Sem cobertura com demanda <span class="card-sub">oportunidades</span></div>
+          <div class="alert alert-amber">
+            <i class="fa-solid fa-triangle-exclamation" style="color:var(--amber)"></i>
+            <div class="alert-txt" style="color:var(--amber)">
+              <div class="alert-title">4 cidades geram acessos recorrentes sem cobertura</div>
+              Considere lista de espera ou expansão nessas regiões.
+            </div>
+          </div>
+          <ul class="row-list" id="no-cov-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ CTAs ═══ -->
+    <div id="cta-sec">
+      <div class="section-title">CTAs — ranking por conversão</div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Ranking de CTAs <span class="card-sub">por taxa de conversão</span></div>
+          <ul class="row-list">
+            <li><span class="rk">1</span><span class="nm">Hero → Assinar 900 Mega</span><span class="badge b-blue" style="margin-right:5px">19%</span><span class="vl">15 conv.</span></li>
+            <li><span class="rk">2</span><span class="nm">Hero → Assinar 600 Mega</span><span class="badge b-blue" style="margin-right:5px">18%</span><span class="vl">16 conv.</span></li>
+            <li><span class="rk">3</span><span class="nm">FAQ → Assinar 400 Mega</span><span class="badge b-blue" style="margin-right:5px">17%</span><span class="vl">24 conv.</span></li>
+            <li><span class="rk">4</span><span class="nm">Cidade → Hero (Barreiras)</span><span class="badge b-gray" style="margin-right:5px">12%</span><span class="vl">8 conv.</span></li>
+            <li><span class="rk">5</span><span class="nm">Banner lateral → 300 Mega</span><span class="badge b-gray" style="margin-right:5px">8%</span><span class="vl">6 conv.</span></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Origem dos conversores</div>
+          <div class="seg">
+            <div style="width:52%;background:var(--blue)"></div>
+            <div style="width:21%;background:var(--blue-md)"></div>
+            <div style="width:14%;background:#B5D4F4"></div>
+            <div style="width:13%;background:#D3D1C7"></div>
+          </div>
+          <div class="legend-row" style="margin-top:.5rem">
+            <div class="leg-i"><div class="leg-d" style="background:var(--blue)"></div>Home 52%</div>
+            <div class="leg-i"><div class="leg-d" style="background:var(--blue-md)"></div>FAQ 21%</div>
+            <div class="leg-i"><div class="leg-d" style="background:#B5D4F4"></div>Cidade 14%</div>
+            <div class="leg-i"><div class="leg-d" style="background:#D3D1C7"></div>Outros 13%</div>
+          </div>
+          <hr class="dv" style="margin:1rem 0"/>
+          <div class="card-title" style="font-size:12px;margin-bottom:.5rem">Dispositivos</div>
+          <div class="chart-wrap" style="height:140px"><canvas id="deviceChart" role="img" aria-label="Dispositivos">.</canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ WHATSAPP ═══ -->
+    <div id="wpp-sec">
+      <div class="section-title">whatsapp — botão de contato</div>
+      <div class="sec-hdr sec-hdr-wpp">
+        <i class="fa-brands fa-whatsapp" style="color:var(--wpp);font-size:20px"></i>
+        <div><div class="sec-hdr-ttl" style="color:var(--wpp)">Botão WhatsApp</div><div class="sec-hdr-sub">Cliques, conversões e comportamento por origem</div></div>
+      </div>
+      <div class="grid-4">
+        <div class="metric-card" style="--accent:var(--wpp)">
+          <div class="mc-label"><i class="fa-solid fa-hand-pointer" style="color:var(--wpp)"></i> Cliques totais</div>
+          <div class="mc-value">347</div>
+          <div class="mc-sub"><span class="up">↑ 8%</span> vs mês anterior</div>
+        </div>
+        <div class="metric-card" style="--accent:#5DCAA5">
+          <div class="mc-label"><i class="fa-solid fa-comment-check" style="color:var(--wpp)"></i> Conversas abertas</div>
+          <div class="mc-value">61</div>
+          <div class="mc-sub">17,6% dos cliques</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--green)">
+          <div class="mc-label"><i class="fa-solid fa-user-check" style="color:var(--green)"></i> Assinaturas fechadas</div>
+          <div class="mc-value">22</div>
+          <div class="mc-sub"><span class="up">36,1%</span> das conversas</div>
+        </div>
+        <div class="metric-card" style="--accent:#B5D4F4">
+          <div class="mc-label"><i class="fa-solid fa-clock" style="color:var(--blue-md)"></i> Tempo médio de resposta</div>
+          <div class="mc-value">4m</div>
+          <div class="mc-sub">pico: até 11m (23h–8h)</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-title">Cliques por plano <span class="card-sub">ao clicar no botão</span></div>
+          <div class="chart-wrap" style="height:160px"><canvas id="wppPlanChart" role="img" aria-label="Cliques WhatsApp por plano">.</canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Cliques por horário <span class="card-sub">média diária</span></div>
+          <div class="chart-wrap" style="height:160px"><canvas id="wppHoraChart" role="img" aria-label="Cliques WhatsApp por horário">.</canvas></div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-title">Top cidades — cliques no botão</div>
+          <ul class="row-list">
+            <li><span class="rk">1</span><span class="city-dot" style="background:var(--blue)"></span><span class="nm">Barreiras</span><span class="badge b-blue" style="margin-right:5px">cob.</span><span class="vl">98</span><div class="bar-wrap"><div class="bar-fill" style="width:100%;background:var(--blue)"></div></div></li>
+            <li><span class="rk">2</span><span class="city-dot" style="background:var(--blue)"></span><span class="nm">Luís Eduardo Magalhães</span><span class="badge b-blue" style="margin-right:5px">cob.</span><span class="vl">71</span><div class="bar-wrap"><div class="bar-fill" style="width:72%;background:var(--blue)"></div></div></li>
+            <li><span class="rk">3</span><span class="city-dot" style="background:var(--blue)"></span><span class="nm">Correntina</span><span class="badge b-blue" style="margin-right:5px">cob.</span><span class="vl">55</span><div class="bar-wrap"><div class="bar-fill" style="width:56%;background:var(--blue)"></div></div></li>
+            <li><span class="rk">4</span><span class="city-dot" style="background:var(--amber-md)"></span><span class="nm">Bom Jesus da Lapa</span><span class="badge b-amber" style="margin-right:5px">sem cob.</span><span class="vl">41</span><div class="bar-wrap"><div class="bar-fill" style="width:41%;background:var(--amber-md)"></div></div></li>
+            <li><span class="rk">5</span><span class="city-dot" style="background:var(--blue)"></span><span class="nm">Wanderley</span><span class="badge b-blue" style="margin-right:5px">cob.</span><span class="vl">28</span><div class="bar-wrap"><div class="bar-fill" style="width:28%;background:var(--blue)"></div></div></li>
+            <li><span class="rk">6</span><span class="city-dot" style="background:var(--amber-md)"></span><span class="nm">São Desidério</span><span class="badge b-amber" style="margin-right:5px">sem cob.</span><span class="vl">14</span><div class="bar-wrap"><div class="bar-fill" style="width:14%;background:var(--amber-md)"></div></div></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Funil WhatsApp <span class="card-sub">clique → assinatura</span></div>
+          <div id="funil-wpp"></div>
+          <hr class="dv" style="margin:.85rem 0"/>
+          <div class="card-title" style="font-size:12px;margin-bottom:.4rem">Origem da página ao clicar</div>
+          <div class="seg">
+            <div style="width:52%;background:var(--blue)"></div>
+            <div style="width:18%;background:#1D9E75"></div>
+            <div style="width:16%;background:var(--blue-md)"></div>
+            <div style="width:14%;background:#B4B2A9"></div>
+          </div>
+          <div class="legend-row" style="margin-top:.4rem">
+            <div class="leg-i"><div class="leg-d" style="background:var(--blue)"></div>Home 52%</div>
+            <div class="leg-i"><div class="leg-d" style="background:#1D9E75"></div>Cidade 18%</div>
+            <div class="leg-i"><div class="leg-d" style="background:var(--blue-md)"></div>FAQ 16%</div>
+            <div class="leg-i"><div class="leg-d" style="background:#B4B2A9"></div>Outros 14%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TABELA WHATSAPP -->
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Atividade recente — WhatsApp</div>
+        <table class="tbl">
+          <thead><tr>
+            <th>Quando</th><th>Cidade</th><th>Plano</th><th>Dispositivo</th><th>Status</th><th>Resultado</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>13/05 11:32</td><td>Barreiras</td><td><span class="badge b-blue">900 Mega</span></td><td>mobile</td><td><span class="sdot" style="background:#639922"></span>Aberta</td><td><span class="badge b-green">assinou</span></td></tr>
+            <tr><td>12/05 17:33</td><td>Barreiras</td><td><span class="badge b-gray">cidade</span></td><td>mobile</td><td><span class="sdot" style="background:var(--amber-md)"></span>Sem resposta</td><td><span class="badge b-amber">pendente</span></td></tr>
+            <tr><td>12/05 12:44</td><td>LEM</td><td><span class="badge b-blue">400 Mega</span></td><td>desktop</td><td><span class="sdot" style="background:#639922"></span>Aberta</td><td><span class="badge b-green">assinou</span></td></tr>
+            <tr><td>11/05 21:58</td><td>B.J. Lapa</td><td><span class="badge b-amber">sem cob.</span></td><td>mobile</td><td><span class="sdot" style="background:var(--red)"></span>Sem cobertura</td><td><span class="badge b-red">perdido</span></td></tr>
+            <tr><td>11/05 19:14</td><td>Correntina</td><td><span class="badge b-blue">600 Mega</span></td><td>mobile</td><td><span class="sdot pulse" style="background:var(--blue)"></span>Em andamento</td><td><span class="badge b-blue">em aberto</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ FORMULÁRIO ═══ -->
+    <div id="form-sec">
+      <div class="section-title">formulário de contato</div>
+      <div class="sec-hdr sec-hdr-frm">
+        <i class="fa-solid fa-envelope-open-text" style="color:var(--blue);font-size:18px"></i>
+        <div><div class="sec-hdr-ttl" style="color:var(--blue)">Formulário de contato</div><div class="sec-hdr-sub">Envios, abandono, campos problemáticos e conversão</div></div>
+      </div>
+      <div class="grid-4">
+        <div class="metric-card" style="--accent:var(--blue)">
+          <div class="mc-label"><i class="fa-solid fa-eye" style="color:var(--blue)"></i> Visualizações</div>
+          <div class="mc-value">524</div>
+          <div class="mc-sub"><span class="up">↑ 5%</span> vs mês anterior</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--blue-md)">
+          <div class="mc-label"><i class="fa-solid fa-paper-plane" style="color:var(--blue-md)"></i> Envios concluídos</div>
+          <div class="mc-value">87</div>
+          <div class="mc-sub">16,6% dos que viram</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--red)">
+          <div class="mc-label"><i class="fa-solid fa-door-open" style="color:var(--red)"></i> Taxa de abandono</div>
+          <div class="mc-value">38%</div>
+          <div class="mc-sub"><span class="dn">↑ 3pts</span> piorou este mês</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--green)">
+          <div class="mc-label"><i class="fa-solid fa-user-check" style="color:var(--green)"></i> Leads qualificados</div>
+          <div class="mc-value">34</div>
+          <div class="mc-sub">39,1% dos envios</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:12px">
+        <div class="card">
+          <div class="card-title">Abandono por campo <span class="card-sub">onde desistem</span></div>
+          <div class="chart-wrap" style="height:200px"><canvas id="abandonoChart" role="img" aria-label="Abandono por campo">.</canvas></div>
+          <div class="alert alert-amber" style="margin-top:.85rem">
+            <i class="fa-solid fa-triangle-exclamation" style="color:var(--amber)"></i>
+            <div class="alert-txt" style="color:var(--amber)"><div class="alert-title">Campo CPF tem 62% de abandono</div>Considere torná-lo opcional ou remover.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Funil do formulário</div>
+          <div id="funil-form"></div>
+          <hr class="dv" style="margin:.85rem 0"/>
+          <div class="card-title" style="font-size:12px;margin-bottom:.4rem">Plano de interesse declarado</div>
+          <div class="chart-wrap" style="height:130px"><canvas id="frmPlanoChart" role="img" aria-label="Plano de interesse">.</canvas></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Envios recentes — formulário</div>
+        <table class="tbl">
+          <thead><tr>
+            <th>Quando</th><th>Nome</th><th>Cidade</th><th>Plano</th><th>Dispositivo</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>13/05 10:14</td><td>João S.</td><td>Barreiras</td><td><span class="badge b-blue">900 Mega</span></td><td>mobile</td><td><span class="sdot" style="background:#639922"></span>Lead qualificado</td></tr>
+            <tr><td>12/05 16:42</td><td>Maria L.</td><td>B.J. Lapa</td><td><span class="badge b-amber">sem cob.</span></td><td>mobile</td><td><span class="sdot" style="background:var(--red)"></span>Fora de cobertura</td></tr>
+            <tr><td>12/05 09:31</td><td>Carlos M.</td><td>LEM</td><td><span class="badge b-blue">400 Mega</span></td><td>desktop</td><td><span class="sdot" style="background:#639922"></span>Lead qualificado</td></tr>
+            <tr><td>11/05 14:07</td><td>Ana P.</td><td>Correntina</td><td><span class="badge b-blue">600 Mega</span></td><td>mobile</td><td><span class="sdot" style="background:var(--amber-md)"></span>Aguardando retorno</td></tr>
+            <tr><td>11/05 11:52</td><td>Pedro R.</td><td>Wanderley</td><td><span class="badge b-blue">400 Mega</span></td><td>mobile</td><td><span class="sdot pulse" style="background:var(--blue)"></span>Em análise</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-green" style="margin-top:12px">
+        <i class="fa-solid fa-lightbulb" style="color:var(--green)"></i>
+        <div class="alert-txt" style="color:var(--green)">
+          <div class="alert-title">WhatsApp converte 2× mais rápido que o formulário</div>
+          Formulário capta interesse de cidades sem cobertura (18/87 envios). Recomendado: adicionar campo "lista de espera" para regiões fora da área.
+        </div>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ MAPA DE CALOR DE HORÁRIOS ═══ -->
+    <div>
+      <div class="section-title">mapa de calor — horários de acesso</div>
+      <div class="card">
+        <div class="card-title">Acessos por hora × dia da semana <span class="card-sub">Dom → Sáb, 0h–23h</span></div>
+        <div style="display:flex;gap:4px;margin-bottom:4px;padding-left:30px">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);flex:1;gap:3px">
+            <div style="font-size:10px;color:var(--text3);text-align:center">Dom</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Seg</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Ter</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Qua</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Qui</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Sex</div>
+            <div style="font-size:10px;color:var(--text3);text-align:center">Sáb</div>
+          </div>
+        </div>
+        <div id="heatmap-rows"></div>
+        <div class="legend-row" style="margin-top:.75rem">
+          <div class="leg-i"><div class="leg-d" style="background:#F1EFE8;border:1px solid var(--border)"></div>0</div>
+          <div class="leg-i"><div class="leg-d" style="background:#B5D4F4"></div>baixo</div>
+          <div class="leg-i"><div class="leg-d" style="background:#378ADD"></div>médio</div>
+          <div class="leg-i"><div class="leg-d" style="background:#185FA5"></div>alto</div>
+          <div class="leg-i"><div class="leg-d" style="background:#042C53"></div>pico</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="dv"/>
+
+    <!-- ═══ ROBÔS VS HUMANOS ═══ -->
+    <div id="bots-sec">
+      <div class="section-title">robôs vs. visitantes reais</div>
+      <div class="grid-4">
+        <div class="metric-card" style="--accent:var(--border)">
+          <div class="mc-label">WhatsApp — humanos</div>
+          <div class="mc-value">0</div>
+          <div class="mc-sub">pág. compartilhamento</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--border)">
+          <div class="mc-label">WhatsApp — robôs</div>
+          <div class="mc-value">0</div>
+          <div class="mc-sub" style="color:var(--green)">0% contaminação</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--blue)">
+          <div class="mc-label">Site — humanos (24h)</div>
+          <div class="mc-value">3</div>
+          <div class="mc-sub">tráfego verificado</div>
+        </div>
+        <div class="metric-card" style="--accent:var(--green)">
+          <div class="mc-label">Site — robôs (24h)</div>
+          <div class="mc-value">0</div>
+          <div class="mc-sub" style="color:var(--green)">0% hoje</div>
+        </div>
+      </div>
+
+      <!-- CLIQUES RECENTES -->
+      <div class="card" style="margin-top:12px">
+        <div class="card-title">Cliques recentes <span class="card-sub">humanos · sem robôs</span></div>
+        <table class="tbl">
+          <thead><tr>
+            <th>Quando</th><th>Plano/Tipo</th><th>Cidade</th><th>Origem</th><th>User-Agent (resumido)</th><th>Tipo</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>13/05 11:32</td><td><span class="badge b-blue">900 Mega</span></td><td>Barreiras</td><td>home-hero</td><td>Chrome Android 12</td><td><span class="badge b-green">humano</span></td></tr>
+            <tr><td>12/05 17:33</td><td><span class="badge b-gray">cidade</span></td><td>Barreiras</td><td>barreiras</td><td>Safari iOS</td><td><span class="badge b-green">humano</span></td></tr>
+            <tr><td>12/05 12:44</td><td><span class="badge b-blue">400 Mega</span></td><td>LEM</td><td>home-hero</td><td>Chrome Desktop</td><td><span class="badge b-green">humano</span></td></tr>
+            <tr><td>12/05 09:11</td><td><span class="badge b-blue">600 Mega</span></td><td>Correntina</td><td>home-hero</td><td>Firefox Android</td><td><span class="badge b-green">humano</span></td></tr>
+            <tr><td>11/05 21:58</td><td><span class="badge b-gray">cidade</span></td><td>B.J. Lapa</td><td>bjlapa</td><td>Chrome Android 11</td><td><span class="badge b-amber">sem cob.</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="height:2rem"></div>
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+/* ── DATA ─────────────────────────────────────── */
+const CITIES = [
+  {name:'Barreiras',lat:-12.1521,lng:-44.9958,cob:true,vol:{hoje:28,d7:98,d30:312,d90:540},cres:{hoje:8,d7:22,d30:41,d90:68},conv:{hoje:5,d7:18,d30:54,d90:97}},
+  {name:'Luís Eduardo Magalhães',lat:-12.0964,lng:-45.7933,cob:true,vol:{hoje:18,d7:71,d30:198,d90:341},cres:{hoje:5,d7:15,d30:29,d90:51},conv:{hoje:3,d7:12,d30:38,d90:70}},
+  {name:'Correntina',lat:-13.3391,lng:-44.6417,cob:true,vol:{hoje:14,d7:55,d30:176,d90:298},cres:{hoje:4,d7:11,d30:22,d90:37},conv:{hoje:3,d7:9,d30:31,d90:58}},
+  {name:'Wanderley',lat:-12.0511,lng:-43.9088,cob:true,vol:{hoje:7,d7:28,d30:84,d90:141},cres:{hoje:2,d7:7,d30:14,d90:24},conv:{hoje:1,d7:5,d30:16,d90:29}},
+  {name:'Jaborandi',lat:-14.0019,lng:-44.4336,cob:true,vol:{hoje:5,d7:19,d30:61,d90:104},cres:{hoje:1,d7:4,d30:8,d90:14},conv:{hoje:1,d7:3,d30:11,d90:21}},
+  {name:'Mansidão',lat:-10.7266,lng:-44.0336,cob:true,vol:{hoje:4,d7:14,d30:47,d90:82},cres:{hoje:1,d7:3,d30:6,d90:11},conv:{hoje:0,d7:2,d30:8,d90:16}},
+  {name:'Muquém do S.F.',lat:-12.0958,lng:-43.5461,cob:true,vol:{hoje:3,d7:11,d30:38,d90:65},cres:{hoje:0,d7:2,d30:4,d90:7},conv:{hoje:0,d7:2,d30:7,d90:13}},
+  {name:'Bom Jesus da Lapa',lat:-13.2558,lng:-43.4181,cob:false,vol:{hoje:11,d7:41,d30:143,d90:249},cres:{hoje:6,d7:19,d30:38,d90:64},conv:{hoje:0,d7:0,d30:0,d90:0}},
+  {name:'Cristópolis',lat:-12.2286,lng:-44.2286,cob:false,vol:{hoje:8,d7:29,d30:97,d90:167},cres:{hoje:4,d7:13,d30:27,d90:44},conv:{hoje:0,d7:0,d30:0,d90:0}},
+  {name:'São Desidério',lat:-12.3742,lng:-44.9747,cob:false,vol:{hoje:5,d7:19,d30:61,d90:106},cres:{hoje:3,d7:9,d30:18,d90:30},conv:{hoje:0,d7:0,d30:0,d90:0}},
+  {name:'Baianópolis',lat:-12.1083,lng:-44.5247,cob:false,vol:{hoje:3,d7:11,d30:39,d90:67},cres:{hoje:2,d7:6,d30:12,d90:19},conv:{hoje:0,d7:0,d30:0,d90:0}},
+  {name:'Santa Maria da Vitória',lat:-13.3955,lng:-44.1988,cob:true,vol:{hoje:4,d7:14,d30:44,d90:76},cres:{hoje:1,d7:3,d30:6,d90:10},conv:{hoje:0,d7:2,d30:7,d90:13}},
+];
+const PLANS = [
+  {speed:'300 Mega',price:'R$ 59,90/mês',clicks:42,conv:6,color:'#B5D4F4',tc:'#0C447C'},
+  {speed:'400 Mega',price:'R$ 79,90/mês',clicks:138,conv:24,color:'#185FA5',tc:'#E6F1FB',pop:true},
+  {speed:'600 Mega',price:'R$ 119,90/mês',clicks:89,conv:16,color:'#378ADD',tc:'#E6F1FB'},
+  {speed:'900 Mega',price:'R$ 149,90/mês',clicks:78,conv:15,color:'#0C447C',tc:'#E6F1FB',best:true},
+];
+const PK = {hoje:'hoje',7:'d7',30:'d30',90:'d90',custom:'d30'};
+let curP='30', mapMode='vol', mapMarkers=[], leafMap;
+
+/* ── PERIOD ─────────────────────────────────────── */
+function setPeriod(p,btn){
+  curP=p;
+  document.querySelectorAll('.period-tabs .ptab').forEach(b=>b.classList.remove('act'));
+  if(btn)btn.classList.add('act');
+  const labels={hoje:'Hoje',7:'Últimos 7 dias',30:'Últimos 30 dias',90:'Últimos 90 dias'};
+  document.getElementById('topbar-sub').textContent=(labels[p]||'Período personalizado')+' · Atualizado agora';
+  updateKPIs();
+  updateMapMarkers();
+}
+
+function updateKPIs(){
+  const k=PK[curP]||'d30';
+  const total=CITIES.reduce((s,c)=>s+c.vol[k],0);
+  document.getElementById('kpi-acessos').textContent=total.toLocaleString('pt-BR');
+  document.getElementById('kpi-cliques').textContent=Math.round(total*0.27).toLocaleString('pt-BR');
+  document.getElementById('kpi-conv').textContent=Math.round(total*0.047).toLocaleString('pt-BR');
+}
+
+/* ── MAP ─────────────────────────────────────── */
+function initMap(){
+  leafMap=L.map('leafmap',{center:[-12.8,-44.3],zoom:7,zoomControl:true,attributionControl:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'}).addTo(leafMap);
+  updateMapMarkers();
+  renderMapLegend();
+}
+
+function getMapVal(city){
+  const k=PK[curP]||'d30';
+  return city[mapMode][k];
+}
+function getMapMax(){return Math.max(...CITIES.map(c=>getMapVal(c)));}
+function getMapColor(city){
+  if(mapMode==='vol') return city.cob?'#185FA5':'#EF9F27';
+  if(mapMode==='cres'){const v=getMapVal(city);return v>30?'#3B6D11':v>15?'#639922':v>5?'#97C459':'#C0DD97';}
+  if(mapMode==='conv'){if(!city.cob)return '#E24B4A';const v=getMapVal(city);return v>40?'#185FA5':v>20?'#378ADD':v>8?'#85B7EB':'#B5D4F4';}
+}
+function getMapRadius(city){const v=getMapVal(city),mx=getMapMax();return mx===0?8:Math.max(7,Math.round((v/mx)*38));}
+
+function updateMapMarkers(){
+  mapMarkers.forEach(m=>m.remove());mapMarkers=[];
+  const total=CITIES.reduce((s,c)=>s+getMapVal(c),0);
+  document.getElementById('map-total').textContent=total.toLocaleString('pt-BR');
+  CITIES.forEach(city=>{
+    const r=getMapRadius(city),col=getMapColor(city),val=getMapVal(city);
+    const circle=L.circleMarker([city.lat,city.lng],{radius:r,fillColor:col,fillOpacity:.78,color:'#fff',weight:1.5}).addTo(leafMap);
+    const label=mapMode==='vol'?'Cliques':mapMode==='cres'?'Crescimento':'Conversões';
+    circle.bindTooltip(`<b style="font-size:13px">${city.name}</b><br><span style="font-size:12px">${label}: <b>${val}</b></span><br><span style="font-size:11px;color:${city.cob?'#3B6D11':'#A32D2D'}">${city.cob?'✓ com cobertura':'✗ sem cobertura'}</span>`,{direction:'top',offset:[0,-r],opacity:1});
+    mapMarkers.push(circle);
+  });
+  renderCityList();
+  renderMapLegend();
+}
+
+function setPeriodMap(p,btn){
+  curP=p;
+  document.querySelectorAll('#map-sec .map-ctrl .pill').forEach(b=>{if(['Tudo','Hoje','7 dias','30 dias','90 dias','Personalizado'].includes(b.textContent)){b.classList.remove('p-act','p-g','p-a');}});
+  if(btn)btn.classList.add('p-act');
+  updateMapMarkers();
+}
+
+function setMapMode(m){
+  mapMode=m;
+  ['vol','cres','conv'].forEach(id=>{document.getElementById('mbtn-'+id).classList.remove('p-act','p-g','p-a');});
+  const cls=m==='vol'?'p-act':m==='cres'?'p-g':'p-a';
+  document.getElementById('mbtn-'+m).classList.add(cls);
+  updateMapMarkers();
+}
+
+function renderMapLegend(){
+  const items=mapMode==='vol'?[{c:'#185FA5',l:'com cobertura'},{c:'#EF9F27',l:'sem cobertura'}]:
+    mapMode==='cres'?[{c:'#C0DD97',l:'baixo'},{c:'#97C459',l:'médio'},{c:'#639922',l:'alto'},{c:'#3B6D11',l:'acelerado'}]:
+    [{c:'#E24B4A',l:'sem cobertura'},{c:'#B5D4F4',l:'baixa'},{c:'#378ADD',l:'média'},{c:'#185FA5',l:'alta'}];
+  document.getElementById('map-legend').innerHTML=items.map(i=>`<div class="leg-i"><div class="leg-d" style="background:${i.c}"></div>${i.l}</div>`).join('');
+}
+
+function renderCityList(){
+  const k=PK[curP]||'d30';
+  const sorted=[...CITIES].sort((a,b)=>b.vol[k]-a.vol[k]).slice(0,7);
+  const max=sorted[0].vol[k];
+  document.getElementById('city-list').innerHTML=sorted.map((c,i)=>`
+    <li><span class="rk">${i+1}</span>
+    <span class="city-dot" style="background:${c.cob?'#185FA5':'#EF9F27'}"></span>
+    <span class="nm">${c.name}</span>
+    <span class="badge ${c.cob?'b-blue':'b-amber'}" style="margin-right:5px">${c.cob?'cob.':'sem cob.'}</span>
+    <span class="vl">${c.vol[k]}</span>
+    <div class="bar-wrap"><div class="bar-fill" style="width:${Math.round((c.vol[k]/max)*100)}%;background:${c.cob?'#185FA5':'#EF9F27'}"></div></div></li>`).join('');
+  const noCov=CITIES.filter(c=>!c.cob).sort((a,b)=>b.vol[k]-a.vol[k]);
+  document.getElementById('no-cov-list').innerHTML=noCov.map(c=>`
+    <li><span class="city-dot" style="background:#EF9F27;margin-right:4px"></span>
+    <span class="nm" style="font-weight:500">${c.name}</span>
+    <div style="text-align:right"><div style="font-size:13px;font-weight:500">${c.vol[k]} acessos</div>
+    <div style="font-size:11px;color:var(--amber)">sem cobertura</div></div></li>`).join('');
+}
+
+/* ── PLAN CARDS ─────────────────────────────────────── */
+function renderPlanCards(){
+  const max=Math.max(...PLANS.map(p=>p.clicks));
+  document.getElementById('plan-cards').innerHTML=PLANS.map(p=>{
+    const rate=((p.conv/p.clicks)*100).toFixed(1);
+    const w=Math.round((p.clicks/max)*100);
+    return `<div class="plan-card" style="${p.pop?'border-color:var(--blue);':''}">
+      <div class="plan-speed" style="color:${p.color}">${p.speed}</div>
+      <div class="plan-price">${p.price}</div>
+      <div style="margin-top:6px;display:flex;gap:5px">${p.pop?'<span class="badge b-blue">mais popular</span>':''}${p.best?'<span class="badge b-green">maior conv.</span>':''}</div>
+      <div class="plan-stat">${p.clicks} cliques</div>
+      <div class="plan-conv">${p.conv} conversões · ${rate}%</div>
+      <div class="plan-bar"><div class="plan-bar-fill" style="width:${w}%;background:${p.color}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ── FUNILS ─────────────────────────────────────── */
+function renderFunil(el,steps){
+  el.innerHTML=steps.map(s=>`
+    <div class="funnel-step">
+      <div class="funnel-label">${s.label}</div>
+      <div class="funnel-bar" style="width:${s.w}%;background:${s.bg};color:${s.tc}">${s.val}</div>
+      <div class="funnel-pct">${s.pct}</div>
+    </div>`).join('');
+}
+
+/* ── HEATMAP ─────────────────────────────────────── */
+function renderHeatmap(){
+  const data=[[0,0,0,0,0,0,1,1,2,2,3,3,2,2,1,1,0,1,2,3,2,1,0,0],[0,0,0,0,0,1,2,3,4,4,3,2,2,3,2,1,1,2,3,4,3,2,1,0],[0,0,0,0,0,1,2,3,4,3,3,2,2,3,2,1,1,2,3,4,3,2,1,0],[0,0,0,0,0,1,2,3,3,3,2,2,2,2,2,1,1,2,3,3,3,2,1,0],[0,0,0,0,0,1,2,3,4,3,3,2,2,3,2,1,1,2,3,4,3,2,1,0],[0,0,0,0,0,1,2,2,3,3,2,2,2,2,2,2,2,3,4,4,3,2,2,1],[0,0,0,0,0,0,1,1,2,2,2,2,1,1,1,1,1,2,3,3,2,1,0,0]];
+  const cls=['h0','h1','h2','h3','h4'];
+  const container=document.getElementById('heatmap-rows');
+  for(let h=0;h<24;h++){
+    const wrap=document.createElement('div');wrap.className='hm-wrap';
+    const lbl=document.createElement('div');lbl.className='hm-lbl';lbl.textContent=h%6===0?h+'h':'';wrap.appendChild(lbl);
+    const grid=document.createElement('div');grid.className='hm-grid';
+    for(let d=0;d<7;d++){const cell=document.createElement('div');cell.className='hm-cell '+cls[data[d][h]];grid.appendChild(cell);}
+    wrap.appendChild(grid);container.appendChild(wrap);
+  }
+}
+
+/* ── CHARTS ─────────────────────────────────────── */
+function initCharts(){
+  new Chart(document.getElementById('clicksChart'),{type:'line',data:{labels:['01/05','02/05','03/05','04/05','05/05','06/05','07/05','08/05','09/05','10/05','11/05','12/05','13/05'],datasets:[{label:'Cliques',data:[18,24,31,19,42,38,27,55,48,33,61,44,52],borderColor:'#185FA5',backgroundColor:'#E6F1FB',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'#185FA5'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{beginAtZero:true,ticks:{font:{size:10}}}}}});
+
+  new Chart(document.getElementById('deviceChart'),{type:'doughnut',data:{labels:['Mobile','Desktop','Tablet'],datasets:[{data:[68,27,5],backgroundColor:['#185FA5','#378ADD','#B5D4F4'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'66%',plugins:{legend:{display:false}}}});
+
+  new Chart(document.getElementById('wppPlanChart'),{type:'bar',data:{labels:['300','400','600','900'],datasets:[{label:'Cliques',data:[42,138,89,78],backgroundColor:['#B5D4F4','#185FA5','#378ADD','#0C447C'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}},grid:{display:false}},y:{beginAtZero:true,ticks:{font:{size:10}}}}}});
+
+  new Chart(document.getElementById('wppHoraChart'),{type:'line',data:{labels:['6h','8h','10h','12h','14h','16h','18h','20h','22h'],datasets:[{label:'Cliques',data:[3,12,28,35,22,31,48,42,18],borderColor:'#0F6E56',backgroundColor:'#E1F5EE',fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'#0F6E56'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{beginAtZero:true,ticks:{font:{size:10}}}}}});
+
+  new Chart(document.getElementById('abandonoChart'),{type:'bar',data:{labels:['CPF','Endereço','Telefone','E-mail','Nome','Cidade','Plano'],datasets:[{label:'Abandono %',data:[62,41,28,19,12,8,5],backgroundColor:['#E24B4A','#F09595','#EF9F27','#FAC775','#B5D4F4','#85B7EB','#5DCAA5'],borderWidth:0}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{max:70,ticks:{font:{size:10},callback:v=>v+'%'},grid:{display:false}},y:{ticks:{font:{size:10}},grid:{display:false}}}}});
+
+  new Chart(document.getElementById('frmPlanoChart'),{type:'doughnut',data:{labels:['400 Mega','600 Mega','900 Mega','300 Mega'],datasets:[{data:[38,27,22,13],backgroundColor:['#185FA5','#378ADD','#1D9E75','#B5D4F4'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{display:false}}}});
+}
+
+/* ── NAV ─────────────────────────────────────── */
+function showSection(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const el=document.getElementById(id);
+  if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* ── INIT ─────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded',()=>{
+  renderPlanCards();
+  renderFunil(document.getElementById('funil-main'),[
+    {label:'Acessos',bg:'#E6F1FB',tc:'#185FA5',w:100,val:'1.284',pct:'100%'},
+    {label:'Viram CTA',bg:'#B5D4F4',tc:'#185FA5',w:80,val:'1.026',pct:'79,9%'},
+    {label:'Clicaram',bg:'#378ADD',tc:'#E6F1FB',w:27,val:'347',pct:'27%'},
+    {label:'Converteram',bg:'#EAF3DE',tc:'#3B6D11',w:5,val:'61',pct:'4,7%'},
+  ]);
+  renderFunil(document.getElementById('funil-wpp'),[
+    {label:'Cliques',bg:'#E6F1FB',tc:'#185FA5',w:100,val:'347',pct:'100%'},
+    {label:'Abriu chat',bg:'#E1F5EE',tc:'#085041',w:76,val:'264',pct:'76%'},
+    {label:'Respondeu',bg:'#9FE1CB',tc:'#085041',w:42,val:'146',pct:'42%'},
+    {label:'Converteu',bg:'#1D9E75',tc:'#E1F5EE',w:18,val:'61',pct:'17,6%'},
+  ]);
+  renderFunil(document.getElementById('funil-form'),[
+    {label:'Visualizou',bg:'#E6F1FB',tc:'#185FA5',w:100,val:'524',pct:'100%'},
+    {label:'Iniciou',bg:'#B5D4F4',tc:'#185FA5',w:68,val:'356',pct:'68%'},
+    {label:'Completou',bg:'#378ADD',tc:'#E6F1FB',w:34,val:'178',pct:'34%'},
+    {label:'Enviou',bg:'#185FA5',tc:'#E6F1FB',w:17,val:'87',pct:'16,6%'},
+  ]);
+  renderHeatmap();
+  initCharts();
+  setTimeout(initMap,300);
+  updateKPIs();
+});
+</script>
+</body>
+</html>
