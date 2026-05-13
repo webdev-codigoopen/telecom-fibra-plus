@@ -44,7 +44,7 @@ export default function Hero() {
     >
       <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-0">
         <div
-          className="text-center mx-auto"
+          className="text-center mx-auto pt-[0px] pb-[20px] mb-[0px] pl-[0px]"
           style={{ paddingTop: 21, paddingBottom: 21, marginBottom: 20 }}
         >
           <h2
