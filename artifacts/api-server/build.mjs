@@ -100,6 +100,11 @@ async function buildAll() {
       "puppeteer",
       "puppeteer-core",
       "electron",
+      // jsdom uses fs to load a default stylesheet via a relative path that
+      // does not survive bundling. Externalize jsdom (and isomorphic-dompurify
+      // which depends on it) so node loads them from node_modules at runtime.
+      "jsdom",
+      "isomorphic-dompurify",
     ],
     sourcemap: "linked",
     plugins: [
