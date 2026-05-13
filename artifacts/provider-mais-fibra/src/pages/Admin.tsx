@@ -114,6 +114,7 @@ type StoredUiState = {
   chartView: ChartView;
   previewOpen: boolean;
   previewMode: PreviewMode;
+  showBots: boolean;
 };
 
 function loadStoredUiState(): StoredUiState {
@@ -121,6 +122,7 @@ function loadStoredUiState(): StoredUiState {
     chartView: "total",
     previewOpen: true,
     previewMode: "desktop",
+    showBots: true,
   };
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -133,6 +135,7 @@ function loadStoredUiState(): StoredUiState {
         parsed.previewMode === "desktop" || parsed.previewMode === "tablet" || parsed.previewMode === "mobile"
           ? parsed.previewMode
           : fallback.previewMode,
+      showBots: typeof parsed.showBots === "boolean" ? parsed.showBots : fallback.showBots,
     };
   } catch {
     return fallback;
@@ -226,6 +229,7 @@ export default function Admin() {
   const [cityFilter, setCityFilter] = useState<string | null>(() => loadStoredFilters().city);
   const [timeseries, setTimeseries] = useState<TimeseriesRow[]>([]);
   const [chartView, setChartView] = useState<ChartView>(() => loadStoredUiState().chartView);
+  const [showBots, setShowBots] = useState<boolean>(() => loadStoredUiState().showBots);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
   const [reordering, setReordering] = useState(false);
@@ -461,20 +465,46 @@ export default function Admin() {
     return src;
   }
 
+  const visibleChartSources = useMemo(
+    () => (showBots ? chartSources : chartSources.filter((s) => s.source !== "whatsapp-share-bot")),
+    [chartSources, showBots],
+  );
+
+  const displayChartData = useMemo(() => {
+    if (showBots) return chartData;
+    return chartData.map((point) => {
+      const botCount = point.bySource["whatsapp-share-bot"] ?? 0;
+      if (botCount === 0) return point;
+      return { ...point, total: Math.max(0, point.total - botCount) };
+    });
+  }, [chartData, showBots]);
+
   const stackedChartData = useMemo(() => {
     if (chartView !== "source") return [];
-    return chartData.map((point) => {
+    return displayChartData.map((point) => {
       const row: Record<string, string | number> = {
         bucket: point.bucket,
         label: point.label,
         total: point.total,
       };
-      for (const { source } of chartSources) {
+      for (const { source } of visibleChartSources) {
         row[source] = point.bySource[source] ?? 0;
       }
       return row;
     });
-  }, [chartData, chartSources, chartView]);
+  }, [displayChartData, visibleChartSources, chartView]);
+
+  const chartTotalLabel = useMemo(() => {
+    return chartData.reduce((acc, p) => {
+      const botCount = showBots ? 0 : p.bySource["whatsapp-share-bot"] ?? 0;
+      return acc + p.total - botCount;
+    }, 0);
+  }, [chartData, showBots]);
+
+  const hasBotSeries = useMemo(
+    () => chartSources.some((s) => s.source === "whatsapp-share-bot"),
+    [chartSources],
+  );
 
   const fetchClickStats = useCallback(async (
     key: string,
@@ -777,12 +807,12 @@ export default function Admin() {
     try {
       localStorage.setItem(
         UI_STORAGE_KEY,
-        JSON.stringify({ chartView, previewOpen, previewMode }),
+        JSON.stringify({ chartView, previewOpen, previewMode, showBots }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [chartView, previewOpen, previewMode]);
+  }, [chartView, previewOpen, previewMode, showBots]);
 
   async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
     setSaving(true);
@@ -1534,8 +1564,23 @@ export default function Admin() {
                           );
                         })}
                       </div>
+                      {hasBotSeries && (
+                        <button
+                          type="button"
+                          onClick={() => setShowBots((v) => !v)}
+                          className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                            showBots
+                              ? "border-[#E0E3EB] text-[#7A7F8C] hover:text-[#0D0D0D] hover:border-[#0040FF]/30"
+                              : "border-[#0040FF]/30 bg-[#0040FF]/5 text-[#0040FF]"
+                          }`}
+                          aria-pressed={!showBots}
+                          title="Esconder pré-visualizações de bots para focar no tráfego humano"
+                        >
+                          {showBots ? "Ocultar bots" : "Mostrar bots"}
+                        </button>
+                      )}
                       <span className="text-xs text-[#7A7F8C]">
-                        Total: {chartData.reduce((acc, p) => acc + p.total, 0)}
+                        Total: {chartTotalLabel}
                       </span>
                     </div>
                   </div>
@@ -1596,19 +1641,19 @@ export default function Admin() {
                             wrapperStyle={{ fontSize: 11, color: "#2A2D38" }}
                             formatter={(value) => formatSourceLabel(String(value))}
                           />
-                          {chartSources.map(({ source, color }, i) => (
+                          {visibleChartSources.map(({ source, color }, i) => (
                             <Bar
                               key={source}
                               dataKey={source}
                               stackId="src"
                               fill={color}
                               maxBarSize={48}
-                              radius={i === chartSources.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                              radius={i === visibleChartSources.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
                             />
                           ))}
                         </BarChart>
                       ) : (
-                        <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                        <BarChart data={displayChartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#EEF0F5" vertical={false} />
                           <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={{ stroke: "#E0E3EB" }} />
                           <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "#7A7F8C" }} tickLine={false} axisLine={false} />
