@@ -12,7 +12,7 @@ const FONT_PRICE = "'Nexa', 'Montserrat', sans-serif";
 
 export default function ComboPowerTop() {
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-    "Olá! Quero contratar o Combo Power Top 900 Mega por R$ 139,90/mês",
+    "Olá! Quero contratar o Combo Power Top 900 Mega por R$ 149,90/mês",
   )}`;
 
   return (
@@ -148,7 +148,7 @@ export default function ComboPowerTop() {
             lineHeight: 0.85,
           }}
         >
-          139
+          149
         </span>
 
         <div
