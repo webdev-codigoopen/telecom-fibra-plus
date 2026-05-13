@@ -987,7 +987,6 @@ export default function Admin() {
         {!loading && activeTab === "seguranca" && (
           <div className="space-y-6">
             <TwoFactorPanel adminKey={adminKey} baseUrl={baseUrl} />
-            <ChangePasswordPanel adminKey={adminKey} baseUrl={baseUrl} />
             <RecaptchaSettings
               settings={appSettings}
               adminKey={adminKey}
@@ -5888,61 +5887,3 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
   );
 }
 
-type ChangePasswordPanelProps = { adminKey: string; baseUrl: string };
-
-function ChangePasswordPanel({ adminKey, baseUrl }: ChangePasswordPanelProps) {
-  const [current, setCurrent] = useState("");
-  const [next1, setNext1] = useState("");
-  const [next2, setNext2] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    if (next1.length < 8) { setMsg({ kind: "err", text: "Nova senha precisa ter pelo menos 8 caracteres." }); return; }
-    if (next1 !== next2) { setMsg({ kind: "err", text: "As novas senhas não conferem." }); return; }
-    setBusy(true);
-    try {
-      const res = await fetch(`${baseUrl}/api/auth/change-password`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword: current, newPassword: next1 }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Falha.");
-      setMsg({ kind: "ok", text: "Senha atualizada." });
-      setCurrent(""); setNext1(""); setNext2("");
-    } catch (err) {
-      setMsg({ kind: "err", text: err instanceof Error ? err.message : "Falha." });
-    } finally { setBusy(false); }
-  }
-
-  return (
-    <section className="bg-white rounded-2xl shadow-sm border border-[#E0E3EB] p-6">
-      <h2 className="font-bold text-[#0D0D0D] mb-1">Alterar senha</h2>
-      <p className="text-xs text-[#7A7F8C] mb-4">Mínimo 8 caracteres. Recomendamos usar um gerador de senhas.</p>
-      {msg && (
-        <div className={`mb-3 px-3 py-2 rounded-lg text-sm ${msg.kind === "ok" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>{msg.text}</div>
-      )}
-      <form onSubmit={submit} className="space-y-3 max-w-sm">
-        <div>
-          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Senha atual</label>
-          <input type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Nova senha</label>
-          <input type="password" autoComplete="new-password" value={next1} onChange={(e) => setNext1(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required minLength={8} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-[#2A2D38] mb-1">Confirme a nova senha</label>
-          <input type="password" autoComplete="new-password" value={next2} onChange={(e) => setNext2(e.target.value)} className="w-full border border-[#E0E3EB] rounded-lg px-3 py-2 text-sm" required minLength={8} />
-        </div>
-        <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg font-bold text-sm text-white disabled:opacity-60" style={{ background: "#0040FF" }}>
-          {busy ? "Salvando..." : "Atualizar senha"}
-        </button>
-      </form>
-    </section>
-  );
-}

@@ -5,7 +5,6 @@ import {
   clearAdminCookie,
   findAdminByEmail,
   findAdminById,
-  hashPassword,
   issueAdminToken,
   requireAdmin,
   setAdminCookie,
@@ -243,47 +242,6 @@ router.post("/auth/2fa/verify", requireAdmin, async (req, res) => {
   }
   const ok = await verifyTotpCode(parsed.data.code, user.totpSecret);
   res.status(ok ? 200 : 401).json({ ok });
-});
-
-// Allow the logged-in admin to change their own password without going
-// through a separate flow. Useful on first login from the seeded credentials.
-const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1).max(200),
-    newPassword: z.string().min(8).max(200),
-  })
-  .strict();
-router.post("/auth/change-password", requireAdmin, async (req, res) => {
-  if (!req.adminUser || req.adminUser.id === 0) {
-    res.status(403).json({ error: "Conta legada não pode trocar senha aqui." });
-    return;
-  }
-  const parsed = changePasswordSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Senha atual ou nova inválida (mínimo 8 caracteres)." });
-    return;
-  }
-  const user = await findAdminById(req.adminUser.id);
-  if (!user) {
-    res.status(404).json({ error: "Usuário não encontrado." });
-    return;
-  }
-  const ok = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
-  if (!ok) {
-    res.status(401).json({ error: "Senha atual incorreta." });
-    return;
-  }
-  const newHash = await hashPassword(parsed.data.newPassword);
-  await setUserTotp(user.id, {});
-  // Reuse the same update channel — but we need a dedicated update for the
-  // password. Importing the table here would create cycles, so do it inline.
-  const { db, adminUsersTable } = await import("@workspace/db");
-  const { eq } = await import("drizzle-orm");
-  await db
-    .update(adminUsersTable)
-    .set({ passwordHash: newHash })
-    .where(eq(adminUsersTable.id, user.id));
-  res.json({ ok: true });
 });
 
 export default router;
