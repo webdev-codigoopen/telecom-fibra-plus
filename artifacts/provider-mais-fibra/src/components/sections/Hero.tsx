@@ -34,7 +34,7 @@ export default function Hero() {
     <section
       id="planos"
       data-testid="hero-section"
-      className="plans-section relative overflow-hidden pt-[118px] md:pt-[142px]"
+      className="plans-section relative overflow-hidden pt-[88px] md:pt-[142px]"
       style={{
         paddingBottom: 100,
         background:
@@ -44,7 +44,7 @@ export default function Hero() {
     >
       <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 lg:px-0">
         <div
-          className="text-center mx-auto pt-[0px] pb-[20px] mb-[0px] pl-[0px]"
+          className="plans-heading text-center mx-auto pt-[0px] pb-[20px] mb-[0px] pl-[0px]"
           style={{ paddingTop: 21, paddingBottom: 21, marginBottom: 20 }}
         >
           <h2
@@ -85,6 +85,16 @@ export default function Hero() {
             </div>
           ))}
         </div>
+
+        <style>{`
+          @media (max-width: 639px) {
+            .plans-heading {
+              padding-top: 8px !important;
+              padding-bottom: 8px !important;
+              margin-bottom: 4px !important;
+            }
+          }
+        `}</style>
 
         <div className="flex sm:hidden items-center justify-center gap-2 mt-5" data-testid="pagination-dots">
           {plans.map((_, i) => (
