@@ -7,6 +7,7 @@ import PlanCard from "../components/PlanCard";
 import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap from "../components/CityClicksMap";
+import CityAccessDashboard from "../components/CityAccessDashboard";
 import { colorForSource } from "../lib/sourceColors";
 import {
   type StreamingBrand,
@@ -250,7 +251,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "cidades" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -1092,6 +1093,7 @@ export default function Admin() {
         <div className="mb-6 inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="tablist" aria-label="Seções do painel">
           {([
             { id: "planos", label: "Planos" },
+            { id: "cidades", label: "Cidades" },
             { id: "ctas", label: "Configuração de CTAs" },
             { id: "interesses", label: "Interesses (Demanda)" },
             { id: "emails", label: "Relatórios por email" },
@@ -1129,6 +1131,10 @@ export default function Admin() {
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-6 text-sm">
             {error}
           </div>
+        )}
+
+        {!loading && activeTab === "cidades" && (
+          <CityAccessDashboard adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "ctas" && (
