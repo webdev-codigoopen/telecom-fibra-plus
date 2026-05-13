@@ -158,21 +158,34 @@ export default function LogoCarousel({
   logos,
 }: Props) {
   const list = useMemo(() => logos ?? ALL_LOGOS, [logos]);
-  // Start paused; only release when the whole page (incl. images, fonts) has
-  // finished loading. Avoids the carousel "lurching" while heavy assets are
-  // still streaming in.
+  // Start paused; release shortly after mount so the heavy initial layout/
+  // image work isn't competing with the animation. We don't wait for
+  // window.load (it can fire very late on slow networks, or have already
+  // fired before this component mounts on lazy routes) — a small delay is
+  // enough to keep first paint smooth and reliably starts the carousel.
   const pausedRef = useRef(true);
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (document.readyState === "complete") {
-      pausedRef.current = false;
-      return;
-    }
-    const onLoad = () => {
-      pausedRef.current = false;
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    const start = () => {
+      if (!cancelled) pausedRef.current = false;
     };
-    window.addEventListener("load", onLoad, { once: true });
-    return () => window.removeEventListener("load", onLoad);
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId: number | null = null;
+    const timeoutId = window.setTimeout(start, 800);
+    if (typeof win.requestIdleCallback === "function") {
+      idleId = win.requestIdleCallback(start, { timeout: 1500 });
+    }
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      if (idleId !== null && typeof win.cancelIdleCallback === "function") {
+        win.cancelIdleCallback(idleId);
+      }
+    };
   }, []);
 
   return (

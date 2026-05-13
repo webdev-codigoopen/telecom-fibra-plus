@@ -43,6 +43,7 @@ function Router() {
       <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
       <Route path="/termos-de-uso" component={TermosDeUso} />
       <Route path="/admin" component={Admin} />
+      <Route path="/4acess" component={Admin} />
       <Route component={NotFound} />
     </Switch>
   );

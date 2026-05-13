@@ -110,6 +110,9 @@ export default function Testimonials() {
     };
   }, [baseUrl]);
 
+  // Show at most 3 reviews on the home section.
+  const visibleReviews = reviews.slice(0, 3);
+
   const gmbUrl = settings.gmb_profile_url.trim();
 
   return (
@@ -161,11 +164,11 @@ export default function Testimonials() {
           className="grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
             gap: 20,
           }}
         >
-          {reviews.map((r, i) => (
+          {visibleReviews.map((r, i) => (
             <motion.article
               key={`${r.id}-${i}`}
               initial={{ opacity: 0, y: 12 }}
