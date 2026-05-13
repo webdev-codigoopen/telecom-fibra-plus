@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Area,
-  AreaChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -1786,7 +1784,7 @@ function CityTrendPanel({
         )}
         {points && points.length > 0 && effectiveViewMode === "source" && (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={sourceChartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+            <LineChart data={sourceChartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E3EB" />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#7A7F8C" }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#7A7F8C" }} width={28} />
@@ -1795,19 +1793,18 @@ function CityTrendPanel({
                 labelStyle={{ fontWeight: 600 }}
               />
               {sortedSources.map(({ source, color }) => (
-                <Area
+                <Line
                   key={source}
                   type="monotone"
                   dataKey={source}
-                  stackId="1"
                   stroke={color}
-                  fill={color}
-                  fillOpacity={0.7}
-                  strokeWidth={1.5}
+                  strokeWidth={2}
+                  dot={{ r: 2, fill: color }}
+                  activeDot={{ r: 4 }}
                   isAnimationActive={false}
                 />
               ))}
-            </AreaChart>
+            </LineChart>
           </ResponsiveContainer>
         )}
       </div>
