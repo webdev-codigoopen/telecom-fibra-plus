@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet-async";
+import { adminFetch, clearCsrfCache } from "../lib/adminFetch";
 import { type ApiPlan } from "../hooks/usePlans";
 import ImageCropper from "../components/ImageCropper";
 import PlanCard from "../components/PlanCard";
@@ -217,7 +218,7 @@ export default function Admin() {
 
   const fetchAppSettingsAdmin = useCallback(async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/settings/admin`, {
+      const res = await adminFetch(`${baseUrl}/api/settings/admin`, {
         headers: { "X-Admin-Key": adminKey },
       });
       if (!res.ok) return;
@@ -232,7 +233,7 @@ export default function Admin() {
 
   const fetchStreamingBrands = useCallback(async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/streaming-brands`);
+      const res = await adminFetch(`${baseUrl}/api/streaming-brands`);
       if (!res.ok) return;
       const data: StreamingBrand[] = await res.json();
       setStreamingBrands(data);
@@ -491,13 +492,13 @@ export default function Admin() {
       const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
 
       const [statsRes, sourcesRes, prevRes, tsRes, healthRes] = await Promise.all([
-        fetch(url, { headers: { "X-Admin-Key": key } }),
-        fetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(url, { headers: { "X-Admin-Key": key } }),
+        adminFetch(`${baseUrl}/api/clicks/sources`, { headers: { "X-Admin-Key": key } }),
         hasPrevious
-          ? fetch(prevUrl, { headers: { "X-Admin-Key": key } })
+          ? adminFetch(prevUrl, { headers: { "X-Admin-Key": key } })
           : Promise.resolve(null),
-        fetch(tsUrl, { headers: { "X-Admin-Key": key } }),
-        fetch(`${baseUrl}/api/clicks/preview-health`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(tsUrl, { headers: { "X-Admin-Key": key } }),
+        adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { "X-Admin-Key": key } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -544,7 +545,7 @@ export default function Admin() {
     setLoading(true);
     setError(null);
     try {
-      const verify = await fetch(`${baseUrl}/api/plans/admin/verify`, {
+      const verify = await adminFetch(`${baseUrl}/api/plans/admin/verify`, {
         headers: { "X-Admin-Key": key },
       });
       if (verify.status === 401) {
@@ -557,7 +558,7 @@ export default function Admin() {
 
       const stored = loadStoredFilters();
       const [plansRes] = await Promise.all([
-        fetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
+        adminFetch(`${baseUrl}/api/plans`, { headers: { "X-Admin-Key": key } }),
         fetchClickStats(key, stored.range, stored.source, stored.customFrom, stored.customTo, stored.city),
         fetchStreamingBrands(),
         fetchAppSettingsAdmin(),
@@ -586,7 +587,7 @@ export default function Admin() {
         if (useRecovery && recoveryInput.trim()) body["recoveryCode"] = recoveryInput.trim();
         else if (totpInput.trim()) body["totpCode"] = totpInput.trim();
       }
-      const res = await fetch(`${baseUrl}/api/auth/login`, {
+      const res = await adminFetch(`${baseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -666,7 +667,7 @@ export default function Admin() {
         ? `${baseUrl}/api/plans`
         : `${baseUrl}/api/plans/${(plan as ApiPlan).id}`;
       const method = isCreating ? "POST" : "PUT";
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -692,7 +693,7 @@ export default function Admin() {
     setSaving(true);
     setSaveError(null);
     try {
-      const res = await fetch(`${baseUrl}/api/plans/${id}`, {
+      const res = await adminFetch(`${baseUrl}/api/plans/${id}`, {
         method: "DELETE",
         headers: { "X-Admin-Key": adminKey },
       });
@@ -712,7 +713,7 @@ export default function Admin() {
     setReordering(true);
     setSaveError(null);
     try {
-      const res = await fetch(`${baseUrl}/api/plans/reorder`, {
+      const res = await adminFetch(`${baseUrl}/api/plans/reorder`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -891,13 +892,14 @@ export default function Admin() {
         <button
           onClick={async () => {
             try {
-              await fetch(`${baseUrl}/api/auth/logout`, {
+              await adminFetch(`${baseUrl}/api/auth/logout`, {
                 method: "POST",
                 credentials: "include",
               });
             } catch {
               /* ignore */
             }
+            clearCsrfCache();
             localStorage.removeItem(STORAGE_KEY);
             setAdminKey("");
             setAuthed(false);
@@ -1263,7 +1265,7 @@ export default function Admin() {
                           filename = filename.replace(/^clicks-/, `clicks-${citySlug}-`);
                         }
                         const qs = params.toString();
-                        const res = await fetch(
+                        const res = await adminFetch(
                           `${baseUrl}/api/clicks/export${qs ? `?${qs}` : ""}`,
                           { headers: { "X-Admin-Key": adminKey } },
                         );
@@ -1329,7 +1331,7 @@ export default function Admin() {
                           filename = filename.replace(/^clicks-raw-/, `clicks-raw-${citySlug}-`);
                         }
                         const qs = params.toString();
-                        const res = await fetch(
+                        const res = await adminFetch(
                           `${baseUrl}/api/clicks/export/raw${qs ? `?${qs}` : ""}`,
                           { headers: { "X-Admin-Key": adminKey } },
                         );
@@ -2319,7 +2321,7 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
   async function uploadBlob(blob: Blob, name: string, contentType: string) {
     setUploading(true);
     try {
-      const reqRes = await fetch(`${baseUrl}/api/storage/uploads/request-url`, {
+      const reqRes = await adminFetch(`${baseUrl}/api/storage/uploads/request-url`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -2870,7 +2872,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setReordering(true);
     setErr(null);
     try {
-      const res = await fetch(`${baseUrl}/api/streaming-brands/reorder`, {
+      const res = await adminFetch(`${baseUrl}/api/streaming-brands/reorder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({ order: next.map((b) => b.id) }),
@@ -2924,7 +2926,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setAffectedLoading(true);
     void (async () => {
       try {
-        const res = await fetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
+        const res = await adminFetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
           headers: { "X-Admin-Key": adminKey },
           signal: controller.signal,
         });
@@ -2971,7 +2973,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setDeleteUsagesLoading(true);
     void (async () => {
       try {
-        const res = await fetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
+        const res = await adminFetch(`${baseUrl}/api/streaming-brands/${b.id}/usages`, {
           headers: { "X-Admin-Key": adminKey },
           signal: controller.signal,
         });
@@ -3020,7 +3022,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     }
     setUploading(true);
     try {
-      const reqRes = await fetch(`${baseUrl}/api/storage/uploads/request-url`, {
+      const reqRes = await adminFetch(`${baseUrl}/api/storage/uploads/request-url`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
@@ -3055,7 +3057,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
         ? `${baseUrl}/api/streaming-brands/${editing.id}`
         : `${baseUrl}/api/streaming-brands`;
       const method = editing ? "PUT" : "POST";
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body,
@@ -3084,7 +3086,7 @@ function StreamingBrandsManager({ brands, adminKey, baseUrl, onChange }: Streami
     setBusy(true);
     setErr(null);
     try {
-      const res = await fetch(`${baseUrl}/api/streaming-brands/${id}`, {
+      const res = await adminFetch(`${baseUrl}/api/streaming-brands/${id}`, {
         method: "DELETE",
         headers: { "X-Admin-Key": adminKey },
       });
@@ -3475,7 +3477,7 @@ function CtaSettingsManager({ settings, adminKey, baseUrl, onChange }: CtaSettin
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -3697,10 +3699,10 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
       const params = buildParams();
       const qs = params.toString();
       const [listRes, citiesRes] = await Promise.all([
-        fetch(`${baseUrl}/api/demand/interests${qs ? `?${qs}` : ""}`, {
+        adminFetch(`${baseUrl}/api/demand/interests${qs ? `?${qs}` : ""}`, {
           headers: { "X-Admin-Key": adminKey },
         }),
-        fetch(`${baseUrl}/api/demand/interests/cities`, {
+        adminFetch(`${baseUrl}/api/demand/interests/cities`, {
           headers: { "X-Admin-Key": adminKey },
         }),
       ]);
@@ -3725,7 +3727,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
     setSavingId(id);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/demand/interests/${id}`, {
+      const res = await adminFetch(`${baseUrl}/api/demand/interests/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify(patch),
@@ -3767,7 +3769,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
     try {
       const params = buildParams();
       const qs = params.toString();
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/demand/interests/export${qs ? `?${qs}` : ""}`,
         { headers: { "X-Admin-Key": adminKey } },
       );
@@ -4069,7 +4071,7 @@ function EmailReportSubscriptionsManager({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison`,
         { headers: { "X-Admin-Key": adminKey } },
       );
@@ -4095,7 +4097,7 @@ function EmailReportSubscriptionsManager({
     setErrorMsg(null);
     setFeedback(null);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison`,
         {
           method: "POST",
@@ -4127,7 +4129,7 @@ function EmailReportSubscriptionsManager({
     setBusyId(sub.id);
     setErrorMsg(null);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison/${sub.id}`,
         {
           method: "PATCH",
@@ -4152,7 +4154,7 @@ function EmailReportSubscriptionsManager({
     setBusyId(sub.id);
     setErrorMsg(null);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison/${sub.id}`,
         { method: "DELETE", headers: { "X-Admin-Key": adminKey } },
       );
@@ -4170,7 +4172,7 @@ function EmailReportSubscriptionsManager({
     setErrorMsg(null);
     setFeedback(null);
     try {
-      const res = await fetch(
+      const res = await adminFetch(
         `${baseUrl}/api/email-subscriptions/city-comparison/${sub.id}/send-now`,
         {
           method: "POST",
@@ -4423,7 +4425,7 @@ function InterestNotificationSettings({
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -4569,7 +4571,7 @@ function RecaptchaSettings({
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -4772,7 +4774,7 @@ function MarketingSettings({ settings, adminKey, baseUrl, onChange }: MarketingS
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({
@@ -4985,7 +4987,7 @@ function ReviewsSettings({ settings, adminKey, baseUrl, onChange }: MarketingSet
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({
@@ -5018,7 +5020,7 @@ function ReviewsSettings({ settings, adminKey, baseUrl, onChange }: MarketingSet
     setImporting(true);
     setImportMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/reviews/import-google`, {
+      const res = await adminFetch(`${baseUrl}/api/reviews/import-google`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
       });
@@ -5200,7 +5202,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch(`${baseUrl}/api/reviews/admin`, {
+      const res = await adminFetch(`${baseUrl}/api/reviews/admin`, {
         headers: { "X-Admin-Key": adminKey },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -5221,7 +5223,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
   }, [reload]);
 
   async function toggleVisible(r: AdminReview) {
-    await fetch(`${baseUrl}/api/reviews/${r.id}`, {
+    await adminFetch(`${baseUrl}/api/reviews/${r.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
       body: JSON.stringify({ visible: !r.visible }),
@@ -5231,7 +5233,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
 
   async function deleteReview(r: AdminReview) {
     if (!confirm(`Excluir a avaliação de ${r.authorName}?`)) return;
-    await fetch(`${baseUrl}/api/reviews/${r.id}`, {
+    await adminFetch(`${baseUrl}/api/reviews/${r.id}`, {
       method: "DELETE",
       headers: { "X-Admin-Key": adminKey },
     });
@@ -5243,7 +5245,7 @@ function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: stri
     if (!name.trim() || !text.trim()) return;
     setCreating(true);
     try {
-      await fetch(`${baseUrl}/api/reviews`, {
+      await adminFetch(`${baseUrl}/api/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({
@@ -5441,7 +5443,7 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
     setSaving(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings`, {
+      const res = await adminFetch(`${baseUrl}/api/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({
@@ -5480,7 +5482,7 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
     setTesting(true);
     setTestMsg(null);
     try {
-      const res = await fetch(`${baseUrl}/api/settings/smtp/test`, {
+      const res = await adminFetch(`${baseUrl}/api/settings/smtp/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
         body: JSON.stringify({ to: testTo.trim() }),
@@ -5706,7 +5708,7 @@ function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
       const qs = new URLSearchParams({ limit: "200" });
       if (emailFilter.trim()) qs.set("email", emailFilter.trim());
       if (actionFilter.trim()) qs.set("action", actionFilter.trim());
-      const res = await fetch(`${baseUrl}/api/admin/audit?${qs.toString()}`, {
+      const res = await adminFetch(`${baseUrl}/api/admin/audit?${qs.toString()}`, {
         headers: { "X-Admin-Key": adminKey },
         credentials: "include",
       });
@@ -5819,7 +5821,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${baseUrl}/api/auth/me`, {
+      const res = await adminFetch(`${baseUrl}/api/auth/me`, {
         credentials: "include",
         headers: { "X-Admin-Key": adminKey },
       });
@@ -5836,7 +5838,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
     setMsg(null);
     setBusy(true);
     try {
-      const res = await fetch(`${baseUrl}/api/auth/2fa/setup`, {
+      const res = await adminFetch(`${baseUrl}/api/auth/2fa/setup`, {
         method: "POST",
         credentials: "include",
         headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
@@ -5857,7 +5859,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
     setMsg(null);
     setBusy(true);
     try {
-      const res = await fetch(`${baseUrl}/api/auth/2fa/enable`, {
+      const res = await adminFetch(`${baseUrl}/api/auth/2fa/enable`, {
         method: "POST",
         credentials: "include",
         headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
@@ -5881,7 +5883,7 @@ function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
     setMsg(null);
     setBusy(true);
     try {
-      const res = await fetch(`${baseUrl}/api/auth/2fa/disable`, {
+      const res = await adminFetch(`${baseUrl}/api/auth/2fa/disable`, {
         method: "POST",
         credentials: "include",
         headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },

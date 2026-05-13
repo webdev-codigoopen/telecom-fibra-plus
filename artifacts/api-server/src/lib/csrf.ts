@@ -10,18 +10,18 @@ import type { Request, Response, NextFunction } from "express";
 // Authorization: Bearer headers, because no other origin can read or set
 // those headers on the victim's behalf (same-origin policy + CORS).
 //
-// We enforce CSRF only when ALL of the following hold:
-//   1. The request is a mutating verb (POST/PUT/PATCH/DELETE).
-//   2. The browser sent the `pmf_admin` session cookie.
-//   3. The request did NOT also present an explicit header bearer
-//      (X-Admin-Key / Authorization: Bearer) — which always wins and is
-//      structurally CSRF-immune.
+// Per task #126 acceptance, CSRF is required for ALL authenticated admin
+// mutations regardless of transport (cookie OR header bearer). The only
+// requests we skip are:
+//   1. Read-only verbs (GET/HEAD/OPTIONS) — no state change.
+//   2. Public unauthenticated mutations (no `pmf_admin` cookie AND no
+//      header bearer) — these are open endpoints like /clicks and
+//      /demand/interest where there is no auth credential to ride on,
+//      so CSRF is structurally inapplicable.
 //
-// We make this decision by inspecting the raw request, NOT by relying on
-// `req.adminAuthSource`, because the CSRF middleware runs BEFORE the per-
-// route `requireAdmin` middleware that would set that flag. This also means
-// public unauthenticated POSTs (e.g. /clicks, /demand/interest) are not
-// blocked — they have no `pmf_admin` cookie.
+// We decide by inspecting the raw request directly (cookies + headers),
+// NOT via `req.adminAuthSource`, because the CSRF middleware runs BEFORE
+// the per-route `requireAdmin` middleware that would set that flag.
 // ---------------------------------------------------------------------------
 
 const CSRF_COOKIE = "pmf_csrf";
@@ -83,20 +83,14 @@ export function csrfMiddleware(
     next();
     return;
   }
-  // Header-bearer auth is CSRF-immune by construction. Skip even if a
-  // session cookie also happens to be present.
-  if (hasHeaderBearer(req)) {
+  // Public unauthenticated mutations skip CSRF (no auth credential to
+  // ride on). All other authenticated paths (cookie OR header bearer)
+  // must present a valid double-submit token.
+  if (!req.cookies?.[SESSION_COOKIE] && !hasHeaderBearer(req)) {
     next();
     return;
   }
-  // Public unauthenticated mutations (no admin cookie, no header bearer).
-  // requireAdmin will reject these later if the route needs auth; CSRF has
-  // no role here because there is no auth credential to ride on.
-  if (!req.cookies?.[SESSION_COOKIE]) {
-    next();
-    return;
-  }
-  // Cookie-authenticated mutation — enforce double-submit token.
+  // Authenticated mutation — enforce double-submit token.
   doubleCsrfProtection(req, res, (err) => {
     if (err) {
       res.status(403).json({ error: "Invalid or missing CSRF token" });
