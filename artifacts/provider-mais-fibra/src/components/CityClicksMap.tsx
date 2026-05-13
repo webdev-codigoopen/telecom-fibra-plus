@@ -115,7 +115,7 @@ async function fetchCityTotals(baseUrl: string, adminKey: string, win: Window): 
   if (win.until) params.set("until", win.until);
   const qs = params.toString();
   const url = `${baseUrl}/api/clicks/stats${qs ? `?${qs}` : ""}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${adminKey}` } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data: StatRow[] = await res.json();
   const totals = new Map<string, CityTotals>();
@@ -141,7 +141,7 @@ async function fetchCityConversion(
   if (win.until) params.set("until", win.until);
   const qs = params.toString();
   const url = `${baseUrl}/api/clicks/cities-conversion${qs ? `?${qs}` : ""}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ` } });
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${adminKey}` } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data: { city: string; previews: number; signups: number }[] = await res.json();
   const map = new Map<string, CityConversion>();
@@ -1388,7 +1388,7 @@ async function fetchTrendBuckets(
   params.set("planPrice", city);
   params.set("bucket", bucket);
   const res = await fetch(`${baseUrl}/api/clicks/timeseries?${params.toString()}`, {
-    headers: { Authorization: `Bearer ` },
+    headers: { Authorization: `Bearer ${adminKey}` },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const rows = (await res.json()) as TrendRow[];

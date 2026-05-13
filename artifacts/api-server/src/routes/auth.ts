@@ -130,9 +130,9 @@ router.post("/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-// Issue a CSRF token. Cookie-based admin clients call this once after login
-// and echo the returned token back in the X-CSRF-Token header on every
-// mutating request. Header-bearer clients do not need it.
+// Issue a CSRF token. Every authenticated admin client (cookie OR
+// Authorization: Bearer) calls this once after login and echoes the returned
+// token back in the X-CSRF-Token header on every mutating request.
 router.get("/auth/csrf", (req, res) => {
   const token = issueCsrfToken(req, res);
   res.json({ csrfToken: token });
