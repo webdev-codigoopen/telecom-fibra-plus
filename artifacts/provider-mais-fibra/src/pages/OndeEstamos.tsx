@@ -82,9 +82,6 @@ export default function OndeEstamos() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#122AD5] mb-2">
-                Escolha sua cidade e fale com a gente
-              </h2>
               <p className="text-[#4A4F61] text-sm">
                 Fale direto com nossa equipe pelo WhatsApp
               </p>
