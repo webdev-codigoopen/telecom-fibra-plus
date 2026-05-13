@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 
 const BASE = import.meta.env.BASE_URL;
@@ -221,123 +222,222 @@ export default function Header() {
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-      {/* Mobile menu — backdrop */}
-      <div
-        className="lg:hidden fixed inset-0 transition-opacity duration-300 ease-in-out"
-        style={{
-          background: "rgba(0,0,0,0.5)",
-          opacity: isOpen ? 1 : 0,
-          pointerEvents: isOpen ? "auto" : "none",
-          zIndex: 40,
-        }}
-        onClick={() => setIsOpen(false)}
-        aria-hidden="true"
-      />
+      {/* Mobile menu — backdrop + drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              key="backdrop"
+              className="lg:hidden fixed inset-0"
+              style={{
+                background: "rgba(5,8,30,0.55)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                zIndex: 40,
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={() => setIsOpen(false)}
+              aria-hidden="true"
+            />
 
-      {/* Mobile menu — side drawer (right) */}
-      <div
-        id="mobile-menu"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mobile-menu-trigger"
-        className="header-section__mobile lg:hidden fixed top-0 right-0 flex flex-col transition-transform duration-300 ease-in-out"
-        style={{
-          width: "min(85vw, 360px)",
-          height: "100vh",
-          background: "rgba(0, 16, 80, 0.98)",
-          transform: isOpen ? "translateX(0)" : "translateX(100%)",
-          boxShadow: isOpen ? "-8px 0 24px rgba(0,0,0,0.35)" : "none",
-          zIndex: 60,
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}
-      >
-        {/* Drawer header: logo + close */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/10 flex-shrink-0">
-          <img
-            src={logoUrl}
-            alt="Provider + FIBRA"
-            className="h-7 w-auto"
-            width={264}
-            height={47}
-          />
-          <button
-            onClick={() => setIsOpen(false)}
-            className="cursor-pointer text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
-            aria-label="Fechar menu"
-          >
-            <X size={22} />
-          </button>
-        </div>
-
-        {/* Nav links — scrollable */}
-        <nav className="flex-1 overflow-y-auto px-5 py-4">
-          {navLinks.map((link) => {
-            const active = isActive(link);
-            return (
-              <button
-                key={link.label}
-                onClick={() => handleNav(link)}
-                className="w-full text-left py-4 px-2 text-[17px] leading-[22px] border-b border-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded hover:bg-white/5"
+            <motion.div
+              key="drawer"
+              id="mobile-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mobile-menu-trigger"
+              className="header-section__mobile lg:hidden fixed top-0 right-0 flex flex-col overflow-hidden"
+              style={{
+                width: "min(88vw, 380px)",
+                height: "100vh",
+                background:
+                  "linear-gradient(160deg, #1A38D5 0%, #122AD5 45%, #0A1A8C 100%)",
+                boxShadow: "-12px 0 40px rgba(0,0,0,0.45)",
+                zIndex: 60,
+                paddingTop: "env(safe-area-inset-top, 0px)",
+                paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              }}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+            >
+              {/* Decorative accent orb */}
+              <div
+                aria-hidden
                 style={{
-                  color: active ? COLORS.active : COLORS.inactive,
-                  fontFamily: FONT_NUNITO,
-                  fontWeight: active ? 700 : 600,
+                  position: "absolute",
+                  top: -120,
+                  right: -120,
+                  width: 320,
+                  height: 320,
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle, rgba(149,235,29,0.22) 0%, rgba(149,235,29,0) 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* Drawer header: logo + close */}
+              <div className="relative flex items-center justify-between px-6 pt-6 pb-5 flex-shrink-0">
+                <img
+                  src={logoUrl}
+                  alt="Provider + FIBRA"
+                  className="h-7 w-auto"
+                  width={264}
+                  height={47}
+                />
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="cursor-pointer text-white w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                  aria-label="Fechar menu"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Nav links — scrollable */}
+              <nav className="relative flex-1 overflow-y-auto px-4 pt-2 pb-4">
+                {navLinks.map((link, i) => {
+                  const active = isActive(link);
+                  return (
+                    <motion.button
+                      key={link.label}
+                      onClick={() => handleNav(link)}
+                      initial={{ opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.05 + i * 0.05, duration: 0.3, ease: "easeOut" }}
+                      className="w-full text-left flex items-center justify-between py-4 px-4 my-1 rounded-xl transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] active:scale-[0.98]"
+                      style={{
+                        background: active ? "rgba(149,235,29,0.12)" : "transparent",
+                        color: active ? COLORS.active : COLORS.inactive,
+                        fontFamily: FONT_NUNITO,
+                        fontWeight: active ? 700 : 600,
+                        fontSize: 17,
+                        lineHeight: "22px",
+                      }}
+                    >
+                      <span className="flex items-center gap-3">
+                        {active && (
+                          <span
+                            aria-hidden
+                            style={{
+                              width: 4,
+                              height: 20,
+                              borderRadius: 2,
+                              background: COLORS.active,
+                              boxShadow: "0 0 12px rgba(149,235,29,0.6)",
+                            }}
+                          />
+                        )}
+                        {link.label}
+                      </span>
+                      <ChevronRight size={18} className="opacity-50" />
+                    </motion.button>
+                  );
+                })}
+
+                {/* Divider label */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.05 + navLinks.length * 0.05, duration: 0.3 }}
+                  className="px-4 pt-6 pb-2 text-[11px] uppercase tracking-[0.12em] text-white/40 font-bold"
+                  style={{ fontFamily: FONT_NUNITO }}
+                >
+                  Baixe o app
+                </motion.div>
+
+                {/* App stores row */}
+                <motion.div
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 + navLinks.length * 0.05, duration: 0.3 }}
+                  className="flex gap-2 px-2"
+                >
+                  <a
+                    href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                    style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
+                  >
+                    <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
+                    Play
+                  </a>
+                  <a
+                    href="https://apps.apple.com/br/app/provider-mais-fibra/id6762133657"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl transition-all duration-200 hover:bg-white/15 active:scale-[0.98]"
+                    style={{ background: "rgba(255,255,255,0.08)", color: "#fff", fontFamily: FONT_NUNITO, fontWeight: 600, fontSize: 13 }}
+                  >
+                    <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
+                    App Store
+                  </a>
+                </motion.div>
+              </nav>
+
+              {/* Footer: CTA + social — pinned to bottom */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.35 }}
+                className="relative flex-shrink-0 px-6 pt-5 pb-6"
+                style={{
+                  background:
+                    "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.15) 100%)",
                 }}
               >
-                {link.label}
-              </button>
-            );
-          })}
-
-          {/* Aplicativo row */}
-          <button
-            onClick={() => handleNav({ label: "Aplicativo", href: "#app" })}
-            className="w-full text-left py-4 px-2 text-[17px] leading-[22px] flex items-center justify-between outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D] rounded hover:bg-white/5"
-            style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
-          >
-            <span>Aplicativo</span>
-            <span className="flex items-center gap-2">
-              <img src={iconGooglePlay} alt="" className="w-4 h-[18px]" />
-              <img src={iconApple} alt="" className="w-[18px] h-[18px]" />
-            </span>
-          </button>
-        </nav>
-
-        {/* Footer: social + CTA — pinned to bottom */}
-        <div className="flex-shrink-0 px-5 pt-4 pb-6 border-t border-white/10">
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              handleNav({ label: "Planos", href: "#planos" });
-            }}
-            className="w-full h-12 rounded-lg text-[15px] leading-[20px] transition-all duration-200 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F35C9] mb-4"
-            style={{ background: COLORS.ctaBg, color: COLORS.ctaText, fontFamily: FONT_NUNITO, fontWeight: 700 }}
-          >
-            Assine Já
-          </button>
-          <div className="flex items-center justify-center gap-6">
-            <a
-              href="https://wa.me/5577998444757"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="WhatsApp"
-              className="opacity-90 hover:opacity-100 p-2"
-            >
-              <img src={iconWhatsApp} alt="" className="w-6 h-6" />
-            </a>
-            <a
-              href="https://instagram.com/provider.fibra"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-              className="opacity-90 hover:opacity-100 p-2"
-            >
-              <img src={iconInstagram} alt="" className="w-6 h-6" />
-            </a>
-          </div>
-        </div>
-      </div>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleNav({ label: "Planos", href: "#planos" });
+                  }}
+                  className="w-full h-12 rounded-full text-[15px] leading-[20px] transition-all duration-200 hover:brightness-110 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#122AD5] mb-4"
+                  style={{
+                    background: COLORS.ctaBg,
+                    color: COLORS.ctaText,
+                    fontFamily: FONT_NUNITO,
+                    fontWeight: 800,
+                    boxShadow: "0 8px 24px rgba(149,235,29,0.35)",
+                  }}
+                >
+                  Assine Já
+                </button>
+                <div className="flex items-center justify-center gap-3">
+                  <a
+                    href="https://wa.me/5577998444757"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
+                    style={{ background: "rgba(255,255,255,0.08)" }}
+                  >
+                    <img src={iconWhatsApp} alt="" className="w-5 h-5" />
+                  </a>
+                  <a
+                    href="https://instagram.com/provider.fibra"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
+                    style={{ background: "rgba(255,255,255,0.08)" }}
+                  >
+                    <img src={iconInstagram} alt="" className="w-5 h-5" />
+                  </a>
+                </div>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
