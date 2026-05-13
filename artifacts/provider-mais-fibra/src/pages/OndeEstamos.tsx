@@ -70,30 +70,6 @@ export default function OndeEstamos() {
               <p className="text-white/70 text-lg mb-8">
                 Presentes em <strong className="text-white">{cities.length} cidades</strong> do Oeste da Bahia com fibra óptica 100%
               </p>
-
-              <div className="flex flex-wrap justify-center gap-4">
-                <div
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
-                >
-                  <span className="text-2xl font-black text-[#95EB1D]">{cities.length}</span>
-                  Cidades Atendidas
-                </div>
-                <div
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
-                >
-                  <span className="text-2xl font-black text-[#95EB1D]">100%</span>
-                  Fibra Óptica
-                </div>
-                <div
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white"
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
-                >
-                  <Clock size={18} style={{ color: "#95EB1D" }} />
-                  Suporte 24h
-                </div>
-              </div>
             </motion.div>
           </div>
         </section>
