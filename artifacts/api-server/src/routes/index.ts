@@ -10,6 +10,7 @@ import appSettingsRouter from "./app_settings";
 import emailSubscriptionsRouter from "./email_subscriptions";
 import contactRouter from "./contact";
 import reviewsRouter from "./reviews";
+import faqRouter from "./faq";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(appSettingsRouter);
 router.use(emailSubscriptionsRouter);
 router.use(contactRouter);
 router.use(reviewsRouter);
+router.use(faqRouter);
 
 export default router;

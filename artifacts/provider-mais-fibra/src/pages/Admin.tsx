@@ -204,7 +204,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "historico">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "duvidas" | "historico">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -922,6 +922,7 @@ export default function Admin() {
             { id: "seguranca", label: "Segurança" },
             { id: "marketing", label: "Marketing" },
             { id: "avaliacoes", label: "Avaliações" },
+            { id: "duvidas", label: "Dúvidas" },
             { id: "historico", label: "Histórico" },
           ] as const).map((tab) => {
             const active = activeTab === tab.id;
@@ -1018,6 +1019,10 @@ export default function Admin() {
             />
             <ReviewsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
+        )}
+
+        {!loading && activeTab === "duvidas" && (
+          <FaqManager adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "historico" && (
@@ -5187,6 +5192,305 @@ type AdminReview = {
   postedAt: string | null;
   createdAt: string;
 };
+
+type AdminFaqItem = {
+  id: number;
+  question: string;
+  answer: string;
+  column: "left" | "right";
+  sortOrder: number;
+  isActive: boolean;
+};
+
+function FaqManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
+  const [items, setItems] = useState<AdminFaqItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draftQ, setDraftQ] = useState("");
+  const [draftA, setDraftA] = useState("");
+  const [draftCol, setDraftCol] = useState<"left" | "right">("left");
+  const [draftActive, setDraftActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const isCreating = editingId === 0;
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/admin/faq-items`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as AdminFaqItem[];
+      setItems(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar dúvidas.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  function startCreate() {
+    setEditingId(0);
+    setDraftQ("");
+    setDraftA("");
+    setDraftCol("left");
+    setDraftActive(true);
+  }
+
+  function startEdit(item: AdminFaqItem) {
+    setEditingId(item.id);
+    setDraftQ(item.question);
+    setDraftA(item.answer);
+    setDraftCol(item.column);
+    setDraftActive(item.isActive);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function save() {
+    if (draftQ.trim().length < 3 || draftA.trim().length < 3) {
+      setErr("Pergunta e resposta precisam ter ao menos 3 caracteres.");
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const isNew = editingId === 0;
+      const url = isNew
+        ? `${baseUrl}/api/faq-items`
+        : `${baseUrl}/api/faq-items/${editingId}`;
+      const res = await adminFetch(url, {
+        method: isNew ? "POST" : "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          question: draftQ.trim(),
+          answer: draftA.trim(),
+          column: draftCol,
+          isActive: draftActive,
+          ...(isNew ? { sortOrder: items.length } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      setEditingId(null);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(item: AdminFaqItem) {
+    if (!confirm(`Excluir a dúvida "${item.question}"?`)) return;
+    try {
+      const res = await adminFetch(`${baseUrl}/api/faq-items/${item.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao excluir.");
+    }
+  }
+
+  async function toggleActive(item: AdminFaqItem) {
+    try {
+      const res = await adminFetch(`${baseUrl}/api/faq-items/${item.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          question: item.question,
+          answer: item.answer,
+          column: item.column,
+          isActive: !item.isActive,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao atualizar.");
+    }
+  }
+
+  const grouped = {
+    left: items.filter((i) => i.column === "left"),
+    right: items.filter((i) => i.column === "right"),
+  };
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-[#0D0D0D]">Dúvidas (FAQ)</h2>
+          <p className="text-sm text-[#7A7F8C]">
+            Gerencie as perguntas e respostas exibidas na seção "Tire suas Dúvidas" do site.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={startCreate}
+          disabled={editingId !== null}
+          className="px-4 py-2 rounded-md bg-[#122AD5] text-white text-sm font-semibold disabled:opacity-50"
+          data-testid="faq-add-button"
+        >
+          + Nova dúvida
+        </button>
+      </header>
+
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-md px-3 py-2 mb-4 text-sm">
+          {err}
+        </div>
+      )}
+
+      {(isCreating || editingId !== null) && (
+        <div className="mb-6 p-4 rounded-lg border border-[#122AD5]/30 bg-[#F4F6FF]">
+          <h3 className="font-semibold text-sm mb-3 text-[#0D0D0D]">
+            {isCreating ? "Nova dúvida" : `Editando #${editingId}`}
+          </h3>
+          <div className="space-y-3">
+            <label className="block text-xs font-semibold text-[#4A4F61]">
+              Pergunta
+              <input
+                type="text"
+                value={draftQ}
+                onChange={(e) => setDraftQ(e.target.value)}
+                maxLength={300}
+                className="mt-1 w-full rounded-md border border-[#E0E3EB] px-3 py-2 text-sm font-normal text-[#0D0D0D]"
+                data-testid="faq-input-question"
+              />
+            </label>
+            <label className="block text-xs font-semibold text-[#4A4F61]">
+              Resposta
+              <textarea
+                value={draftA}
+                onChange={(e) => setDraftA(e.target.value)}
+                maxLength={2000}
+                rows={4}
+                className="mt-1 w-full rounded-md border border-[#E0E3EB] px-3 py-2 text-sm font-normal text-[#0D0D0D]"
+                data-testid="faq-input-answer"
+              />
+            </label>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className="text-xs font-semibold text-[#4A4F61] flex items-center gap-2">
+                Coluna
+                <select
+                  value={draftCol}
+                  onChange={(e) => setDraftCol(e.target.value as "left" | "right")}
+                  className="rounded-md border border-[#E0E3EB] px-2 py-1 text-sm font-normal"
+                >
+                  <option value="left">Esquerda</option>
+                  <option value="right">Direita</option>
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-[#4A4F61] flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={draftActive}
+                  onChange={(e) => setDraftActive(e.target.checked)}
+                />
+                Visível no site
+              </label>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving}
+                className="px-4 py-2 rounded-md bg-[#122AD5] text-white text-sm font-semibold disabled:opacity-50"
+                data-testid="faq-save-button"
+              >
+                {saving ? "Salvando..." : "Salvar"}
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={saving}
+                className="px-4 py-2 rounded-md border border-[#E0E3EB] text-sm font-semibold text-[#4A4F61]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center text-[#7A7F8C] py-8">Carregando...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {(["left", "right"] as const).map((col) => (
+            <div key={col}>
+              <h3 className="text-xs font-bold uppercase text-[#7A7F8C] mb-2">
+                Coluna {col === "left" ? "esquerda" : "direita"} ({grouped[col].length})
+              </h3>
+              <ul className="space-y-2">
+                {grouped[col].map((item) => (
+                  <li
+                    key={item.id}
+                    className={`p-3 rounded-md border ${
+                      item.isActive ? "border-[#E0E3EB] bg-white" : "border-dashed border-[#E0E3EB] bg-[#FAFAFB] opacity-60"
+                    }`}
+                    data-testid={`faq-item-${item.id}`}
+                  >
+                    <div className="text-sm font-semibold text-[#0D0D0D]">{item.question}</div>
+                    <div className="text-xs text-[#4A4F61] mt-1 line-clamp-2">{item.answer}</div>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(item)}
+                        disabled={editingId !== null}
+                        className="text-xs font-semibold text-[#122AD5] hover:underline disabled:opacity-50"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void toggleActive(item)}
+                        className="text-xs font-semibold text-[#7A7F8C] hover:underline"
+                      >
+                        {item.isActive ? "Ocultar" : "Mostrar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(item)}
+                        className="text-xs font-semibold text-red-600 hover:underline"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </li>
+                ))}
+                {grouped[col].length === 0 && (
+                  <li className="text-xs text-[#7A7F8C] italic">Nenhuma dúvida nesta coluna.</li>
+                )}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function ReviewsManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
   const [reviews, setReviews] = useState<AdminReview[]>([]);

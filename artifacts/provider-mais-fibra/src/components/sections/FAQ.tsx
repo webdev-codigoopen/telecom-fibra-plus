@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 const BASE = import.meta.env.BASE_URL;
+const API_BASE = BASE.replace(/\/$/, "");
 const CHEVRON = `${BASE}images/icons/chevron-down.svg`;
 
 const FONT_NUNITO = "'Nunito', system-ui, sans-serif";
@@ -138,7 +139,42 @@ function FaqRow({ item }: { item: FaqItem }) {
   );
 }
 
+type ApiFaqItem = {
+  id: number;
+  question: string;
+  answer: string;
+  column: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
 export default function FAQ() {
+  const [left, setLeft] = useState<FaqItem[]>(leftItems);
+  const [right, setRight] = useState<FaqItem[]>(rightItems);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}/api/faq-items`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: ApiFaqItem[]) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return;
+        const l = data
+          .filter((d) => d.column === "left" && d.isActive)
+          .map((d) => ({ q: d.question, a: d.answer }));
+        const r = data
+          .filter((d) => d.column === "right" && d.isActive)
+          .map((d) => ({ q: d.question, a: d.answer }));
+        if (l.length > 0) setLeft(l);
+        if (r.length > 0) setRight(r);
+      })
+      .catch(() => {
+        // Mantém fallback hardcoded em caso de falha
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section
       id="faq"
@@ -194,12 +230,12 @@ export default function FAQ() {
           style={{ columnGap: 22, rowGap: 8 }}
         >
           <div className="flex flex-col" style={{ rowGap: 8 }}>
-            {leftItems.map((item) => (
+            {left.map((item) => (
               <FaqRow key={item.q} item={item} />
             ))}
           </div>
           <div className="flex flex-col" style={{ rowGap: 8 }}>
-            {rightItems.map((item) => (
+            {right.map((item) => (
               <FaqRow key={item.q} item={item} />
             ))}
           </div>
