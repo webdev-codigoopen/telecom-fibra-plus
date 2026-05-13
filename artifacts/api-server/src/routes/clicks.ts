@@ -5,6 +5,7 @@ import { requireAdmin as requireAdminKey } from "../lib/auth";
 import {
   BOT_CLEANUP_STATUS_KEY,
   type BotCleanupStatus,
+  runBotClickBackfillTick,
 } from "../lib/botClickBackfillScheduler";
 
 const router: IRouter = Router();
@@ -288,6 +289,22 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (_req, res) => {
     res.json({ status, recordedAt: row.updatedAt });
   } catch {
     res.status(500).json({ error: "Failed to fetch cleanup status" });
+  }
+});
+
+router.post("/clicks/cleanup-run", requireAdminKey, async (_req, res) => {
+  try {
+    const result = await runBotClickBackfillTick();
+    if (result.skipped) {
+      res.status(409).json({
+        skipped: true,
+        error: "A cleanup is already running. Try again in a moment.",
+      });
+      return;
+    }
+    res.json({ skipped: false, status: result.status });
+  } catch {
+    res.status(500).json({ error: "Failed to run cleanup" });
   }
 });
 

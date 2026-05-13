@@ -231,6 +231,8 @@ export default function Admin() {
   } | null>(null);
   const [previewHealthDismissed, setPreviewHealthDismissed] = useState(false);
   const [cleanupStatus, setCleanupStatus] = useState<CleanupStatusResponse | null>(null);
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupRunMsg, setCleanupRunMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -572,6 +574,66 @@ export default function Admin() {
       setClickStatsLoading(false);
     }
   }, [baseUrl]);
+
+  const runCleanupNow = useCallback(async () => {
+    if (cleanupRunning) return;
+    setCleanupRunning(true);
+    setCleanupRunMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/clicks/cleanup-run`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (res.status === 409) {
+        setCleanupRunMsg({
+          kind: "error",
+          text: "Uma limpeza já está em execução. Tente novamente em alguns instantes.",
+        });
+        return;
+      }
+      if (!res.ok) {
+        setCleanupRunMsg({
+          kind: "error",
+          text: "Não foi possível executar a limpeza agora. Tente novamente.",
+        });
+        return;
+      }
+      const data = (await res.json()) as {
+        skipped: boolean;
+        status: CleanupStatusResponse["status"];
+      };
+      if (data.status) {
+        setCleanupStatus({
+          status: data.status,
+          recordedAt: new Date().toISOString(),
+        });
+        if (data.status.ok) {
+          const rows = data.status.rowsRelabeled;
+          const bursts = data.status.burstGroupsFound;
+          setCleanupRunMsg({
+            kind: "success",
+            text: `Limpeza concluída: ${rows.toLocaleString("pt-BR")} ${
+              rows === 1 ? "linha reclassificada" : "linhas reclassificadas"
+            } em ${bursts.toLocaleString("pt-BR")} ${
+              bursts === 1 ? "rajada" : "rajadas"
+            }.`,
+          });
+        } else {
+          setCleanupRunMsg({
+            kind: "error",
+            text: `A limpeza falhou: ${data.status.error ?? "erro desconhecido"}`,
+          });
+        }
+      }
+    } catch {
+      setCleanupRunMsg({
+        kind: "error",
+        text: "Falha de conexão ao executar a limpeza.",
+      });
+    } finally {
+      setCleanupRunning(false);
+    }
+  }, [adminKey, baseUrl, cleanupRunning]);
 
   const fetchPlans = useCallback(async (key: string) => {
     setLoading(true);
@@ -1732,7 +1794,32 @@ export default function Admin() {
                               ? "OK"
                               : "Falhou"}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => void runCleanupNow()}
+                          disabled={cleanupRunning}
+                          className="ml-auto text-[11px] font-semibold px-3 py-1 rounded-md border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                          style={{
+                            background: cleanupRunning ? "#EEF0F5" : "#2A2D38",
+                            color: cleanupRunning ? "#7A7F8C" : "#FFFFFF",
+                            borderColor: cleanupRunning ? "#E0E3EB" : "#2A2D38",
+                          }}
+                        >
+                          {cleanupRunning ? "Executando..." : "Executar agora"}
+                        </button>
                       </div>
+                      {cleanupRunMsg && (
+                        <p
+                          className="text-[12px] mt-1 leading-relaxed"
+                          style={{
+                            color: cleanupRunMsg.kind === "success" ? "#0A6B41" : "#7A1A1A",
+                          }}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          {cleanupRunMsg.text}
+                        </p>
+                      )}
                       {cleanupStatus.status == null && (
                         <p className="text-[12px] text-[#7A7F8C] mt-1 leading-relaxed">
                           A limpeza noturna ainda não rodou desde que o servidor foi iniciado.

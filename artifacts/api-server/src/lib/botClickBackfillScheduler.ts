@@ -45,12 +45,16 @@ async function persistStatus(status: BotCleanupStatus): Promise<void> {
   }
 }
 
-export async function runBotClickBackfillTick(): Promise<void> {
+export type RunBotClickBackfillTickResult =
+  | { skipped: true; status: null }
+  | { skipped: false; status: BotCleanupStatus };
+
+export async function runBotClickBackfillTick(): Promise<RunBotClickBackfillTickResult> {
   if (runningTick) {
     logger.info(
       "[bot-click-backfill] previous tick still running; skipping this run",
     );
-    return;
+    return { skipped: true, status: null };
   }
   runningTick = true;
   const startedAtMs = Date.now();
@@ -86,7 +90,7 @@ export async function runBotClickBackfillTick(): Promise<void> {
       },
       "[bot-click-backfill] daily run finished",
     );
-    await persistStatus({
+    const status: BotCleanupStatus = {
       startedAt: startedAtIso,
       finishedAt: new Date(finishedAtMs).toISOString(),
       durationMs: finishedAtMs - startedAtMs,
@@ -98,14 +102,16 @@ export async function runBotClickBackfillTick(): Promise<void> {
       minBurst: result.minBurst,
       useUserAgent: result.useUserAgent,
       error: null,
-    });
+    };
+    await persistStatus(status);
+    return { skipped: false, status };
   } catch (err) {
     const finishedAtMs = Date.now();
     logger.error(
       { err, durationMs: finishedAtMs - startedAtMs },
       "[bot-click-backfill] daily run failed",
     );
-    await persistStatus({
+    const status: BotCleanupStatus = {
       startedAt: startedAtIso,
       finishedAt: new Date(finishedAtMs).toISOString(),
       durationMs: finishedAtMs - startedAtMs,
@@ -117,7 +123,9 @@ export async function runBotClickBackfillTick(): Promise<void> {
       minBurst: 0,
       useUserAgent: true,
       error: err instanceof Error ? err.message : String(err),
-    });
+    };
+    await persistStatus(status);
+    return { skipped: false, status };
   } finally {
     runningTick = false;
   }
