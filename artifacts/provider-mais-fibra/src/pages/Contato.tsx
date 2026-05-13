@@ -75,7 +75,7 @@ export default function Contato() {
   const labelClass =
     "block text-[13px] font-medium text-[#122AD5] mb-1.5";
   const inputClass =
-    "w-full px-4 py-2.5 rounded-md text-[15px] text-[#0D0D0D] bg-white border border-[#E2E5EC] outline-none transition-colors duration-150 focus:border-[#122AD5]";
+    "w-full px-4 py-2.5 rounded-md text-[15px] text-[#0D0D0D] bg-white border border-[#E2E5EC] outline-none focus:outline-none focus-visible:outline-none transition-colors duration-150 focus:border-[#122AD5]/60";
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
