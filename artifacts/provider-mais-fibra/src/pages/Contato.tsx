@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { MessageCircle, Instagram, Clock, MapPin, ChevronDown } from "lucide-react";
+import { MessageCircle, Instagram, Clock, MapPin, ChevronDown, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
@@ -11,22 +12,20 @@ import {
 } from "@/lib/seoConfig";
 import { cities as allCities } from "@/lib/cities";
 
-const cities = [
+const cityOptions = [
   "Barreiras",
   "Luís Eduardo Magalhães",
-  "Angical",
-  "Baianópolis",
-  "Cristópolis",
-  "São Desidério",
-  "Jaborandi",
-  "Cotegipe",
-  "Wanderley",
-  "Bom Jesus da Lapa",
-  "Santa Maria da Vitória",
   "Correntina",
+  "Wanderley",
+  "Santa Rita de Cássia",
+  "Barra",
+  "Buritirama",
+  "Mansidão",
+  "Múquem de São Francisco",
+  "Posto Rosário",
+  "Roda Velha",
+  "Javi",
 ];
-
-const ICON_PLUS = `${import.meta.env.BASE_URL}images/icons/icone-plus.svg`;
 
 const reasons = [
   "Quero assinar um plano",
@@ -38,34 +37,48 @@ const reasons = [
   "Outro",
 ];
 
-export default function Contato() {
-  const [form, setForm] = useState({ name: "", phone: "", city: "", reason: "", message: "" });
+const FAMILY_IMG = `${import.meta.env.BASE_URL}images/photos/family-contact.png`;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+export default function Contato() {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    city: "",
+    reason: "",
+    message: "",
+    accept: false,
+  });
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
+    const target = e.target as HTMLInputElement;
+    const value = target.type === "checkbox" ? target.checked : target.value;
+    setForm({ ...form, [target.name]: value });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.accept) return;
     const text = encodeURIComponent(
       `Olá! Meu nome é *${form.name}*.\n\n` +
-      `📍 Cidade: ${form.city}\n` +
-      `📋 Assunto: ${form.reason}\n\n` +
-      `💬 Mensagem: ${form.message}\n\n` +
-      `📱 Telefone: ${form.phone}`
+        `📍 Cidade: ${form.city}\n` +
+        `📧 E-mail: ${form.email}\n` +
+        `📋 Assunto: ${form.reason}\n\n` +
+        `💬 Mensagem: ${form.message}\n\n` +
+        `📱 WhatsApp: ${form.phone}`,
     );
     window.open(`https://wa.me/5577998444757?text=${text}`, "_blank");
   };
 
-  const inputClass = "w-full px-4 py-3 rounded-lg text-sm font-medium text-[#0D0D0D] outline-none transition-all duration-200 focus:ring-2";
-  const inputStyle = {
-    background: "#F5F6FA",
-    border: "1.5px solid #E8EAEF",
-    fontFamily: "Inter, sans-serif",
-  };
+  const labelClass =
+    "block text-[13px] font-medium text-[#122AD5] mb-1.5";
+  const inputClass =
+    "w-full px-4 py-2.5 rounded-md text-[15px] text-[#0D0D0D] bg-white border border-[#E2E5EC] outline-none transition-colors duration-150 focus:border-[#122AD5] focus:ring-2 focus:ring-[#122AD5]/15";
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white">
       <SEO
         title="Contato — Provider Mais Fibra"
         description="Fale com a Provider Mais Fibra: WhatsApp (77) 99844-4757, Instagram @provider.fibra e atendimento de seg a sex 8h–18h. Tire dúvidas, contrate planos e peça suporte."
@@ -103,269 +116,308 @@ export default function Contato() {
       />
       <Header />
 
-      <main id="main-content" tabIndex={-1} className="flex-1 pt-16 md:pt-[88px] focus:outline-none">
-        <section
-          className="py-20"
-          style={{ background: "#1934C2" }}
-        >
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1
-                className="text-white mb-4 font-medium text-[40px] leading-tight"
-                style={{ letterSpacing: "-0.02em" }}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 pt-16 md:pt-[88px] focus:outline-none"
+      >
+        {/* HERO ---------------------------------------------------------- */}
+        <section className="bg-white pt-12 md:pt-20 pb-14 md:pb-24">
+          <div className="max-w-[1180px] mx-auto px-5 sm:px-8 lg:px-10">
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
               >
-                Fale com a Provider
-                <span style={{ color: "#95EB1D", marginLeft: "8px" }} className="font-semibold text-[#95eb1d]">
+                <p className="text-[15px] text-[#4A4F61] mb-2 font-normal">
+                  Fale Conosco
+                </p>
+                <h1
+                  className="text-[#122AD5] font-bold mb-6 text-[36px] md:text-[44px] leading-[1.1]"
+                  style={{ letterSpacing: "-0.02em" }}
+                >
+                  Quer falar com a gente?
+                </h1>
+                <p className="text-[15px] md:text-[16px] text-[#4A4F61] leading-relaxed max-w-[480px]">
+                  Se você tem alguma dúvida, precisa contratar um plano, pedir
+                  suporte técnico ou enviar uma sugestão, este é o lugar ideal.
+                  Responda o formulário abaixo com a sua solicitação e nossa
+                  equipe vai responder em breve.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="relative"
+              >
+                <div className="overflow-hidden rounded-[20px] aspect-[4/3] bg-[#F5F6FA]">
                   <img
-                    src={ICON_PLUS}
-                    alt="+"
-                    className="inline-block w-7 h-7 mr-1 mb-2 align-[-0.2em]"
+                    src={FAMILY_IMG}
+                    alt="Família conectada à internet fibra óptica da Provider Mais Fibra"
+                    className="w-full h-full object-cover"
+                    loading="eager"
                   />
-                  Fibra
-                </span>
-              </h1>
-              <p className="text-white/70 text-lg">
-                Nossa equipe está pronta para atender você de segunda a sábado.
-              </p>
-            </motion.div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </section>
 
-        <section className="py-20" style={{ background: "#F5F6FA" }}>
-          <div className="max-w-[1100px] mx-auto px-4 sm:px-8 lg:px-16">
-            <div className="grid lg:grid-cols-5 gap-10">
+        {/* FORM SECTION -------------------------------------------------- */}
+        <section className="bg-[#FAFBFC] py-16 md:py-24">
+          <div className="max-w-[1180px] mx-auto px-5 sm:px-8 lg:px-10">
+            <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+              {/* Left column — Whatsapp pitch */}
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -16 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5 }}
-                className="lg:col-span-3"
+                className="lg:col-span-5 lg:pt-6"
               >
-                <div
-                  className="p-8 rounded-2xl"
-                  style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                <p className="text-[15px] text-[#0D0D0D] mb-3 leading-relaxed">
+                  <span className="font-bold text-[#122AD5]">Novidade!</span>{" "}
+                  Agora você pode entrar em contato também pela nossa{" "}
+                  <span className="font-bold text-[#122AD5]">
+                    Central de WhatsApp
+                  </span>
+                  .
+                </p>
+                <p className="text-[14px] text-[#6B7280] leading-relaxed mb-6">
+                  A Provider Mais Fibra também possui um canal exclusivo pelo
+                  WhatsApp, basta clicar no botão abaixo e enviar uma mensagem
+                  direto para nossa Central de Atendimento.
+                </p>
+                <a
+                  href="https://wa.me/5577998444757"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-[14px] font-semibold text-white bg-[#25D366] hover:bg-[#20BD5A] transition-colors"
                 >
-                  <h2 className="text-2xl font-bold text-[#122AD5] mb-6">Envie sua mensagem</h2>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-[#4A4F61] uppercase tracking-wide mb-1.5">
-                          Seu Nome *
-                        </label>
-                        <input
-                          type="text"
-                          name="name"
-                          required
-                          value={form.name}
-                          onChange={handleChange}
-                          placeholder="João Silva"
-                          className={inputClass}
-                          style={inputStyle}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#4A4F61] uppercase tracking-wide mb-1.5">
-                          WhatsApp / Telefone *
-                        </label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          required
-                          value={form.phone}
-                          onChange={handleChange}
-                          placeholder="(77) 99999-9999"
-                          className={inputClass}
-                          style={inputStyle}
-                        />
-                      </div>
+                  <MessageCircle size={18} strokeWidth={2.2} />
+                  Falar pelo WhatsApp
+                </a>
+
+                <div className="mt-10 space-y-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#EEF1FF] flex items-center justify-center flex-shrink-0">
+                      <Clock size={16} className="text-[#122AD5]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-[#0D0D0D] mb-0.5">
+                        Atendimento
+                      </p>
+                      <p className="text-[13px] text-[#6B7280] leading-relaxed">
+                        Seg a Sex: 08h às 18h · Sábado: 08h às 12h · Suporte 24h via WhatsApp
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#EEF1FF] flex items-center justify-center flex-shrink-0">
+                      <MapPin size={16} className="text-[#122AD5]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-[#0D0D0D] mb-0.5">
+                        Cobertura
+                      </p>
+                      <p className="text-[13px] text-[#6B7280] leading-relaxed">
+                        Atendemos {allCities.length} cidades no Oeste da Bahia.{" "}
+                        <Link
+                          href="/onde-estamos"
+                          className="text-[#122AD5] font-semibold hover:underline"
+                        >
+                          Ver cidades
+                        </Link>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#EEF1FF] flex items-center justify-center flex-shrink-0">
+                      <Instagram size={16} className="text-[#122AD5]" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-[#0D0D0D] mb-0.5">
+                        Instagram
+                      </p>
+                      <a
+                        href="https://instagram.com/provider.fibra"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[13px] text-[#6B7280] hover:text-[#122AD5]"
+                      >
+                        @provider.fibra
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Right column — Form */}
+              <motion.div
+                initial={{ opacity: 0, x: 16 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="lg:col-span-7"
+              >
+                <div className="bg-white rounded-[16px] border border-[#E8EAEF] p-7 md:p-10">
+                  <h2 className="text-[22px] md:text-[24px] font-bold text-[#122AD5] mb-2">
+                    Fale conosco sempre que precisar
+                  </h2>
+                  <p className="text-[14px] text-[#6B7280] leading-relaxed mb-7">
+                    Entre em contato com a Provider pelo nosso formulário de
+                    contato, via nossos canais de atendimento ou se preferir,
+                    venha até uma loja.
+                  </p>
+
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div>
+                      <label htmlFor="c-name" className={labelClass}>
+                        Nome completo
+                      </label>
+                      <input
+                        id="c-name"
+                        type="text"
+                        name="name"
+                        required
+                        value={form.name}
+                        onChange={handleChange}
+                        className={inputClass}
+                      />
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-[#4A4F61] uppercase tracking-wide mb-1.5">
-                          Sua Cidade *
-                        </label>
-                        <div className="relative">
-                          <select
-                            name="city"
-                            required
-                            value={form.city}
-                            onChange={handleChange}
-                            className={`${inputClass} appearance-none pr-10`}
-                            style={inputStyle}
-                          >
-                            <option value="">Selecione a cidade</option>
-                            {cities.map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B0B5C3] pointer-events-none" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-[#4A4F61] uppercase tracking-wide mb-1.5">
-                          Assunto *
-                        </label>
-                        <div className="relative">
-                          <select
-                            name="reason"
-                            required
-                            value={form.reason}
-                            onChange={handleChange}
-                            className={`${inputClass} appearance-none pr-10`}
-                            style={inputStyle}
-                          >
-                            <option value="">Selecione o assunto</option>
-                            {reasons.map((r) => (
-                              <option key={r} value={r}>{r}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B0B5C3] pointer-events-none" />
-                        </div>
+                    <div>
+                      <label htmlFor="c-email" className={labelClass}>
+                        E-mail
+                      </label>
+                      <input
+                        id="c-email"
+                        type="email"
+                        name="email"
+                        required
+                        value={form.email}
+                        onChange={handleChange}
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="c-phone" className={labelClass}>
+                        WhatsApp
+                      </label>
+                      <input
+                        id="c-phone"
+                        type="tel"
+                        name="phone"
+                        required
+                        value={form.phone}
+                        onChange={handleChange}
+                        placeholder="(__) _____-____"
+                        className={inputClass}
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="c-city" className={labelClass}>
+                        Cidade
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="c-city"
+                          name="city"
+                          required
+                          value={form.city}
+                          onChange={handleChange}
+                          className={`${inputClass} appearance-none pr-10 bg-white`}
+                        >
+                          <option value="">Selecione a cidade</option>
+                          {cityOptions.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={16}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
+                        />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A4F61] uppercase tracking-wide mb-1.5">
+                      <label htmlFor="c-reason" className={labelClass}>
+                        Assunto
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="c-reason"
+                          name="reason"
+                          required
+                          value={form.reason}
+                          onChange={handleChange}
+                          className={`${inputClass} appearance-none pr-10 bg-white`}
+                        >
+                          <option value="">Informações sobre planos</option>
+                          {reasons.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown
+                          size={16}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9CA3AF] pointer-events-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label htmlFor="c-message" className={labelClass}>
                         Mensagem
                       </label>
                       <textarea
+                        id="c-message"
                         name="message"
                         rows={4}
                         value={form.message}
                         onChange={handleChange}
-                        placeholder="Descreva como podemos te ajudar..."
                         className={`${inputClass} resize-none`}
-                        style={inputStyle}
                       />
                     </div>
 
+                    <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        name="accept"
+                        checked={form.accept}
+                        onChange={handleChange}
+                        required
+                        className="mt-0.5 w-4 h-4 accent-[#122AD5] cursor-pointer flex-shrink-0"
+                      />
+                      <span className="text-[13px] text-[#6B7280] leading-relaxed">
+                        Ao enviar, você concorda com nossa{" "}
+                        <Link
+                          href="/politica-de-privacidade"
+                          className="text-[#122AD5] font-medium hover:underline"
+                        >
+                          Política de Privacidade
+                        </Link>
+                        .
+                      </span>
+                    </label>
+
                     <button
                       type="submit"
-                      className="w-full flex items-center justify-center gap-3 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-[1.02] active:scale-95"
-                      style={{
-                        background: "#95EB1D",
-                        boxShadow: "0 4px 12px rgba(149,235,29,0.35)",
-                      }}
+                      disabled={!form.accept}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 rounded-md font-semibold text-[15px] text-white bg-[#122AD5] hover:bg-[#0E22B5] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                      </svg>
-                      Enviar via WhatsApp
+                      Enviar
+                      <ArrowRight size={16} />
                     </button>
-
-                    <p className="text-center text-xs text-[#B0B5C3]">
-                      Ao enviar, você será direcionado para o nosso WhatsApp com a mensagem preenchida.
-                    </p>
                   </form>
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.15 }}
-                className="lg:col-span-2 flex flex-col gap-5"
-              >
-                <div
-                  className="p-6 rounded-xl"
-                  style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
-                >
-                  <h3 className="text-base font-bold text-[#122AD5] mb-4">Contato Direto</h3>
-                  <div className="space-y-4">
-                    <a
-                      href="https://wa.me/5577998444757"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 hover:-translate-y-0.5"
-                      style={{ background: "#F0FFF6", border: "1px solid #C3EFD6" }}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: "#25D366" }}
-                      >
-                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-xs text-[#4A4F61] font-semibold mb-0.5">WhatsApp</p>
-                        <p className="text-base font-bold text-[#0D0D0D]">(77) 99844-4757</p>
-                      </div>
-                    </a>
-
-                    <a
-                      href="https://instagram.com/provider.fibra"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-4 p-4 rounded-xl transition-all duration-200 hover:-translate-y-0.5"
-                      style={{ background: "#FFF0F8", border: "1px solid #F8C3E0" }}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: "linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)" }}
-                      >
-                        <Instagram size={18} color="white" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-[#4A4F61] font-semibold mb-0.5">Instagram</p>
-                        <p className="text-base font-bold text-[#0D0D0D]">@provider.fibra</p>
-                      </div>
-                    </a>
-                  </div>
-                </div>
-
-                <div
-                  className="p-6 rounded-xl"
-                  style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
-                >
-                  <div className="flex items-center gap-2 mb-4">
-                    <Clock size={16} style={{ color: "#122AD5" }} />
-                    <h3 className="text-base font-bold text-[#122AD5]">Horário de Atendimento</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {[
-                      { days: "Segunda a Sexta", hours: "08h às 18h" },
-                      { days: "Sábado", hours: "08h às 12h" },
-                      { days: "Suporte técnico", hours: "24h via WhatsApp" },
-                    ].map((h) => (
-                      <div key={h.days} className="flex justify-between items-center py-2 border-b border-[#F0F2F5] last:border-0">
-                        <span className="text-sm text-[#4A4F61]">{h.days}</span>
-                        <span className="text-sm font-bold text-[#0D0D0D]">{h.hours}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div
-                    className="mt-4 flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold"
-                    style={{ background: "#F0FFF6", color: "#95EB1D" }}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-[#95EB1D] animate-pulse" />
-                    Suporte 24h disponível agora
-                  </div>
-                </div>
-
-                <div
-                  className="p-6 rounded-xl"
-                  style={{ background: "white", border: "1px solid #E8EAEF", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
-                >
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapPin size={16} style={{ color: "#122AD5" }} />
-                    <h3 className="text-base font-bold text-[#122AD5]">Cobertura</h3>
-                  </div>
-                  <p className="text-sm text-[#4A4F61] mb-3">
-                    Atendemos {allCities.length} cidades no Oeste da Bahia.
-                  </p>
-                  <a
-                    href="/onde-estamos"
-                    className="inline-flex items-center gap-1.5 text-sm font-bold text-[#122AD5] hover:underline"
-                  >
-                    Ver todas as cidades →
-                  </a>
                 </div>
               </motion.div>
             </div>

@@ -48,3 +48,9 @@ id = "gYN9esM4Zqzvl3vLjQs7J"
 uri = "file://artifacts/provider-mais-fibra/public/images/avatar-4.png"
 type = "image"
 title = "Avatar 4"
+
+[[generated]]
+id = "Xq07EKKvtqpAsxPzKskdO"
+uri = "file://artifacts/provider-mais-fibra/public/images/photos/family-contact.png"
+type = "image"
+title = "family-contact-photo"
