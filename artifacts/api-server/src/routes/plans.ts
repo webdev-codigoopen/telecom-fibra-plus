@@ -1,6 +1,12 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, plansTable, planClicksTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import {
+  db,
+  plansTable,
+  planClicksTable,
+  streamingBrandsTable,
+  planStreamingBrandsTable,
+} from "@workspace/db";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -29,9 +35,6 @@ const CRAWLER_UA_PATTERN =
 function isBotUserAgent(ua: string | undefined): boolean {
   if (!ua) return false;
   if (CRAWLER_UA_PATTERN.test(ua)) return true;
-  // WhatsApp's link-preview fetcher sends a bare UA like "WhatsApp/2.23.20.0 A"
-  // with no browser engine. The in-app browser used by real recipients
-  // includes a full Mozilla/AppleWebKit UA, so we only flag the bare form.
   if (/\bWhatsApp\/[\d.]+/i.test(ua) && !/Mozilla|AppleWebKit|Chrome|Safari/i.test(ua)) {
     return true;
   }
@@ -45,6 +48,53 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+type StreamingBrandLite = {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+  sortOrder: number;
+};
+
+async function loadBrandsByPlan(
+  planIds: number[],
+): Promise<Map<number, StreamingBrandLite[]>> {
+  const map = new Map<number, StreamingBrandLite[]>();
+  if (planIds.length === 0) return map;
+  const rows = await db
+    .select({
+      planId: planStreamingBrandsTable.planId,
+      sortOrder: planStreamingBrandsTable.sortOrder,
+      brandId: streamingBrandsTable.id,
+      brandName: streamingBrandsTable.name,
+      brandLogoUrl: streamingBrandsTable.logoUrl,
+    })
+    .from(planStreamingBrandsTable)
+    .innerJoin(
+      streamingBrandsTable,
+      eq(planStreamingBrandsTable.brandId, streamingBrandsTable.id),
+    )
+    .where(inArray(planStreamingBrandsTable.planId, planIds));
+  rows.sort((a, b) => {
+    if (a.planId !== b.planId) return a.planId - b.planId;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.brandId - b.brandId;
+  });
+  for (const r of rows) {
+    let list = map.get(r.planId);
+    if (!list) {
+      list = [];
+      map.set(r.planId, list);
+    }
+    list.push({
+      id: r.brandId,
+      name: r.brandName,
+      logoUrl: r.brandLogoUrl,
+      sortOrder: r.sortOrder,
+    });
+  }
+  return map;
 }
 
 router.get("/plans/:id/share", async (req, res) => {
@@ -63,6 +113,8 @@ router.get("/plans/:id/share", async (req, res) => {
       res.status(404).send("Plan not found");
       return;
     }
+    const brandsByPlan = await loadBrandsByPlan([plan.id]);
+    const planBrands = brandsByPlan.get(plan.id) ?? [];
     const proto =
       (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0] ??
       req.protocol;
@@ -118,7 +170,8 @@ router.get("/plans/:id/share", async (req, res) => {
       `Olá! Quero assinar o plano de ${plan.speed} MEGA (R$${plan.price}/mês) da Provider Mais Fibra.`,
     );
     const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappText}`;
-    const inclusions = (plan.inclusions ?? []).slice(0, 6);
+    const combined = [...(plan.inclusions ?? []), ...planBrands.map((b) => b.name)];
+    const inclusions = combined.slice(0, 6);
     const inclusionsHtml = inclusions
       .map(
         (i) =>
@@ -217,7 +270,12 @@ router.get("/plans", async (_req, res) => {
       .select()
       .from(plansTable)
       .orderBy(plansTable.sortOrder, plansTable.id);
-    res.json(rows);
+    const brandsByPlan = await loadBrandsByPlan(rows.map((r) => r.id));
+    const enriched = rows.map((r) => ({
+      ...r,
+      streamingBrands: brandsByPlan.get(r.id) ?? [],
+    }));
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch plans" });
   }
@@ -228,6 +286,7 @@ const planBodySchema = z.object({
   wifi: z.string().min(1),
   price: z.string().min(1),
   inclusions: z.array(z.string()).default([]),
+  streamingBrandIds: z.array(z.number().int().positive()).default([]),
   featured: z.boolean().default(false),
   badge: z.string().nullable().optional(),
   bonus: z.string().nullable().optional(),
@@ -251,6 +310,41 @@ function normalizeWhatsapp(s: string | null | undefined): string | null {
   return digits.length === 0 ? null : digits;
 }
 
+async function dedupValidBrandIds(ids: number[]): Promise<number[]> {
+  const unique: number[] = [];
+  const seen = new Set<number>();
+  for (const id of ids) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      unique.push(id);
+    }
+  }
+  if (unique.length === 0) return [];
+  const existing = await db
+    .select({ id: streamingBrandsTable.id })
+    .from(streamingBrandsTable)
+    .where(inArray(streamingBrandsTable.id, unique));
+  const existingSet = new Set(existing.map((r) => r.id));
+  return unique.filter((id) => existingSet.has(id));
+}
+
+async function respondWithPlan(planId: number, res: Response, status = 200) {
+  const [row] = await db
+    .select()
+    .from(plansTable)
+    .where(eq(plansTable.id, planId))
+    .limit(1);
+  if (!row) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const brandsByPlan = await loadBrandsByPlan([row.id]);
+  res.status(status).json({
+    ...row,
+    streamingBrands: brandsByPlan.get(row.id) ?? [],
+  });
+}
+
 router.post("/plans", requireAdminKey, async (req, res) => {
   const parsed = planBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -258,20 +352,38 @@ router.post("/plans", requireAdminKey, async (req, res) => {
     return;
   }
   try {
-    const [created] = await db
-      .insert(plansTable)
-      .values({
-        ...parsed.data,
-        badge: normalizeOptional(parsed.data.badge),
-        bonus: normalizeOptional(parsed.data.bonus),
-        imageUrl: normalizeOptional(parsed.data.imageUrl),
-        shareHeadline: normalizeOptional(parsed.data.shareHeadline),
-        shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
-        shareCtaText: normalizeOptional(parsed.data.shareCtaText),
-        whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
-      })
-      .returning();
-    res.status(201).json(created);
+    const validBrandIds = await dedupValidBrandIds(parsed.data.streamingBrandIds);
+    const created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(plansTable)
+        .values({
+          speed: parsed.data.speed,
+          wifi: parsed.data.wifi,
+          price: parsed.data.price,
+          inclusions: parsed.data.inclusions,
+          featured: parsed.data.featured,
+          sortOrder: parsed.data.sortOrder,
+          badge: normalizeOptional(parsed.data.badge),
+          bonus: normalizeOptional(parsed.data.bonus),
+          imageUrl: normalizeOptional(parsed.data.imageUrl),
+          shareHeadline: normalizeOptional(parsed.data.shareHeadline),
+          shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
+          shareCtaText: normalizeOptional(parsed.data.shareCtaText),
+          whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
+        })
+        .returning();
+      if (validBrandIds.length > 0) {
+        await tx.insert(planStreamingBrandsTable).values(
+          validBrandIds.map((brandId, idx) => ({
+            planId: row!.id,
+            brandId,
+            sortOrder: idx,
+          })),
+        );
+      }
+      return row!;
+    });
+    await respondWithPlan(created.id, res, 201);
   } catch (err) {
     res.status(500).json({ error: "Failed to create plan" });
   }
@@ -306,7 +418,13 @@ router.patch("/plans/reorder", requireAdminKey, async (req, res) => {
       .select()
       .from(plansTable)
       .orderBy(plansTable.sortOrder, plansTable.id);
-    res.json(rows);
+    const brandsByPlan = await loadBrandsByPlan(rows.map((r) => r.id));
+    res.json(
+      rows.map((r) => ({
+        ...r,
+        streamingBrands: brandsByPlan.get(r.id) ?? [],
+      })),
+    );
   } catch (err) {
     res.status(500).json({ error: "Failed to reorder plans" });
   }
@@ -324,25 +442,47 @@ router.put("/plans/:id", requireAdminKey, async (req, res) => {
     return;
   }
   try {
-    const [updated] = await db
-      .update(plansTable)
-      .set({
-        ...parsed.data,
-        badge: normalizeOptional(parsed.data.badge),
-        bonus: normalizeOptional(parsed.data.bonus),
-        imageUrl: normalizeOptional(parsed.data.imageUrl),
-        shareHeadline: normalizeOptional(parsed.data.shareHeadline),
-        shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
-        shareCtaText: normalizeOptional(parsed.data.shareCtaText),
-        whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
-      })
-      .where(eq(plansTable.id, id))
-      .returning();
+    const validBrandIds = await dedupValidBrandIds(parsed.data.streamingBrandIds);
+    const updated = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(plansTable)
+        .set({
+          speed: parsed.data.speed,
+          wifi: parsed.data.wifi,
+          price: parsed.data.price,
+          inclusions: parsed.data.inclusions,
+          featured: parsed.data.featured,
+          sortOrder: parsed.data.sortOrder,
+          badge: normalizeOptional(parsed.data.badge),
+          bonus: normalizeOptional(parsed.data.bonus),
+          imageUrl: normalizeOptional(parsed.data.imageUrl),
+          shareHeadline: normalizeOptional(parsed.data.shareHeadline),
+          shareSubcopy: normalizeOptional(parsed.data.shareSubcopy),
+          shareCtaText: normalizeOptional(parsed.data.shareCtaText),
+          whatsappNumber: normalizeWhatsapp(parsed.data.whatsappNumber),
+        })
+        .where(eq(plansTable.id, id))
+        .returning();
+      if (!row) return null;
+      await tx
+        .delete(planStreamingBrandsTable)
+        .where(eq(planStreamingBrandsTable.planId, id));
+      if (validBrandIds.length > 0) {
+        await tx.insert(planStreamingBrandsTable).values(
+          validBrandIds.map((brandId, idx) => ({
+            planId: id,
+            brandId,
+            sortOrder: idx,
+          })),
+        );
+      }
+      return row;
+    });
     if (!updated) {
       res.status(404).json({ error: "Plan not found" });
       return;
     }
-    res.json(updated);
+    await respondWithPlan(updated.id, res);
   } catch (err) {
     res.status(500).json({ error: "Failed to update plan" });
   }

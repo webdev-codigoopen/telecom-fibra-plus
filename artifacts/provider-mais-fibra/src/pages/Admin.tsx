@@ -33,6 +33,7 @@ function apiPlanToPlan(p: ApiPlan): Plan {
     wifi: p.wifi,
     price: p.price,
     inclusions: p.inclusions,
+    streamingBrands: p.streamingBrands ?? [],
     featured: p.featured,
     badge: p.badge ?? undefined,
     bonus: p.bonus ?? undefined,
@@ -153,6 +154,7 @@ function emptyPlan(): Omit<ApiPlan, "id"> {
     wifi: "",
     price: "",
     inclusions: [],
+    streamingBrands: [],
     featured: false,
     badge: null,
     bonus: null,
@@ -1709,6 +1711,7 @@ export default function Admin() {
                 saving={saving}
                 adminKey={adminKey}
                 allInclusions={allInclusions}
+                streamingBrands={streamingBrands}
                 onSave={savePlan}
                 onCancel={cancelEdit}
               />
@@ -1962,6 +1965,7 @@ type PlanFormProps = {
   saving: boolean;
   adminKey: string;
   allInclusions: string[];
+  streamingBrands: StreamingBrand[];
   onSave: (plan: ApiPlan | Omit<ApiPlan, "id">) => void;
   onCancel: () => void;
 };
@@ -1976,9 +1980,59 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/svg+xml",
 ]);
 
-function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCancel }: PlanFormProps) {
-  const ALL_INCLUSIONS = allInclusions;
-  const [form, setForm] = useState<ApiPlan>({ ...plan });
+function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrands, onSave, onCancel }: PlanFormProps) {
+  // Text-only inclusions (e.g. "Instalação Grátis", "Roteador Wi-Fi 6"). Brand
+  // names are no longer mixed in here — those come from `streamingBrandIds`,
+  // selected by id and labelled via the brand registry below.
+  const TEXT_INCLUSIONS = useMemo(
+    () => allInclusions.filter((item) => !streamingBrands.some((b) => b.name === item)),
+    [allInclusions, streamingBrands],
+  );
+  const brandById = useMemo(() => {
+    const m = new Map<number, StreamingBrand>();
+    for (const b of streamingBrands) m.set(b.id, b);
+    return m;
+  }, [streamingBrands]);
+  const brandIdByName = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const b of streamingBrands) m.set(b.name, b.id);
+    return m;
+  }, [streamingBrands]);
+
+  // Derive the initial form state: keep text-only items in `inclusions` and
+  // FK-linked brands as ordered IDs in `streamingBrandIds`. If the incoming
+  // plan still has any legacy brand-name strings inside `inclusions` (e.g.
+  // before the backfill ran), promote them to brand IDs so the form is
+  // immediately ID-driven for the rest of the editing session.
+  const initialState = useMemo(() => {
+    const textItems: string[] = [];
+    const brandIds: number[] = [];
+    for (const item of plan.inclusions ?? []) {
+      const id = brandIdByName.get(item);
+      if (id != null) {
+        if (!brandIds.includes(id)) brandIds.push(id);
+      } else {
+        textItems.push(item);
+      }
+    }
+    const sortedFkBrands = (plan.streamingBrands ?? [])
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+    for (const b of sortedFkBrands) {
+      if (!brandIds.includes(b.id)) brandIds.push(b.id);
+    }
+    return { textItems, brandIds };
+    // Only seed once per plan reference; later edits flow through setState.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
+
+  const [form, setForm] = useState<ApiPlan>({
+    ...plan,
+    inclusions: initialState.textItems,
+  });
+  const [streamingBrandIds, setStreamingBrandIds] = useState<number[]>(
+    initialState.brandIds,
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -1986,6 +2040,8 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCanc
   const [cropFileType, setCropFileType] = useState<string>("");
   const [incDragItem, setIncDragItem] = useState<string | null>(null);
   const [incDragOver, setIncDragOver] = useState<string | null>(null);
+  const [brandDragId, setBrandDragId] = useState<number | null>(null);
+  const [brandDragOverId, setBrandDragOverId] = useState<number | null>(null);
 
   function reorderInclusion(source: string, target: string) {
     setForm((prev) => {
@@ -1997,6 +2053,24 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCanc
       list.splice(to, 0, source);
       return { ...prev, inclusions: list };
     });
+  }
+
+  function reorderBrand(sourceId: number, targetId: number) {
+    setStreamingBrandIds((prev) => {
+      const from = prev.indexOf(sourceId);
+      const to = prev.indexOf(targetId);
+      if (from === -1 || to === -1 || from === to) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(to, 0, sourceId);
+      return next;
+    });
+  }
+
+  function toggleBrand(id: number) {
+    setStreamingBrandIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   }
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -2090,11 +2164,21 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCanc
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const validBrandIds = streamingBrandIds.filter((id) => brandById.has(id));
+    const streamingBrandsPayload = validBrandIds.map((id, idx) => {
+      const b = brandById.get(id)!;
+      return { id, name: b.name, logoUrl: b.logoUrl, sortOrder: idx };
+    });
+    const payload = {
+      ...form,
+      streamingBrands: streamingBrandsPayload,
+      streamingBrandIds: validBrandIds,
+    } as ApiPlan & { streamingBrandIds: number[] };
     if (isNew) {
-      const { id: _id, ...rest } = form;
+      const { id: _id, ...rest } = payload;
       onSave(rest);
     } else {
-      onSave(form);
+      onSave(payload);
     }
   }
 
@@ -2214,11 +2298,11 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCanc
               </div>
             </div>
           )}
-          {ALL_INCLUSIONS.some((item) => !form.inclusions.includes(item)) && (
+          {TEXT_INCLUSIONS.some((item) => !form.inclusions.includes(item)) && (
             <div>
               <p className="text-[11px] text-[#7A7F8C] mb-1.5">Disponíveis</p>
               <div className="flex flex-wrap gap-2">
-                {ALL_INCLUSIONS.filter((item) => !form.inclusions.includes(item)).map((item) => (
+                {TEXT_INCLUSIONS.filter((item) => !form.inclusions.includes(item)).map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -2231,6 +2315,100 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, onSave, onCanc
                 ))}
               </div>
             </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide mb-2">Marcas de streaming</label>
+          {streamingBrandIds.length > 0 && (
+            <div className="mb-2">
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Arraste para reordenar — esta é a ordem que aparece no card.</p>
+              <div className="flex flex-wrap gap-2">
+                {streamingBrandIds.map((id) => {
+                  const brand = brandById.get(id);
+                  if (!brand) return null;
+                  const isDragging = brandDragId === id;
+                  const isOver = brandDragOverId === id && brandDragId !== id;
+                  return (
+                    <div
+                      key={id}
+                      draggable
+                      onDragStart={(e) => {
+                        setBrandDragId(id);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(id));
+                      }}
+                      onDragOver={(e) => {
+                        if (brandDragId == null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (brandDragOverId !== id) setBrandDragOverId(id);
+                      }}
+                      onDragLeave={() => {
+                        if (brandDragOverId === id) setBrandDragOverId(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const src = brandDragId;
+                        setBrandDragId(null);
+                        setBrandDragOverId(null);
+                        if (src != null) reorderBrand(src, id);
+                      }}
+                      onDragEnd={() => {
+                        setBrandDragId(null);
+                        setBrandDragOverId(null);
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border cursor-grab active:cursor-grabbing transition-all ${
+                        isDragging ? "opacity-40" : ""
+                      } ${isOver ? "ring-2 ring-[#0040FF]/40" : ""}`}
+                      style={{ background: "#0040FF", color: "white", borderColor: "#0040FF" }}
+                      title="Arraste para reordenar"
+                      aria-label={`Reordenar ${brand.name}`}
+                    >
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 opacity-80" fill="currentColor">
+                        <circle cx="9" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/>
+                        <circle cx="15" cy="6" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="15" cy="18" r="1.3"/>
+                      </svg>
+                      <span>{brand.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleBrand(id)}
+                        className="ml-1 -mr-1 w-4 h-4 inline-flex items-center justify-center rounded-full hover:bg-white/20"
+                        aria-label={`Remover ${brand.name}`}
+                        title="Remover"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3">
+                          <line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/>
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {streamingBrands.some((b) => !streamingBrandIds.includes(b.id)) && (
+            <div>
+              <p className="text-[11px] text-[#7A7F8C] mb-1.5">Disponíveis</p>
+              <div className="flex flex-wrap gap-2">
+                {streamingBrands
+                  .filter((b) => !streamingBrandIds.includes(b.id))
+                  .map((b) => (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => toggleBrand(b.id)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border"
+                      style={{ background: "white", color: "#2A2D38", borderColor: "#E0E3EB" }}
+                    >
+                      + {b.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+          {streamingBrands.length === 0 && (
+            <p className="text-[11px] text-[#7A7F8C]">Nenhuma marca cadastrada. Cadastre marcas em "Marcas de streaming".</p>
           )}
         </div>
 

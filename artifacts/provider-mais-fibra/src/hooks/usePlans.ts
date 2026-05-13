@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { type Plan, plans as staticPlans } from "../lib/plans";
+import { type Plan, type PlanStreamingBrand, plans as staticPlans } from "../lib/plans";
 
 export type ApiPlan = {
   id: number;
@@ -7,6 +7,7 @@ export type ApiPlan = {
   wifi: string;
   price: string;
   inclusions: string[];
+  streamingBrands: PlanStreamingBrand[];
   featured: boolean;
   badge: string | null;
   bonus: string | null;
@@ -25,6 +26,7 @@ function apiPlanToPlan(p: ApiPlan): Plan {
     wifi: p.wifi,
     price: p.price,
     inclusions: p.inclusions,
+    streamingBrands: p.streamingBrands ?? [],
     featured: p.featured,
     badge: p.badge ?? undefined,
     bonus: p.bonus ?? undefined,

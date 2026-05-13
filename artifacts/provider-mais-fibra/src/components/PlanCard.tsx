@@ -148,10 +148,25 @@ export default function PlanCard({
   const [reais, centavos] = plan.price.split(",");
 
   const allBrands = useStreamingBrands();
-  const brandByName = new Map(allBrands.map((b) => [b.name, b]));
-  const activeBrands = plan.inclusions
-    .map((name) => brandByName.get(name))
-    .filter((b): b is (typeof allBrands)[number] => Boolean(b));
+  const brandById = new Map(allBrands.map((b) => [b.id, b]));
+  // Prefer brand objects already attached to the plan (FK-linked); fall back
+  // to looking up by name in legacy inclusions strings, so saved-static plans
+  // and any pre-backfill payloads still render their streaming bonus.
+  let activeBrands: StreamingBrand[];
+  if (plan.streamingBrands && plan.streamingBrands.length > 0) {
+    activeBrands = plan.streamingBrands
+      .map((b) => brandById.get(b.id) ?? {
+        id: b.id,
+        name: b.name,
+        logoUrl: b.logoUrl,
+        sortOrder: b.sortOrder,
+      });
+  } else {
+    const brandByName = new Map(allBrands.map((b) => [b.name, b]));
+    activeBrands = plan.inclusions
+      .map((name) => brandByName.get(name))
+      .filter((b): b is StreamingBrand => Boolean(b));
+  }
   const hasStreaming = activeBrands.length > 0;
 
   // Figma:

@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./backfill-share-bot-clicks": "./src/lib/backfill-share-bot-clicks.ts"
+    "./backfill-share-bot-clicks": "./src/lib/backfill-share-bot-clicks.ts",
+    "./backfill-streaming-brand-links": "./src/lib/backfill-streaming-brand-links.ts"
   },
   "scripts": {
     "hello": "tsx ./src/hello.ts",
     "backfill-share-bot-clicks": "tsx ./src/backfill-share-bot-clicks.ts",
+    "backfill-streaming-brand-links": "tsx ./src/backfill-streaming-brand-links.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

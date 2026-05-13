@@ -1,9 +1,17 @@
+export type PlanStreamingBrand = {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+  sortOrder: number;
+};
+
 export type Plan = {
   id?: number;
   speed: string;
   wifi: string;
   price: string;
   inclusions: string[];
+  streamingBrands?: PlanStreamingBrand[];
   featured: boolean;
   badge?: string;
   bonus?: string;

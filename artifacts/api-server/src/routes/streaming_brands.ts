@@ -1,6 +1,11 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { db, streamingBrandsTable, plansTable } from "@workspace/db";
-import { eq, and, ne, sql } from "drizzle-orm";
+import {
+  db,
+  streamingBrandsTable,
+  plansTable,
+  planStreamingBrandsTable,
+} from "@workspace/db";
+import { eq, and, ne } from "drizzle-orm";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -41,6 +46,19 @@ function normalizeOptional(s: string | null | undefined): string | null {
   if (s == null) return null;
   const t = s.trim();
   return t.length === 0 ? null : t;
+}
+
+async function plansLinkedToBrand(brandId: number) {
+  return db
+    .select({
+      id: plansTable.id,
+      speed: plansTable.speed,
+      price: plansTable.price,
+    })
+    .from(planStreamingBrandsTable)
+    .innerJoin(plansTable, eq(planStreamingBrandsTable.planId, plansTable.id))
+    .where(eq(planStreamingBrandsTable.brandId, brandId))
+    .orderBy(plansTable.sortOrder, plansTable.id);
 }
 
 router.post("/streaming-brands", requireAdminKey, async (req, res) => {
@@ -138,15 +156,7 @@ router.get("/streaming-brands/:id/usages", requireAdminKey, async (req, res) => 
       res.status(404).json({ error: "Brand not found" });
       return;
     }
-    const plans = await db
-      .select({
-        id: plansTable.id,
-        speed: plansTable.speed,
-        price: plansTable.price,
-      })
-      .from(plansTable)
-      .where(sql`${brand.name} = ANY(${plansTable.inclusions})`)
-      .orderBy(plansTable.sortOrder, plansTable.id);
+    const plans = await plansLinkedToBrand(id);
     res.json({ brandName: brand.name, plans });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch brand usages" });
@@ -179,51 +189,34 @@ router.put("/streaming-brands/:id", requireAdminKey, async (req, res) => {
       res.status(409).json({ error: "Já existe outra marca com esse nome." });
       return;
     }
-    const result = await db.transaction(async (tx) => {
-      const [existing] = await tx
-        .select()
-        .from(streamingBrandsTable)
-        .where(eq(streamingBrandsTable.id, id))
-        .limit(1);
-      if (!existing) {
-        return { updated: null, renamedPlans: [] as { id: number; speed: string; price: string }[] };
-      }
-      const oldName = existing.name;
-      const newName = parsed.data.name;
-      const [updated] = await tx
-        .update(streamingBrandsTable)
-        .set({
-          name: newName,
-          logoUrl: normalizeOptional(parsed.data.logoUrl),
-          ...(parsed.data.sortOrder != null ? { sortOrder: parsed.data.sortOrder } : {}),
-        })
-        .where(eq(streamingBrandsTable.id, id))
-        .returning();
-      let renamedPlans: { id: number; speed: string; price: string }[] = [];
-      if (oldName !== newName) {
-        const renamed = await tx
-          .update(plansTable)
-          .set({
-            inclusions: sql`array_replace(${plansTable.inclusions}, ${oldName}, ${newName})`,
-          })
-          .where(sql`${oldName} = ANY(${plansTable.inclusions})`)
-          .returning({
-            id: plansTable.id,
-            speed: plansTable.speed,
-            price: plansTable.price,
-          });
-        renamedPlans = renamed;
-      }
-      return { updated, renamedPlans };
-    });
-    if (!result.updated) {
+    const [existing] = await db
+      .select()
+      .from(streamingBrandsTable)
+      .where(eq(streamingBrandsTable.id, id))
+      .limit(1);
+    if (!existing) {
       res.status(404).json({ error: "Brand not found" });
       return;
     }
+    const oldName = existing.name;
+    const newName = parsed.data.name;
+    const [updated] = await db
+      .update(streamingBrandsTable)
+      .set({
+        name: newName,
+        logoUrl: normalizeOptional(parsed.data.logoUrl),
+        ...(parsed.data.sortOrder != null ? { sortOrder: parsed.data.sortOrder } : {}),
+      })
+      .where(eq(streamingBrandsTable.id, id))
+      .returning();
+    // The brand is referenced by FK, so renames are automatically reflected
+    // for every linked plan. We still surface the affected plans to the
+    // admin UI for the same "X plans were updated" confirmation message.
+    const renamedPlans = oldName !== newName ? await plansLinkedToBrand(id) : [];
     res.json({
-      ...result.updated,
-      renamedPlans: result.renamedPlans,
-      renamedPlanCount: result.renamedPlans.length,
+      ...updated,
+      renamedPlans,
+      renamedPlanCount: renamedPlans.length,
     });
   } catch (err) {
     res.status(500).json({ error: "Failed to update streaming brand" });
@@ -244,19 +237,26 @@ router.delete("/streaming-brands/:id", requireAdminKey, async (req, res) => {
         .where(eq(streamingBrandsTable.id, id))
         .limit(1);
       if (!existing) {
-        return { deleted: null, updatedPlans: [] as { id: number; speed: string; price: string }[] };
+        return {
+          deleted: null,
+          updatedPlans: [] as { id: number; speed: string; price: string }[],
+        };
       }
+      // Capture the affected plans BEFORE delete (FK cascade will then
+      // remove the join rows automatically).
       const updatedPlans = await tx
-        .update(plansTable)
-        .set({
-          inclusions: sql`array_remove(${plansTable.inclusions}, ${existing.name})`,
-        })
-        .where(sql`${existing.name} = ANY(${plansTable.inclusions})`)
-        .returning({
+        .select({
           id: plansTable.id,
           speed: plansTable.speed,
           price: plansTable.price,
-        });
+        })
+        .from(planStreamingBrandsTable)
+        .innerJoin(
+          plansTable,
+          eq(planStreamingBrandsTable.planId, plansTable.id),
+        )
+        .where(eq(planStreamingBrandsTable.brandId, id))
+        .orderBy(plansTable.sortOrder, plansTable.id);
       const [deleted] = await tx
         .delete(streamingBrandsTable)
         .where(eq(streamingBrandsTable.id, id))
