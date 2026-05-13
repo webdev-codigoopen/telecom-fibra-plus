@@ -352,6 +352,24 @@ export default function Admin() {
       });
   }, [clickStats]);
 
+  const WEAKEST_SOURCE_MIN_PREVIEWS = 10;
+  const weakestSource = useMemo(() => {
+    const eligible = conversionBySource.filter(
+      (c) => c.previews >= WEAKEST_SOURCE_MIN_PREVIEWS,
+    );
+    if (eligible.length === 0) return null;
+    let worst = eligible[0]!;
+    let worstRate = worst.signups / worst.previews;
+    for (const c of eligible) {
+      const rate = c.signups / c.previews;
+      if (rate < worstRate) {
+        worst = c;
+        worstRate = rate;
+      }
+    }
+    return { ...worst, rate: worstRate * 100 };
+  }, [conversionBySource]);
+
   const sourceLabels: Record<string, string> = {
     "home-hero": "Home — Hero",
     "hero": "Home — Hero",
@@ -1351,6 +1369,31 @@ export default function Admin() {
                       </p>
                     </div>
                   </div>
+                  {weakestSource && (
+                    <div className="mb-3 rounded-lg border border-[#F5C2C2] bg-[#FBE7E7] px-3 py-2.5 flex items-start gap-2.5">
+                      <span
+                        aria-hidden
+                        className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#C42B2B] text-white text-[11px] font-bold flex-shrink-0"
+                      >
+                        !
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-[#C42B2B]">
+                          Origem com pior conversão
+                        </div>
+                        <div className="mt-0.5 text-sm text-[#2A2D38]">
+                          <span className="font-semibold text-[#0D0D0D]">
+                            {formatSourceLabel(weakestSource.source)}
+                          </span>{" "}
+                          converteu{" "}
+                          <span className="font-semibold tabular-nums">
+                            {Math.round(weakestSource.rate)}%
+                          </span>{" "}
+                          ({weakestSource.signups} de {weakestSource.previews} pré-visualizações).
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {conversionBySource.map((c) => {
                       const rate = c.previews > 0 ? (c.signups / c.previews) * 100 : null;
