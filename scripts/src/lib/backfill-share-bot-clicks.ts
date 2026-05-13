@@ -11,6 +11,7 @@ export interface BackfillOptions {
   windowSeconds?: number;
   minBurst?: number;
   dryRun?: boolean;
+  useUserAgent?: boolean;
   logger?: BackfillLogger;
 }
 
@@ -26,10 +27,15 @@ export interface BackfillResult {
   windowSeconds: number;
   minBurst: number;
   dryRun: boolean;
+  useUserAgent: boolean;
   burstGroupsFound: number;
   burstGroupsSample: BackfillBurstGroup[];
   rowsRelabeled: number;
+  rowsRelabeledByUserAgent: number;
 }
+
+const BOT_UA_SQL_PATTERN =
+  "facebookexternalhit|facebookcatalog|facebot|twitterbot|slackbot|slack-imgproxy|linkedinbot|discordbot|telegrambot|skypeuripreview|pinterest|embedly|quora link preview|vkshare|w3c_validator|redditbot|applebot|bingpreview|googlebot|google-inspectiontool|googleother|yandexbot|duckduckbot|baiduspider|petalbot|chatgpt-user|gptbot|oai-searchbot|perplexitybot|claudebot|anthropic-ai|bytespider";
 
 const DEFAULT_WINDOW_SECONDS = 1;
 const DEFAULT_MIN_BURST = 2;
@@ -57,6 +63,7 @@ export async function backfillShareBotClicks(
   const windowSeconds = opts.windowSeconds ?? DEFAULT_WINDOW_SECONDS;
   const minBurst = opts.minBurst ?? DEFAULT_MIN_BURST;
   const dryRun = opts.dryRun ?? false;
+  const useUserAgent = opts.useUserAgent ?? false;
   const log = opts.logger ?? consoleLogger();
 
   if (!Number.isInteger(windowSeconds) || windowSeconds < 1) {
@@ -67,9 +74,63 @@ export async function backfillShareBotClicks(
   }
 
   log.info(
-    { windowSeconds, minBurst, dryRun },
+    { windowSeconds, minBurst, dryRun, useUserAgent },
     "[backfill-share-bot-clicks] starting",
   );
+
+  // Mirrors isBotUserAgent() in artifacts/api-server/src/routes/plans.ts:
+  // a row is bot-flagged if its UA matches a known crawler, OR if it is a
+  // bare WhatsApp link-preview UA (no browser engine).
+  const uaBotPredicate = sql`(
+    pc.user_agent ~* ${BOT_UA_SQL_PATTERN}
+    or (
+      pc.user_agent ~* '\\mWhatsApp/[0-9.]+'
+      and pc.user_agent !~* 'Mozilla|AppleWebKit|Chrome|Safari'
+    )
+  )`;
+  // Same predicate but unaliased, for the dryRun count query below.
+  const uaBotPredicateUnaliased = sql`(
+    user_agent ~* ${BOT_UA_SQL_PATTERN}
+    or (
+      user_agent ~* '\\mWhatsApp/[0-9.]+'
+      and user_agent !~* 'Mozilla|AppleWebKit|Chrome|Safari'
+    )
+  )`;
+
+  let rowsRelabeledByUserAgent = 0;
+  if (useUserAgent && !dryRun) {
+    const uaUpdateSql = sql`
+      update ${planClicksTable} as pc
+      set source = case
+        when pc.source = 'whatsapp-share' then 'whatsapp-share-bot'
+        else 'whatsapp-share-bot:' || substring(pc.source from char_length('whatsapp-share:') + 1)
+      end
+      where (pc.source = 'whatsapp-share' or pc.source like 'whatsapp-share:%')
+        and pc.user_agent is not null
+        and ${uaBotPredicate}
+    `;
+    const uaResult = await db.execute(uaUpdateSql);
+    rowsRelabeledByUserAgent =
+      (uaResult as unknown as { rowCount?: number | null }).rowCount ?? 0;
+    log.info(
+      { rowsRelabeledByUserAgent },
+      `[backfill-share-bot-clicks] relabeled ${rowsRelabeledByUserAgent} rows by user agent`,
+    );
+  } else if (useUserAgent && dryRun) {
+    const uaCount = await db.execute<{ n: number }>(sql`
+      select count(*)::int as n
+      from ${planClicksTable}
+      where (source = 'whatsapp-share' or source like 'whatsapp-share:%')
+        and user_agent is not null
+        and ${uaBotPredicateUnaliased}
+    `);
+    const rows = (uaCount as unknown as { rows: Array<{ n: number }> }).rows;
+    rowsRelabeledByUserAgent = rows[0]?.n ?? 0;
+    log.info(
+      { rowsRelabeledByUserAgent },
+      `[backfill-share-bot-clicks] would relabel ${rowsRelabeledByUserAgent} rows by user agent (dryRun)`,
+    );
+  }
 
   const bucketSeconds = sql.raw(String(windowSeconds));
 
@@ -125,9 +186,11 @@ export async function backfillShareBotClicks(
       windowSeconds,
       minBurst,
       dryRun,
+      useUserAgent,
       burstGroupsFound: previewRows.length,
       burstGroupsSample: sample,
       rowsRelabeled: 0,
+      rowsRelabeledByUserAgent,
     };
   }
 
@@ -169,8 +232,10 @@ export async function backfillShareBotClicks(
     windowSeconds,
     minBurst,
     dryRun,
+    useUserAgent,
     burstGroupsFound: previewRows.length,
     burstGroupsSample: sample,
     rowsRelabeled,
+    rowsRelabeledByUserAgent,
   };
 }

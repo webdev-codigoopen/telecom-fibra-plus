@@ -25,11 +25,13 @@ router.post("/clicks", async (req, res) => {
     return;
   }
   try {
+    const userAgent = req.get("user-agent");
     await db.insert(planClicksTable).values({
       planSpeed: String(planSpeed),
       planPrice: String(planPrice),
       source: source ? String(source) : "hero",
       city: city ? String(city).slice(0, 120) : null,
+      userAgent: userAgent ? userAgent.slice(0, 1000) : null,
     });
     res.status(201).json({ ok: true });
   } catch {

@@ -86,6 +86,7 @@ router.get("/plans/:id/share", async (req, res) => {
         planPrice: plan.price,
         source: recordedSource,
         city: cityParam && cityParam.length > 0 ? cityParam : null,
+        userAgent: userAgent ? userAgent.slice(0, 1000) : null,
       }),
     ).then(
       () => undefined,

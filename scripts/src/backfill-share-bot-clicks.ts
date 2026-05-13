@@ -5,8 +5,9 @@ const windowSeconds = Number(
 );
 const minBurst = Number(process.env["BACKFILL_BURST_MIN_ROWS"] ?? "2");
 const dryRun = process.env["BACKFILL_DRY_RUN"] === "1";
+const useUserAgent = process.env["BACKFILL_USE_USER_AGENT"] === "1";
 
-backfillShareBotClicks({ windowSeconds, minBurst, dryRun })
+backfillShareBotClicks({ windowSeconds, minBurst, dryRun, useUserAgent })
   .then(() => process.exit(0))
   .catch((err) => {
     console.error("[backfill] failed:", err);

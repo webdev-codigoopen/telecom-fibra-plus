@@ -20,6 +20,7 @@ export async function runBotClickBackfillTick(): Promise<void> {
   const startedAt = Date.now();
   try {
     const result = await backfillShareBotClicks({
+      useUserAgent: true,
       logger: {
         info: (obj, msg) => {
           if (typeof obj === "string") logger.info(obj);
@@ -38,9 +39,11 @@ export async function runBotClickBackfillTick(): Promise<void> {
     logger.info(
       {
         rowsRelabeled: result.rowsRelabeled,
+        rowsRelabeledByUserAgent: result.rowsRelabeledByUserAgent,
         burstGroupsFound: result.burstGroupsFound,
         windowSeconds: result.windowSeconds,
         minBurst: result.minBurst,
+        useUserAgent: result.useUserAgent,
         durationMs: Date.now() - startedAt,
       },
       "[bot-click-backfill] daily run finished",
