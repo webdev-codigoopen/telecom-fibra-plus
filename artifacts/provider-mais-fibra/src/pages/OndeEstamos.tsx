@@ -119,14 +119,6 @@ export default function OndeEstamos() {
                         </p>
                       </div>
                     </div>
-                    {city.badge && (
-                      <span
-                        className="text-xs font-bold px-2 py-1 rounded-full"
-                        style={{ background: "#95EB1D", color: "#0D0E14" }}
-                      >
-                        {city.badge}
-                      </span>
-                    )}
                   </div>
 
                   <div className="p-5 flex-1 flex flex-col">
