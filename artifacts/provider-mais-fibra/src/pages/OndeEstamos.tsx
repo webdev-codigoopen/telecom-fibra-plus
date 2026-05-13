@@ -49,7 +49,7 @@ export default function OndeEstamos() {
         }}
       />
       <Header />
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-16 md:pt-[88px]">
         <section
           className="py-20"
           style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
