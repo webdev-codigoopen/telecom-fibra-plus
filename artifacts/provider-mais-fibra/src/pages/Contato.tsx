@@ -21,6 +21,8 @@ const cities = [
   "Correntina",
 ];
 
+const ICON_PLUS = `${import.meta.env.BASE_URL}images/icons/icone-plus.svg`;
+
 const reasons = [
   "Quero assinar um plano",
   "Suporte técnico",
@@ -79,10 +81,10 @@ export default function Contato() {
       />
       <Header />
 
-      <main className="flex-1 pt-16">
+      <main className="flex-1 pt-16 md:pt-[88px]">
         <section
           className="py-20"
-          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
+          style={{ background: "#1934C2" }}
         >
           <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
             <motion.div
@@ -90,18 +92,19 @@ export default function Contato() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold mb-6"
-                style={{ background: "rgba(149,235,29,0.15)", border: "1px solid rgba(149,235,29,0.3)" }}
-              >
-                <span className="w-2 h-2 rounded-full bg-[#95EB1D]" />
-                <span className="text-[#95EB1D]">Fale Conosco</span>
-              </div>
               <h1
-                className="text-4xl sm:text-5xl font-black text-white mb-4"
+                className="text-white mb-4 font-medium text-[40px] leading-tight"
                 style={{ letterSpacing: "-0.02em" }}
               >
-                Como podemos te ajudar?
+                Fale com a Provider
+                <span style={{ color: "#95EB1D", marginLeft: "8px" }} className="font-semibold text-[#95eb1d]">
+                  <img
+                    src={ICON_PLUS}
+                    alt="+"
+                    className="inline-block w-7 h-7 mr-1 mb-2 align-[-0.2em]"
+                  />
+                  Fibra
+                </span>
               </h1>
               <p className="text-white/70 text-lg">
                 Nossa equipe está pronta para atender você de segunda a sábado.
