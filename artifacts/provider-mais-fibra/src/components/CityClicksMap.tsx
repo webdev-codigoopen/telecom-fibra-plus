@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -8,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { colorForSource } from "../lib/sourceColors";
 
 type CityCoord = { name: string; lat: number; lon: number };
 
@@ -1186,7 +1189,19 @@ type TrendRow = {
   total: number;
 };
 
-type TrendPoint = { bucket: string; label: string; total: number; previous: number | null };
+type TrendPoint = {
+  bucket: string;
+  label: string;
+  total: number;
+  previous: number | null;
+  bySource: Record<string, number>;
+};
+
+type TrendBuckets = {
+  totals: Map<string, number>;
+  bySource: Map<string, Map<string, number>>;
+  sourceTotals: Map<string, number>;
+};
 
 async function fetchTrendBuckets(
   baseUrl: string,
@@ -1194,7 +1209,7 @@ async function fetchTrendBuckets(
   city: string,
   win: Window,
   bucket: "hour" | "day",
-): Promise<Map<string, number>> {
+): Promise<TrendBuckets> {
   const params = new URLSearchParams();
   if (win.since) params.set("since", win.since);
   if (win.until) params.set("until", win.until);
@@ -1206,11 +1221,21 @@ async function fetchTrendBuckets(
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const rows = (await res.json()) as TrendRow[];
-  const map = new Map<string, number>();
+  const totals = new Map<string, number>();
+  const bySource = new Map<string, Map<string, number>>();
+  const sourceTotals = new Map<string, number>();
   for (const row of rows) {
-    map.set(row.bucket, (map.get(row.bucket) ?? 0) + row.total);
+    const src = row.source || "unknown";
+    totals.set(row.bucket, (totals.get(row.bucket) ?? 0) + row.total);
+    let perBucket = bySource.get(row.bucket);
+    if (!perBucket) {
+      perBucket = new Map();
+      bySource.set(row.bucket, perBucket);
+    }
+    perBucket.set(src, (perBucket.get(src) ?? 0) + row.total);
+    sourceTotals.set(src, (sourceTotals.get(src) ?? 0) + row.total);
   }
-  return map;
+  return { totals, bySource, sourceTotals };
 }
 
 function CityTrendPanel({
@@ -1233,8 +1258,10 @@ function CityTrendPanel({
   const [points, setPoints] = useState<TrendPoint[] | null>(null);
   const [currentTotal, setCurrentTotal] = useState(0);
   const [previousTotal, setPreviousTotal] = useState<number | null>(null);
+  const [sourceTotals, setSourceTotals] = useState<Map<string, number>>(new Map());
   const [prevError, setPrevError] = useState(false);
   const [showComparison, setShowComparison] = useState(true);
+  const [viewMode, setViewMode] = useState<"total" | "source">("total");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reqRef = useRef(0);
@@ -1260,18 +1287,20 @@ function CityTrendPanel({
     const currentPromise = fetchTrendBuckets(baseUrl, adminKey, city, win, bucket);
     const prevPromise = prevWin
       ? fetchTrendBuckets(baseUrl, adminKey, city, prevWin, bucket).then(
-          (m) => ({ ok: true as const, map: m }),
-          () => ({ ok: false as const }),
+          (b) => ({ ok: true as const, buckets: b as TrendBuckets | null }),
+          () => ({ ok: false as const, buckets: null }),
         )
-      : Promise.resolve({ ok: true as const, map: null });
+      : Promise.resolve({ ok: true as const, buckets: null as TrendBuckets | null });
 
     Promise.all([currentPromise, prevPromise])
-      .then(([currentMap, prevResult]) => {
+      .then(([currentBuckets, prevResult]) => {
         if (myReq !== reqRef.current) return;
 
+        const currentMap = currentBuckets.totals;
+        const currentBySource = currentBuckets.bySource;
         let prevMap: Map<string, number> | null = null;
-        if (prevResult.ok && prevResult.map) {
-          prevMap = prevResult.map;
+        if (prevResult.ok && prevResult.buckets) {
+          prevMap = prevResult.buckets.totals;
         } else if (!prevResult.ok) {
           setPrevError(true);
         }
@@ -1281,6 +1310,15 @@ function CityTrendPanel({
         const currentByIso = new Map<string, number>();
         for (const [k, v] of currentMap) {
           currentByIso.set(normalize(k), (currentByIso.get(normalize(k)) ?? 0) + v);
+        }
+        const currentSourceByIso = new Map<string, Record<string, number>>();
+        for (const [k, perSource] of currentBySource) {
+          const iso = normalize(k);
+          const existing = currentSourceByIso.get(iso) ?? {};
+          for (const [src, count] of perSource) {
+            existing[src] = (existing[src] ?? 0) + count;
+          }
+          currentSourceByIso.set(iso, existing);
         }
         const prevByIso = prevMap ? new Map<string, number>() : null;
         if (prevMap && prevByIso) {
@@ -1337,6 +1375,10 @@ function CityTrendPanel({
             : date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
           const total =
             curT != null ? currentByIso.get(new Date(curT).toISOString()) ?? 0 : 0;
+          const bySource =
+            curT != null
+              ? currentSourceByIso.get(new Date(curT).toISOString()) ?? {}
+              : {};
           let previous: number | null;
           if (prevByIso) {
             previous =
@@ -1344,7 +1386,13 @@ function CityTrendPanel({
           } else {
             previous = null;
           }
-          result.push({ bucket: new Date(refT).toISOString(), label, total, previous });
+          result.push({
+            bucket: new Date(refT).toISOString(),
+            label,
+            total,
+            previous,
+            bySource,
+          });
         }
 
         setPoints(result);
@@ -1352,6 +1400,7 @@ function CityTrendPanel({
         setPreviousTotal(
           prevMap ? Array.from(prevMap.values()).reduce((s, v) => s + v, 0) : null,
         );
+        setSourceTotals(currentBuckets.sourceTotals);
       })
       .catch(() => {
         if (myReq !== reqRef.current) return;
@@ -1395,6 +1444,29 @@ function CityTrendPanel({
     }
   }
 
+  const sortedSources = useMemo(
+    () =>
+      Array.from(sourceTotals.entries())
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .map(([source, value]) => ({ source, value, color: colorForSource(source) })),
+    [sourceTotals],
+  );
+
+  const sourceChartData = useMemo(() => {
+    if (!points) return [];
+    return points.map((p) => {
+      const row: Record<string, string | number> = { label: p.label, bucket: p.bucket };
+      for (const { source } of sortedSources) {
+        row[source] = p.bySource[source] ?? 0;
+      }
+      return row;
+    });
+  }, [points, sortedSources]);
+
+  const effectiveViewMode: "total" | "source" =
+    viewMode === "source" && sortedSources.length === 0 ? "total" : viewMode;
+
   return (
     <div
       className="mt-4 rounded-lg border border-[#FFD600] bg-[#FFFBE6] p-3"
@@ -1437,7 +1509,42 @@ function CityTrendPanel({
               {badgeLabel}
             </span>
           )}
-          {hasComparison && (
+          <div
+            className="inline-flex rounded-md border border-[#E0CC78] bg-white p-0.5"
+            role="group"
+            aria-label="Visão da tendência"
+            data-testid="city-trend-view-toggle"
+          >
+            {(["total", "source"] as const).map((mode) => {
+              const active = effectiveViewMode === mode;
+              const disabled = mode === "source" && sortedSources.length === 0;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setViewMode(mode)}
+                  disabled={disabled}
+                  className={`px-2 py-0.5 text-[11px] font-semibold rounded transition-colors ${
+                    active
+                      ? "bg-[#0040FF] text-white"
+                      : "text-[#5C4500] hover:text-[#0D0D0D] disabled:text-[#B0B5C3] disabled:cursor-not-allowed"
+                  }`}
+                  aria-pressed={active}
+                  data-testid={`city-trend-view-${mode}`}
+                  title={
+                    disabled
+                      ? "Sem dados por origem no período"
+                      : mode === "total"
+                        ? "Mostrar total"
+                        : "Mostrar por origem"
+                  }
+                >
+                  {mode === "total" ? "Total" : "Por origem"}
+                </button>
+              );
+            })}
+          </div>
+          {hasComparison && effectiveViewMode === "total" && (
             <label className="inline-flex items-center gap-1 text-[11px] text-[#5C4500] cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1465,7 +1572,7 @@ function CityTrendPanel({
             Sem cliques nesta cidade no período.
           </div>
         )}
-        {points && points.length > 0 && (
+        {points && points.length > 0 && effectiveViewMode === "total" && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E3EB" />
@@ -1504,7 +1611,53 @@ function CityTrendPanel({
             </LineChart>
           </ResponsiveContainer>
         )}
+        {points && points.length > 0 && effectiveViewMode === "source" && (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sourceChartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E0E3EB" />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#7A7F8C" }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#7A7F8C" }} width={28} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 6 }}
+                labelStyle={{ fontWeight: 600 }}
+              />
+              {sortedSources.map(({ source, color }) => (
+                <Area
+                  key={source}
+                  type="monotone"
+                  dataKey={source}
+                  stackId="1"
+                  stroke={color}
+                  fill={color}
+                  fillOpacity={0.7}
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
       </div>
+      {effectiveViewMode === "source" && sortedSources.length > 0 && (
+        <div
+          className="mt-2 flex flex-wrap gap-x-3 gap-y-1"
+          data-testid="city-trend-source-legend"
+        >
+          {sortedSources.map(({ source, value, color }) => (
+            <span
+              key={source}
+              className="inline-flex items-center gap-1 text-[11px] text-[#5C4500]"
+            >
+              <span
+                className="inline-block rounded-sm"
+                style={{ width: 10, height: 10, background: color }}
+              />
+              <span className="font-semibold text-[#0D0D0D]">{source}</span>
+              <span className="text-[#7A5C00]">· {value}</span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
