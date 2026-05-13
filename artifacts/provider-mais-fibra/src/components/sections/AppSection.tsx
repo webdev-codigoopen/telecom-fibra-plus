@@ -76,12 +76,6 @@ export default function AppSection() {
             gap: 0,
           }}
         >
-          <img
-            src={iconPlus}
-            alt=""
-            aria-hidden
-            style={{ width: 27, height: 27, display: "block", marginRight: 8 }}
-          />
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
@@ -93,6 +87,18 @@ export default function AppSection() {
               textAlign: "center",
             }}
           >
+            <img
+              src={iconPlus}
+              alt=""
+              aria-hidden
+              style={{
+                width: "0.85em",
+                height: "0.85em",
+                display: "inline-block",
+                verticalAlign: "-0.08em",
+                marginRight: 8,
+              }}
+            />
             <span style={{ fontWeight: 700 }}>Facilidade</span> no Seu{" "}
             <span style={{ fontWeight: 700 }}>Dia a Dia</span>
           </h2>
