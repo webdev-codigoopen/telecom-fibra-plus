@@ -8,6 +8,7 @@ import {
 import { eq, and, ne } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import { stripHtml } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -25,14 +26,14 @@ router.get("/streaming-brands", async (_req, res) => {
 });
 
 const brandBodySchema = z.object({
-  name: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(80).transform((s) => stripHtml(s)),
   logoUrl: z.string().nullable().optional(),
   sortOrder: z.number().int().optional(),
 });
 
 function normalizeOptional(s: string | null | undefined): string | null {
   if (s == null) return null;
-  const t = s.trim();
+  const t = stripHtml(s);
   return t.length === 0 ? null : t;
 }
 

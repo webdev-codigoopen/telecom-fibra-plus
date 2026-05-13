@@ -3,6 +3,7 @@ import { db, appSettingsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import { stripHtmlFields } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -154,7 +155,16 @@ router.put("/settings", requireAdminKey, async (req, res) => {
     return;
   }
   try {
-    const entries = Object.entries(parsed.data) as Array<[string, string]>;
+    // Defense-in-depth: strip any HTML from free-text fields before persist.
+    // The site already escapes on output, but stripping on persist prevents
+    // future code paths that forget to escape from being exploitable.
+    const SANITIZE_KEYS = [
+      "cta_subscribe_message",
+      "cta_unavailable_message",
+      "smtp_from_name",
+    ] as const;
+    const sanitized = stripHtmlFields(parsed.data, SANITIZE_KEYS);
+    const entries = Object.entries(sanitized) as Array<[string, string]>;
     let touchedSmtp = false;
     for (const [key, value] of entries) {
       if (key.startsWith("smtp_")) touchedSmtp = true;

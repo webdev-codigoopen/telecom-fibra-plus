@@ -3,6 +3,7 @@ import { db, reviewsTable, appSettingsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import { stripHtml } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -79,7 +80,9 @@ router.get("/reviews/admin", requireAdminKey, async (_req, res) => {
 
 function cleanText(value: unknown, max: number): string {
   if (typeof value !== "string") return "";
-  return value.replace(/\s+/g, " ").trim().slice(0, max);
+  // Strip HTML first (defense-in-depth against script injection in review
+  // text shown on the public site), then collapse whitespace and clip.
+  return stripHtml(value).replace(/\s+/g, " ").trim().slice(0, max);
 }
 
 router.post("/reviews", requireAdminKey, async (req, res) => {

@@ -9,6 +9,7 @@ import {
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import { stripHtml } from "../lib/sanitize";
 
 const router: IRouter = Router();
 
@@ -288,7 +289,10 @@ const planBodySchema = z.object({
 
 function normalizeOptional(s: string | null | undefined): string | null {
   if (s == null) return null;
-  const t = s.trim();
+  // Defense-in-depth: free-text plan fields surface in og:description /
+  // share HTML and badges. Strip any HTML so even a future code path that
+  // forgets to escape on output cannot inject script tags.
+  const t = stripHtml(s);
   return t.length === 0 ? null : t;
 }
 

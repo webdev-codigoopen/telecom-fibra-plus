@@ -6,6 +6,7 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { csrfMiddleware } from "./lib/csrf";
 
 const app: Express = express();
 
@@ -126,6 +127,19 @@ app.use("/api", (req, res, next) => {
     return;
   }
   next();
+});
+
+// CSRF protection. Enforced only on cookie-authenticated mutations; header-bearer
+// requests (X-Admin-Key / Authorization: Bearer) are CSRF-immune by construction
+// and skipped inside the middleware. The /auth/csrf endpoint and /auth/login are
+// excluded so the SPA can bootstrap a token and submit credentials.
+app.use("/api", (req, res, next) => {
+  const p = req.path;
+  if (p === "/auth/csrf" || p === "/auth/login" || p === "/auth/logout") {
+    next();
+    return;
+  }
+  csrfMiddleware(req, res, next);
 });
 
 app.use("/api", router);

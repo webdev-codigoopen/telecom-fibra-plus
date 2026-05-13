@@ -203,7 +203,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
-  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes">("planos");
+  const [activeTab, setActiveTab] = useState<"planos" | "ctas" | "interesses" | "emails" | "seguranca" | "marketing" | "avaliacoes" | "historico">("planos");
   const [appSettings, setAppSettingsState] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [previewHealth, setPreviewHealth] = useState<{
     humanPreviews24h: number;
@@ -920,6 +920,7 @@ export default function Admin() {
             { id: "seguranca", label: "Segurança" },
             { id: "marketing", label: "Marketing" },
             { id: "avaliacoes", label: "Avaliações" },
+            { id: "historico", label: "Histórico" },
           ] as const).map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -1015,6 +1016,10 @@ export default function Admin() {
             />
             <ReviewsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
+        )}
+
+        {!loading && activeTab === "historico" && (
+          <AuditLogPanel adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "planos" && (
@@ -5672,6 +5677,134 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
 }
 
 type TwoFactorPanelProps = { adminKey: string; baseUrl: string };
+
+type AuditLogItem = {
+  id: number;
+  userId: number | null;
+  email: string | null;
+  action: string;
+  method: string;
+  path: string;
+  ip: string | null;
+  userAgent: string | null;
+  status: string;
+  createdAt: string;
+};
+
+function AuditLogPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
+  const [items, setItems] = useState<AuditLogItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [emailFilter, setEmailFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const qs = new URLSearchParams({ limit: "200" });
+      if (emailFilter.trim()) qs.set("email", emailFilter.trim());
+      if (actionFilter.trim()) qs.set("action", actionFilter.trim());
+      const res = await fetch(`${baseUrl}/api/admin/audit?${qs.toString()}`, {
+        headers: { "X-Admin-Key": adminKey },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { items: AuditLogItem[]; total: number };
+      setItems(data.items);
+      setTotal(data.total);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar histórico.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl, emailFilter, actionFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-4">
+        <h2 className="text-lg font-bold text-[#0D0D0D]">Histórico de ações</h2>
+        <p className="text-sm text-[#7A7F8C]">
+          Últimos 90 dias. Toda alteração feita no painel é registrada com data, usuário, IP e endpoint.
+        </p>
+      </header>
+      <div className="flex flex-wrap gap-3 mb-4">
+        <input
+          type="text"
+          placeholder="Filtrar por e-mail"
+          value={emailFilter}
+          onChange={(e) => setEmailFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-[#E0E3EB] rounded-md min-w-[220px]"
+          data-testid="audit-filter-email"
+        />
+        <input
+          type="text"
+          placeholder="Filtrar por endpoint (ex: /plans)"
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="px-3 py-1.5 text-sm border border-[#E0E3EB] rounded-md min-w-[220px]"
+          data-testid="audit-filter-action"
+        />
+        <button
+          type="button"
+          onClick={load}
+          className="px-4 py-1.5 text-sm font-semibold rounded-md bg-[#122AD5] text-white hover:bg-[#0F22B5]"
+          data-testid="audit-refresh"
+        >
+          {loading ? "Carregando..." : "Atualizar"}
+        </button>
+        <span className="ml-auto text-xs text-[#7A7F8C] self-center">
+          {total} {total === 1 ? "registro" : "registros"}
+        </span>
+      </div>
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-md px-3 py-2 mb-3 text-sm">{err}</div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" data-testid="audit-table">
+          <thead>
+            <tr className="text-left text-xs text-[#7A7F8C] border-b border-[#E0E3EB]">
+              <th className="py-2 pr-3">Data</th>
+              <th className="py-2 pr-3">Usuário</th>
+              <th className="py-2 pr-3">Método</th>
+              <th className="py-2 pr-3">Endpoint</th>
+              <th className="py-2 pr-3">IP</th>
+              <th className="py-2 pr-3">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 && !loading && (
+              <tr>
+                <td colSpan={6} className="py-6 text-center text-[#7A7F8C]">Nenhum registro.</td>
+              </tr>
+            )}
+            {items.map((it) => (
+              <tr key={it.id} className="border-b border-[#F0F2F7]">
+                <td className="py-2 pr-3 whitespace-nowrap text-[#0D0D0D]">
+                  {new Date(it.createdAt).toLocaleString("pt-BR")}
+                </td>
+                <td className="py-2 pr-3 text-[#0D0D0D]">{it.email ?? "—"}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C]">{it.method}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#0D0D0D] break-all">{it.path}</td>
+                <td className="py-2 pr-3 font-mono text-xs text-[#7A7F8C]">{it.ip ?? "—"}</td>
+                <td className="py-2 pr-3">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                    it.status === "ok" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
+                  }`}>{it.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
 
 function TwoFactorPanel({ adminKey, baseUrl }: TwoFactorPanelProps) {
   const [enabled, setEnabled] = useState<boolean | null>(null);

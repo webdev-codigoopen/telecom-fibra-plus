@@ -22,6 +22,9 @@ import {
 } from "../lib/totp";
 import { getLockoutMs, recordLoginAttempt } from "../lib/lockout";
 import { logger } from "../lib/logger";
+import { issueCsrfToken } from "../lib/csrf";
+import { db, adminAuditLogTable } from "@workspace/db";
+import { and, desc, eq, gte, like, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -125,6 +128,52 @@ router.post("/auth/login", loginLimiter, async (req, res) => {
 router.post("/auth/logout", (_req, res) => {
   clearAdminCookie(res);
   res.json({ ok: true });
+});
+
+// Issue a CSRF token. Cookie-based admin clients call this once after login
+// and echo the returned token back in the X-CSRF-Token header on every
+// mutating request. Header-bearer clients do not need it.
+router.get("/auth/csrf", (req, res) => {
+  const token = issueCsrfToken(req, res);
+  res.json({ csrfToken: token });
+});
+
+// ---------------------------------------------------------------------------
+// Admin audit log viewer. Lists the last 90 days of mutation entries with
+// optional filters by user email, action substring, and pagination. Used by
+// the "Histórico de ações" tab in the admin panel.
+// ---------------------------------------------------------------------------
+const auditQuerySchema = z.object({
+  email: z.string().trim().toLowerCase().max(254).optional(),
+  action: z.string().trim().max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  offset: z.coerce.number().int().min(0).max(100000).default(0),
+});
+
+router.get("/admin/audit", requireAdmin, async (req, res) => {
+  const parsed = auditQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Filtros inválidos." });
+    return;
+  }
+  const { email, action, limit, offset } = parsed.data;
+  const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const conds = [gte(adminAuditLogTable.createdAt, since)];
+  if (email) conds.push(eq(adminAuditLogTable.email, email));
+  if (action) conds.push(like(adminAuditLogTable.path, `%${action}%`));
+  const where = conds.length === 1 ? conds[0]! : and(...conds);
+  const rows = await db
+    .select()
+    .from(adminAuditLogTable)
+    .where(where)
+    .orderBy(desc(adminAuditLogTable.createdAt))
+    .limit(limit)
+    .offset(offset);
+  const totalRows = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(adminAuditLogTable)
+    .where(where);
+  res.json({ items: rows, total: totalRows[0]?.n ?? 0 });
 });
 
 router.get("/auth/me", requireAdmin, async (req, res) => {

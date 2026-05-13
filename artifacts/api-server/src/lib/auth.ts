@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
@@ -27,20 +26,21 @@ declare global {
   namespace Express {
     interface Request {
       adminUser?: { id: number; email: string };
+      // Where the admin auth credential came from. CSRF middleware uses this:
+      // header-bearer auth (X-Admin-Key / Authorization: Bearer) is CSRF-immune
+      // and skips the check; cookie auth must present a CSRF token.
+      adminAuthSource?: "cookie" | "header";
     }
   }
 }
 
 function jwtSecret(): string {
   const v = process.env["JWT_SECRET"];
-  if (v && v.length >= 16) return v;
-  // Derive a fallback from ADMIN_SECRET so legacy installs without an explicit
-  // JWT_SECRET still work. In production we require either to be strong.
-  const fallback = process.env["ADMIN_SECRET"];
-  if (fallback && fallback.length >= 16) {
-    return createHash("sha256").update(`jwt:${fallback}`).digest("hex");
-  }
-  throw new Error("JWT_SECRET (or ADMIN_SECRET) must be set with >= 16 chars");
+  const minLen = process.env["NODE_ENV"] === "production" ? 16 : 8;
+  if (v && v.length >= minLen) return v;
+  throw new Error(
+    `JWT_SECRET must be set with >= ${minLen} chars (NODE_ENV=${process.env["NODE_ENV"] ?? "development"})`,
+  );
 }
 
 export async function hashPassword(plain: string): Promise<string> {
@@ -81,17 +81,6 @@ export function clearAdminCookie(res: Response): void {
   res.clearCookie(COOKIE_NAME, { path: "/" });
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  try {
-    return timingSafeEqual(ab, bb);
-  } catch {
-    return false;
-  }
-}
-
 function clientIp(req: Request): string {
   const fwd = req.headers["x-forwarded-for"];
   if (typeof fwd === "string" && fwd.length > 0) return fwd.split(",")[0]!.trim();
@@ -99,19 +88,21 @@ function clientIp(req: Request): string {
   return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }
 
-function collectTokens(req: Request): string[] {
-  const out: string[] = [];
+type Candidate = { token: string; source: "cookie" | "header" };
+
+function collectTokens(req: Request): Candidate[] {
+  const out: Candidate[] = [];
   const cookies = (req as unknown as { cookies?: Record<string, string> }).cookies;
   if (cookies && typeof cookies[COOKIE_NAME] === "string" && cookies[COOKIE_NAME].length > 0) {
-    out.push(cookies[COOKIE_NAME]);
+    out.push({ token: cookies[COOKIE_NAME], source: "cookie" });
   }
   const auth = req.headers["authorization"];
   if (typeof auth === "string" && auth.startsWith("Bearer ")) {
     const v = auth.slice(7).trim();
-    if (v.length > 0) out.push(v);
+    if (v.length > 0) out.push({ token: v, source: "header" });
   }
   const xkey = req.headers["x-admin-key"];
-  if (typeof xkey === "string" && xkey.length > 0) out.push(xkey);
+  if (typeof xkey === "string" && xkey.length > 0) out.push({ token: xkey, source: "header" });
   return out;
 }
 
@@ -128,44 +119,24 @@ function verifyToken(token: string): AdminTokenPayload | null {
 }
 
 // ---------------------------------------------------------------------------
-// requireAdmin — central admin middleware. Accepts:
-//   1. Valid JWT in cookie / Authorization: Bearer / X-Admin-Key
-//   2. Legacy ADMIN_SECRET as raw value in X-Admin-Key (fallback during
-//      transition; remove once all admin clients have re-logged in).
+// requireAdmin — central admin middleware. Accepts a valid JWT delivered via:
+//   - the pmf_admin httpOnly cookie (must also pass CSRF on mutations)
+//   - the Authorization: Bearer <jwt> header (CSRF-immune)
+//   - the X-Admin-Key: <jwt> header (CSRF-immune; legacy transport name kept
+//     for the existing admin SPA, the value is now always a JWT)
+//
+// The legacy ADMIN_SECRET raw-string fallback was removed in task #126.
 // Logs every authenticated mutation (POST/PUT/PATCH/DELETE) to admin_audit_log.
 // ---------------------------------------------------------------------------
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   const tokens = collectTokens(req);
 
-  // 1) Try every supplied credential as a JWT first; authorize on the first
-  //    one that verifies. This way a stale cookie does not block a valid
-  //    X-Admin-Key / Bearer token (or vice-versa).
-  for (const t of tokens) {
-    const payload = verifyToken(t);
+  for (const c of tokens) {
+    const payload = verifyToken(c.token);
     if (payload) {
       req.adminUser = { id: payload.sub, email: payload.email };
+      req.adminAuthSource = c.source;
       writeAuditOnMutation(req, "ok").catch(() => {});
-      next();
-      return;
-    }
-  }
-
-  // 2) Legacy fallback: raw ADMIN_SECRET in X-Admin-Key or Authorization
-  //    Bearer (cookie path is JWT-only). Removed in follow-up #126.
-  const legacy = process.env["ADMIN_SECRET"];
-  if (legacy && legacy.length > 0) {
-    const headerToken =
-      typeof req.headers["x-admin-key"] === "string" ? (req.headers["x-admin-key"] as string) : "";
-    const auth = req.headers["authorization"];
-    const bearerToken = typeof auth === "string" && auth.startsWith("Bearer ")
-      ? auth.slice(7).trim()
-      : "";
-    if (
-      (headerToken && safeEqual(headerToken, legacy)) ||
-      (bearerToken && safeEqual(bearerToken, legacy))
-    ) {
-      req.adminUser = { id: 0, email: "legacy" };
-      writeAuditOnMutation(req, "legacy").catch(() => {});
       next();
       return;
     }
