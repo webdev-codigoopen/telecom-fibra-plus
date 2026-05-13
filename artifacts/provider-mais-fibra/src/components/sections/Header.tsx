@@ -340,6 +340,30 @@ export default function Header() {
                 transition={{ delay: 0.2, duration: 0.35 }}
                 className="relative flex-shrink-0 px-6 pt-4 pb-6 flex flex-col gap-4"
               >
+                {/* Social icons */}
+                <div className="flex items-center justify-center gap-3">
+                  <a
+                    href="https://wa.me/5577998444757"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
+                    style={{ background: "rgba(255,255,255,0.08)" }}
+                  >
+                    <img src={iconWhatsApp} alt="" className="w-5 h-5" />
+                  </a>
+                  <a
+                    href="https://instagram.com/provider.fibra"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
+                    style={{ background: "rgba(255,255,255,0.08)" }}
+                  >
+                    <img src={iconInstagram} alt="" className="w-5 h-5" />
+                  </a>
+                </div>
+
                 {/* App stores row */}
                 <div>
                   <div
@@ -389,28 +413,6 @@ export default function Header() {
                 >
                   Assine Já
                 </button>
-                <div className="flex items-center justify-center gap-3">
-                  <a
-                    href="https://wa.me/5577998444757"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="WhatsApp"
-                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
-                    style={{ background: "rgba(255,255,255,0.08)" }}
-                  >
-                    <img src={iconWhatsApp} alt="" className="w-5 h-5" />
-                  </a>
-                  <a
-                    href="https://instagram.com/provider.fibra"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Instagram"
-                    className="w-11 h-11 flex items-center justify-center rounded-full transition-all duration-200 hover:bg-white/15 active:scale-95"
-                    style={{ background: "rgba(255,255,255,0.08)" }}
-                  >
-                    <img src={iconInstagram} alt="" className="w-5 h-5" />
-                  </a>
-                </div>
               </motion.div>
             </motion.div>
           </>
