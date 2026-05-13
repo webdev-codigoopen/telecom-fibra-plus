@@ -92,7 +92,7 @@ export default function Header() {
         fontFamily: FONT_NUNITO,
       }}
     >
-      <div className="header-section__container mx-auto flex items-center justify-between h-16 md:h-[88px] max-w-[1240px] px-4 sm:px-6 lg:px-8">
+      <div className="header-section__container mx-auto flex items-center justify-between min-h-16 py-3 md:py-0 md:h-[88px] max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <button
           onClick={() => {
