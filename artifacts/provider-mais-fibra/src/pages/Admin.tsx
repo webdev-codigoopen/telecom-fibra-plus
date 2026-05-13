@@ -2149,6 +2149,17 @@ export default function Admin() {
               />
             </div>
 
+            <div className="mb-8">
+              <BotVsHumanPanel
+                adminKey={adminKey}
+                baseUrl={baseUrl}
+                statsRange={statsRange}
+                customFrom={customFrom}
+                customTo={customTo}
+                cityFilter={cityFilter}
+              />
+            </div>
+
             <div className="flex items-center justify-between mb-6">
               <p className="text-sm text-[#7A7F8C]">
                 {plans.length} plano(s) cadastrado(s){" "}
@@ -6209,6 +6220,293 @@ function SmtpSettings({ settings, adminKey, baseUrl, onChange }: SmtpSettingsPro
 }
 
 type TwoFactorPanelProps = { adminKey: string; baseUrl: string };
+
+type BotSummary = {
+  sharePageBots: number;
+  sharePageHumans: number;
+  otherBots: number;
+  otherHumans: number;
+};
+
+type RecentClickRow = {
+  id: number;
+  clickedAt: string;
+  planSpeed: string;
+  planPrice: string;
+  source: string;
+  city: string | null;
+  userAgent: string | null;
+  isBot: boolean;
+};
+
+function BotVsHumanPanel({
+  adminKey,
+  baseUrl,
+  statsRange,
+  customFrom,
+  customTo,
+  cityFilter,
+}: {
+  adminKey: string;
+  baseUrl: string;
+  statsRange: StatsRange;
+  customFrom: string;
+  customTo: string;
+  cityFilter: string | null;
+}) {
+  const [summary, setSummary] = useState<BotSummary | null>(null);
+  const [rows, setRows] = useState<RecentClickRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [kind, setKind] = useState<"all" | "humans" | "bots">("all");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const rangeParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (statsRange === "custom" && customFrom && customTo) {
+      const since = new Date(`${customFrom}T00:00:00`);
+      const until = new Date(`${customTo}T00:00:00`);
+      until.setDate(until.getDate() + 1);
+      if (!Number.isNaN(since.getTime()) && !Number.isNaN(until.getTime()) && until > since) {
+        params.set("since", since.toISOString());
+        params.set("until", until.toISOString());
+      }
+    } else if (statsRange === "today") {
+      const since = new Date();
+      since.setHours(0, 0, 0, 0);
+      params.set("since", since.toISOString());
+    } else if (statsRange === "week") {
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
+      params.set("since", since.toISOString());
+    }
+    if (cityFilter) params.set("city", cityFilter);
+    return params;
+  }, [statsRange, customFrom, customTo, cityFilter]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const summaryUrl = `${baseUrl}/api/clicks/bot-summary${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
+      const recentParams = new URLSearchParams(rangeParams);
+      recentParams.set("limit", "100");
+      if (kind !== "all") recentParams.set("kind", kind);
+      if (debouncedSearch) recentParams.set("q", debouncedSearch);
+      const recentUrl = `${baseUrl}/api/clicks/recent?${recentParams.toString()}`;
+      const [sRes, rRes] = await Promise.all([
+        adminFetch(summaryUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
+        adminFetch(recentUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
+      ]);
+      if (!sRes.ok) throw new Error(`HTTP ${sRes.status}`);
+      if (!rRes.ok) throw new Error(`HTTP ${rRes.status}`);
+      const sData = (await sRes.json()) as BotSummary;
+      const rData = (await rRes.json()) as { rows: RecentClickRow[] };
+      setSummary(sData);
+      setRows(rData.rows);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl, rangeParams, kind, debouncedSearch]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const sharePageTotal = (summary?.sharePageBots ?? 0) + (summary?.sharePageHumans ?? 0);
+  const sharePageBotPct = sharePageTotal > 0
+    ? Math.round(((summary?.sharePageBots ?? 0) / sharePageTotal) * 100)
+    : 0;
+  const otherTotal = (summary?.otherBots ?? 0) + (summary?.otherHumans ?? 0);
+  const otherBotPct = otherTotal > 0
+    ? Math.round(((summary?.otherBots ?? 0) / otherTotal) * 100)
+    : 0;
+
+  return (
+    <section className="bg-white rounded-xl border border-[#E0E3EB] px-5 py-4" data-testid="bot-vs-human-panel">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <h2 className="font-bold text-[#0D0D0D] text-base">Robôs vs. visitantes reais</h2>
+          <p className="text-xs text-[#7A7F8C] mt-0.5">
+            Origem do tráfego identificada pelo User-Agent. Aplica o mesmo filtro de período/cidade dos cliques acima.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void load()}
+          disabled={loading}
+          className="text-xs text-[#0040FF] hover:underline disabled:opacity-50"
+        >
+          {loading ? "Atualizando..." : "Atualizar"}
+        </button>
+      </div>
+
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 mb-3 text-xs">
+          {err}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="rounded-xl border border-[#E0E3EB] px-4 py-3">
+          <div className="text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide">
+            Página de compartilhamento (WhatsApp)
+          </div>
+          <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+            <span className="text-2xl font-black text-[#2A2D38] tabular-nums">
+              {(summary?.sharePageHumans ?? 0).toLocaleString("pt-BR")}
+            </span>
+            <span className="text-xs text-[#7A7F8C]">humanos</span>
+            <span className="text-[#7A7F8C]" aria-hidden="true">·</span>
+            <span className="text-2xl font-black text-[#A1A6B0] tabular-nums">
+              {(summary?.sharePageBots ?? 0).toLocaleString("pt-BR")}
+            </span>
+            <span className="text-xs text-[#7A7F8C]">robôs ({sharePageBotPct}%)</span>
+          </div>
+          {sharePageTotal > 0 && (
+            <div className="h-2 rounded-full bg-[#A1A6B0] overflow-hidden mt-2" title={`${sharePageBotPct}% robôs`}>
+              <div
+                className="h-full bg-[#0040FF]"
+                style={{ width: `${100 - sharePageBotPct}%` }}
+              />
+            </div>
+          )}
+        </div>
+        <div className="rounded-xl border border-[#E0E3EB] px-4 py-3">
+          <div className="text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide">
+            Demais cliques (CTAs do site)
+          </div>
+          <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+            <span className="text-2xl font-black text-[#2A2D38] tabular-nums">
+              {(summary?.otherHumans ?? 0).toLocaleString("pt-BR")}
+            </span>
+            <span className="text-xs text-[#7A7F8C]">humanos</span>
+            <span className="text-[#7A7F8C]" aria-hidden="true">·</span>
+            <span className="text-2xl font-black text-[#A1A6B0] tabular-nums">
+              {(summary?.otherBots ?? 0).toLocaleString("pt-BR")}
+            </span>
+            <span className="text-xs text-[#7A7F8C]">robôs ({otherBotPct}%)</span>
+          </div>
+          {otherTotal > 0 && (
+            <div className="h-2 rounded-full bg-[#A1A6B0] overflow-hidden mt-2" title={`${otherBotPct}% robôs`}>
+              <div
+                className="h-full bg-[#0040FF]"
+                style={{ width: `${100 - otherBotPct}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-bold text-sm text-[#0D0D0D]">Cliques recentes</h3>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex rounded-lg border border-[#E0E3EB] bg-white p-0.5" role="group" aria-label="Filtrar por tipo">
+            {([
+              { id: "all", label: "Todos" },
+              { id: "humans", label: "Humanos" },
+              { id: "bots", label: "Robôs" },
+            ] as const).map((opt) => {
+              const active = kind === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setKind(opt.id)}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    active ? "bg-[#0040FF] text-white" : "text-[#7A7F8C] hover:text-[#0D0D0D]"
+                  }`}
+                  aria-pressed={active}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar User-Agent..."
+            aria-label="Buscar User-Agent"
+            className="text-xs border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#2A2D38] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 w-44"
+          />
+        </div>
+      </div>
+
+      {rows.length === 0 && !loading ? (
+        <div className="text-center text-sm text-[#7A7F8C] py-6">Nenhum clique encontrado.</div>
+      ) : (
+        <div className="overflow-x-auto -mx-1">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-[#7A7F8C] font-semibold border-b border-[#E0E3EB]">
+                <th className="px-2 py-2">Quando</th>
+                <th className="px-2 py-2">Tipo</th>
+                <th className="px-2 py-2">Plano / Cidade</th>
+                <th className="px-2 py-2">Origem</th>
+                <th className="px-2 py-2">User-Agent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const isCity = r.planSpeed === "city";
+                return (
+                  <tr key={r.id} className="border-b border-[#F0F2F5] align-top">
+                    <td className="px-2 py-2 whitespace-nowrap text-[#2A2D38] tabular-nums">
+                      {new Date(r.clickedAt).toLocaleString("pt-BR")}
+                    </td>
+                    <td className="px-2 py-2 whitespace-nowrap">
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={
+                          r.isBot
+                            ? { background: "#EEF0F5", color: "#7A7F8C" }
+                            : { background: "#E6F8EC", color: "#00A030" }
+                        }
+                      >
+                        {r.isBot ? "robô" : "humano"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-[#2A2D38]">
+                      {isCity ? (
+                        <span>Cidade · <strong>{r.planPrice}</strong></span>
+                      ) : (
+                        <span><strong>{r.planSpeed}</strong> · R$ {r.planPrice}</span>
+                      )}
+                      {r.city && !isCity && (
+                        <span className="text-[#7A7F8C]"> · {r.city}</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2 text-[#2A2D38]">
+                      <code className="text-[10px] bg-[#F5F7FA] px-1 py-0.5 rounded">{r.source}</code>
+                    </td>
+                    <td className="px-2 py-2 text-[#2A2D38] max-w-md">
+                      <span className="text-[11px] break-all" title={r.userAgent ?? ""}>
+                        {r.userAgent ?? <span className="italic text-[#7A7F8C]">(sem User-Agent)</span>}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="text-[11px] text-[#7A7F8C] mt-2">
+            Mostrando até 100 cliques mais recentes. Use o exportador "CSV (bruto)" acima para baixar todos com User-Agent e marca de robô.
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 
 type AuditLogItem = {
   id: number;
