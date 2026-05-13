@@ -277,8 +277,15 @@ export default function AppSection() {
             grid-template-columns: 1fr !important;
           }
           .appsection-cards > div {
+            flex-direction: row !important;
             align-items: center !important;
-            text-align: center !important;
+            text-align: left !important;
+            column-gap: 14px !important;
+            row-gap: 0 !important;
+          }
+          .appsection-cards > div > div:last-child {
+            flex: 1 !important;
+            text-align: left !important;
           }
           .appsection-cta {
             flex-direction: row !important;
