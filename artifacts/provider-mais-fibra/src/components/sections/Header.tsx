@@ -221,18 +221,46 @@ export default function Header() {
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-      {/* Mobile menu */}
+      {/* Mobile menu — backdrop */}
+      <div
+        className="lg:hidden fixed inset-0 transition-opacity duration-300 ease-in-out"
+        style={{
+          background: "rgba(0,0,0,0.5)",
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? "auto" : "none",
+          zIndex: 40,
+        }}
+        onClick={() => setIsOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Mobile menu — side drawer (right) */}
       <div
         id="mobile-menu"
-        role="region"
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="mobile-menu-trigger"
-        className="header-section__mobile lg:hidden overflow-hidden transition-all duration-300 ease-in-out"
+        className="header-section__mobile lg:hidden fixed top-0 right-0 overflow-y-auto transition-transform duration-300 ease-in-out"
         style={{
-          maxHeight: isOpen ? "640px" : "0px",
-          opacity: isOpen ? 1 : 0,
+          width: "min(85vw, 360px)",
+          height: "100vh",
           background: "rgba(0, 16, 80, 0.98)",
+          transform: isOpen ? "translateX(0)" : "translateX(100%)",
+          boxShadow: isOpen ? "-8px 0 24px rgba(0,0,0,0.35)" : "none",
+          zIndex: 60,
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
+        <div className="flex items-center justify-end px-4 pt-4">
+          <button
+            onClick={() => setIsOpen(false)}
+            className="cursor-pointer text-white p-2 rounded-lg transition-colors hover:bg-white/10 active:bg-white/20 outline-none focus-visible:ring-2 focus-visible:ring-[#95EB1D]"
+            aria-label="Fechar menu"
+          >
+            <X size={24} />
+          </button>
+        </div>
         <div className="px-4 pb-5 pt-2">
           {navLinks.map((link) => {
             const active = isActive(link);
