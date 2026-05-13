@@ -27,6 +27,13 @@ const RATE_MIN_INTERVAL_MS = 15 * 1000;
 const MAX_CITY_LEN = 80;
 const MAX_NEIGHBORHOOD_LEN = 120;
 const MAX_WHATSAPP_LEN = 20;
+const MAX_NOTE_LEN = 500;
+
+const VALID_STATUSES = ["novo", "contatado", "convertido", "sem_retorno"] as const;
+type InterestStatus = (typeof VALID_STATUSES)[number];
+function isValidStatus(v: unknown): v is InterestStatus {
+  return typeof v === "string" && (VALID_STATUSES as readonly string[]).includes(v);
+}
 
 type Bucket = { times: number[]; lastAt: number };
 const ipBuckets = new Map<string, Bucket>();
@@ -251,13 +258,21 @@ router.get("/demand/interests", requireAdminKey, async (req, res) => {
     if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
     if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
 
+    const statusParam = typeof req.query["status"] === "string" && isValidStatus(req.query["status"])
+      ? (req.query["status"] as InterestStatus)
+      : undefined;
+    if (statusParam) conditions.push(eq(demandInterestsTable.status, statusParam));
+
     const baseSelect = db
       .select({
         id: demandInterestsTable.id,
         city: demandInterestsTable.city,
         neighborhood: demandInterestsTable.neighborhood,
         whatsapp: demandInterestsTable.whatsapp,
+        status: demandInterestsTable.status,
+        note: demandInterestsTable.note,
         createdAt: demandInterestsTable.createdAt,
+        updatedAt: demandInterestsTable.updatedAt,
       })
       .from(demandInterestsTable);
 
@@ -272,6 +287,60 @@ router.get("/demand/interests", requireAdminKey, async (req, res) => {
     res.json(rows);
   } catch {
     res.status(500).json({ error: "Failed to fetch interests" });
+  }
+});
+
+router.patch("/demand/interests/:id", requireAdminKey, async (req, res) => {
+  try {
+    const rawId = req.params["id"];
+    const idStr = Array.isArray(rawId) ? rawId[0] ?? "" : rawId ?? "";
+    const idNum = parseInt(idStr, 10);
+    if (!Number.isFinite(idNum) || idNum <= 0) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
+    const body = req.body ?? {};
+    const updates: { status?: InterestStatus; note?: string | null; updatedAt: Date } = {
+      updatedAt: new Date(),
+    };
+    if (body.status !== undefined) {
+      if (!isValidStatus(body.status)) {
+        res.status(400).json({ error: "Status inválido." });
+        return;
+      }
+      updates.status = body.status;
+    }
+    if (body.note !== undefined) {
+      if (body.note === null || (typeof body.note === "string" && body.note.trim() === "")) {
+        updates.note = null;
+      } else if (typeof body.note === "string") {
+        updates.note = body.note.trim().slice(0, MAX_NOTE_LEN);
+      } else {
+        res.status(400).json({ error: "Nota inválida." });
+        return;
+      }
+    }
+    if (updates.status === undefined && updates.note === undefined) {
+      res.status(400).json({ error: "Nada para atualizar." });
+      return;
+    }
+    const result = await db
+      .update(demandInterestsTable)
+      .set(updates)
+      .where(eq(demandInterestsTable.id, idNum))
+      .returning({
+        id: demandInterestsTable.id,
+        status: demandInterestsTable.status,
+        note: demandInterestsTable.note,
+        updatedAt: demandInterestsTable.updatedAt,
+      });
+    if (result.length === 0) {
+      res.status(404).json({ error: "Interesse não encontrado." });
+      return;
+    }
+    res.json(result[0]);
+  } catch {
+    res.status(500).json({ error: "Failed to update interest" });
   }
 });
 
@@ -303,6 +372,10 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
     if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
     if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
     if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
+    const statusParam = typeof req.query["status"] === "string" && isValidStatus(req.query["status"])
+      ? (req.query["status"] as InterestStatus)
+      : undefined;
+    if (statusParam) conditions.push(eq(demandInterestsTable.status, statusParam));
 
     const baseSelect = db
       .select({
@@ -310,6 +383,8 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
         city: demandInterestsTable.city,
         neighborhood: demandInterestsTable.neighborhood,
         whatsapp: demandInterestsTable.whatsapp,
+        status: demandInterestsTable.status,
+        note: demandInterestsTable.note,
       })
       .from(demandInterestsTable);
 
@@ -330,9 +405,18 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
       return s;
     };
 
-    const header = "created_at,city,neighborhood,whatsapp";
+    const header = "created_at,city,neighborhood,whatsapp,status,note";
     const body = rows
-      .map((r) => [escape(r.createdAt), escape(r.city), escape(r.neighborhood), escape(r.whatsapp)].join(","))
+      .map((r) =>
+        [
+          escape(r.createdAt),
+          escape(r.city),
+          escape(r.neighborhood),
+          escape(r.whatsapp),
+          escape(r.status),
+          escape(r.note),
+        ].join(","),
+      )
       .join("\n");
     const csv = `${header}\n${body}${body ? "\n" : ""}`;
 

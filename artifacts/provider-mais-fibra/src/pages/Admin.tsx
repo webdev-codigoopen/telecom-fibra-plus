@@ -3380,13 +3380,29 @@ function CtaSettingsManager({ settings, adminKey, baseUrl, onChange }: CtaSettin
 }
 
 
+type InterestStatus = "novo" | "contatado" | "convertido" | "sem_retorno";
+
 type DemandInterest = {
   id: number;
   city: string;
   neighborhood: string;
   whatsapp: string;
+  status: InterestStatus;
+  note: string | null;
   createdAt: string;
+  updatedAt?: string;
 };
+
+const STATUS_OPTIONS: { value: InterestStatus; label: string; badge: string }[] = [
+  { value: "novo", label: "Novo", badge: "bg-[#E0E7FF] text-[#1E3A8A] border-[#C7D2FE]" },
+  { value: "contatado", label: "Contatado", badge: "bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]" },
+  { value: "convertido", label: "Convertido", badge: "bg-[#D1FAE5] text-[#065F46] border-[#A7F3D0]" },
+  { value: "sem_retorno", label: "Sem retorno", badge: "bg-[#F3F4F6] text-[#374151] border-[#E5E7EB]" },
+];
+
+function statusMeta(s: InterestStatus): { label: string; badge: string } {
+  return STATUS_OPTIONS.find((o) => o.value === s) ?? STATUS_OPTIONS[0]!;
+}
 
 type InterestCity = { city: string; total: number };
 
@@ -3424,12 +3440,17 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [cityFilter, setCityFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<"" | InterestStatus>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>("");
 
   const buildParams = useCallback((): URLSearchParams => {
     const params = new URLSearchParams();
     if (cityFilter) params.set("city", cityFilter);
+    if (statusFilter) params.set("status", statusFilter);
     if (fromDate) {
       const since = new Date(`${fromDate}T00:00:00`);
       if (!Number.isNaN(since.getTime())) params.set("since", since.toISOString());
@@ -3442,7 +3463,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
       }
     }
     return params;
-  }, [cityFilter, fromDate, toDate]);
+  }, [cityFilter, statusFilter, fromDate, toDate]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -3471,6 +3492,47 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
       setLoading(false);
     }
   }, [adminKey, baseUrl, buildParams]);
+
+  async function updateInterest(
+    id: number,
+    patch: { status?: InterestStatus; note?: string | null },
+  ): Promise<boolean> {
+    setSavingId(id);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(`${baseUrl}/api/demand/interests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": adminKey },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated: { status: InterestStatus; note: string | null; updatedAt: string } = await res.json();
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === id ? { ...it, status: updated.status, note: updated.note, updatedAt: updated.updatedAt } : it,
+        ),
+      );
+      return true;
+    } catch {
+      setErrorMsg("Não foi possível salvar a alteração.");
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function startNoteEdit(it: DemandInterest) {
+    setEditingNoteId(it.id);
+    setNoteDraft(it.note ?? "");
+  }
+
+  async function saveNote(id: number) {
+    const ok = await updateInterest(id, { note: noteDraft });
+    if (ok) {
+      setEditingNoteId(null);
+      setNoteDraft("");
+    }
+  }
 
   useEffect(() => {
     void fetchData();
@@ -3503,6 +3565,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
 
   function clearFilters() {
     setCityFilter("");
+    setStatusFilter("");
     setFromDate("");
     setToDate("");
   }
@@ -3537,6 +3600,22 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
+          <span>Status</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "" | InterestStatus)}
+            className="border border-[#E0E3EB] rounded-md px-2 py-1.5 bg-white text-sm text-[#2A2D38] min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="interest-status-filter"
+          >
+            <option value="">Todos os status</option>
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
           <span>De</span>
           <input
             type="date"
@@ -3558,7 +3637,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
             data-testid="interest-to-date"
           />
         </label>
-        {(cityFilter || fromDate || toDate) && (
+        {(cityFilter || statusFilter || fromDate || toDate) && (
           <button
             type="button"
             onClick={clearFilters}
@@ -3609,6 +3688,8 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
                 <th className="text-left px-3 py-2 font-semibold">Cidade</th>
                 <th className="text-left px-3 py-2 font-semibold">Bairro/Rua</th>
                 <th className="text-left px-3 py-2 font-semibold">WhatsApp</th>
+                <th className="text-left px-3 py-2 font-semibold">Status</th>
+                <th className="text-left px-3 py-2 font-semibold">Nota</th>
                 <th className="text-right px-3 py-2 font-semibold">Ações</th>
               </tr>
             </thead>
@@ -3622,6 +3703,9 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
                   hour: "2-digit",
                   minute: "2-digit",
                 });
+                const meta = statusMeta(it.status);
+                const isEditingNote = editingNoteId === it.id;
+                const isSaving = savingId === it.id;
                 return (
                   <tr key={it.id} className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]">
                     <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">{dateLabel}</td>
@@ -3629,6 +3713,79 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
                     <td className="px-3 py-2 text-[#2A2D38]">{it.neighborhood}</td>
                     <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap font-mono text-xs">
                       {formatWhatsappDisplay(it.whatsapp)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <div className="relative inline-block">
+                        <span
+                          className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${meta.badge}`}
+                          data-testid={`interest-status-badge-${it.id}`}
+                        >
+                          {meta.label}
+                        </span>
+                        <select
+                          aria-label="Atualizar status"
+                          value={it.status}
+                          disabled={isSaving}
+                          onChange={(e) => void updateInterest(it.id, { status: e.target.value as InterestStatus })}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                          data-testid={`interest-status-select-${it.id}`}
+                        >
+                          {STATUS_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-[#2A2D38] max-w-[260px]">
+                      {isEditingNote ? (
+                        <div className="flex items-start gap-1">
+                          <textarea
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value.slice(0, 500))}
+                            rows={2}
+                            className="flex-1 border border-[#E0E3EB] rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                            placeholder="Ex.: Falei dia 12, vai pensar"
+                            data-testid={`interest-note-input-${it.id}`}
+                            autoFocus
+                          />
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => void saveNote(it.id)}
+                              disabled={isSaving}
+                              className="text-[11px] font-semibold px-2 py-0.5 rounded border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-50"
+                              data-testid={`interest-note-save-${it.id}`}
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingNoteId(null);
+                                setNoteDraft("");
+                              }}
+                              className="text-[11px] text-[#7A7F8C] hover:text-[#0D0D0D]"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startNoteEdit(it)}
+                          className="text-left text-xs text-[#2A2D38] hover:text-[#0040FF] w-full min-h-[1.25rem]"
+                          data-testid={`interest-note-${it.id}`}
+                        >
+                          {it.note ? (
+                            <span className="whitespace-pre-wrap">{it.note}</span>
+                          ) : (
+                            <span className="text-[#9CA3AF] italic">Adicionar nota…</span>
+                          )}
+                        </button>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <a
