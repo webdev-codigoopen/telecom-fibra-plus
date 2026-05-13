@@ -233,35 +233,6 @@ export default function QuemSomos() {
           </div>
         </section>
 
-        <section
-          className="py-20"
-          style={{ background: "linear-gradient(135deg, #0A1995 0%, #122AD5 100%)" }}
-        >
-          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-16 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
-              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-                Quer fazer parte da nossa história?
-              </h2>
-              <p className="text-white/70 text-base mb-8">
-                Assine agora e descubra por que somos a escolha de milhares de famílias no Oeste da Bahia.
-              </p>
-              <a
-                href="https://wa.me/5577998444757"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base text-[#0D0E14] transition-all duration-200 hover:scale-105"
-                style={{ background: "#95EB1D", boxShadow: "0 4px 12px rgba(149,235,29,0.35)" }}
-              >
-                Falar com a Provider
-              </a>
-            </motion.div>
-          </div>
-        </section>
       </main>
 
       <Footer />
