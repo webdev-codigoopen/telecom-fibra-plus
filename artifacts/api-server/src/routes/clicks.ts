@@ -825,6 +825,17 @@ router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
     const totalAll = totalsRow?.totalAll ?? 0;
     const totalIdentified = totalsRow?.totalIdentified ?? 0;
 
+    // Earliest click that has a country code recorded — anywhere in the table,
+    // not just within the current filter window. Used by the admin UI to show
+    // a "dados disponíveis a partir de DD/MM/AAAA" disclaimer for older rows
+    // that pre-date the geo-tracking rollout.
+    const [earliestRow] = await db
+      .select({
+        earliestGeoAt: sql<string | null>`min(${planClicksTable.clickedAt}) filter (where ${planClicksTable.countryCode} is not null)`,
+      })
+      .from(planClicksTable);
+    const earliestGeoAt = earliestRow?.earliestGeoAt ?? null;
+
     const groupConditions = [...conditions, isNotNull(planClicksTable.countryCode)];
     const grouped = db
       .select({
@@ -853,6 +864,7 @@ router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
       totalAll,
       totalIdentified,
       totalUnknown: Math.max(0, totalAll - totalIdentified),
+      earliestGeoAt,
     });
   } catch {
     res.status(500).json({ error: "Failed to fetch top countries" });

@@ -10260,6 +10260,7 @@ type TopCountriesResponse = {
   totalAll: number;
   totalIdentified: number;
   totalUnknown: number;
+  earliestGeoAt?: string | null;
 };
 
 type TopRegionRow = {
@@ -10579,6 +10580,23 @@ function BotVsHumanPanel({
               )}
             </div>
           </div>
+          {topCountries.totalUnknown > 0 && (
+            <div
+              className="text-[11px] text-[#7A7F8C] -mt-1 mb-2 italic"
+              title="Cliques anteriores à ativação do rastreamento de geolocalização não têm país/cidade. Por LGPD, não armazenamos o IP bruto, então essas linhas antigas não podem ser preenchidas retroativamente."
+              data-testid="top-countries-disclaimer"
+            >
+              {topCountries.earliestGeoAt ? (
+                <>
+                  Dados de geolocalização disponíveis a partir de{" "}
+                  {new Date(topCountries.earliestGeoAt).toLocaleDateString("pt-BR")}
+                  . Cliques anteriores aparecem como “sem geo”.
+                </>
+              ) : (
+                <>Geolocalização ainda não disponível neste período.</>
+              )}
+            </div>
+          )}
           <ul className="space-y-1.5">
             {topCountries.rows.map((c) => {
               const pct = topCountries.totalIdentified > 0
