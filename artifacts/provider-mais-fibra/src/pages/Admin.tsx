@@ -2053,70 +2053,113 @@ export default function Admin() {
                     </button>
                   </div>
                 )}
-              {(crawlerPreviews.humans > 0 || crawlerPreviews.bots > 0) && (
-                <div
-                  className="rounded-xl border px-4 py-3 mb-3 flex items-center gap-3 flex-wrap"
-                  style={{ background: "#F5F7FA", borderColor: "#E0E3EB", borderStyle: "dashed" }}
-                >
-                  <div
-                    className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
-                    style={{ background: "#A1A6B0" }}
-                    aria-hidden="true"
-                  >
-                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="8" width="18" height="12" rx="2" />
-                      <path d="M12 8V4" />
-                      <circle cx="12" cy="3" r="1" />
-                      <path d="M8 13h.01M16 13h.01" />
-                      <path d="M9 17h6" />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="text-2xl font-black tabular-nums text-[#2A2D38]">
-                        {crawlerPreviews.humans.toLocaleString("pt-BR")}
-                      </span>
-                      <span className="text-sm font-semibold text-[#2A2D38]">
-                        {crawlerPreviews.humans === 1 ? "pré-visualização" : "pré-visualizações"}
-                      </span>
-                      <span className="text-sm text-[#7A7F8C]" aria-hidden="true">·</span>
-                      <span className="text-sm font-semibold tabular-nums text-[#2A2D38]">
-                        {crawlerPreviews.bots.toLocaleString("pt-BR")}
-                      </span>
-                      <span
-                        className="text-sm text-[#2A2D38] inline-flex items-center gap-1"
-                        title="Detecção de robôs: ao vivo pelo User-Agent na página de compartilhamento e, retroativamente, pelo backfill que reclassifica rajadas de acessos como bot."
+              {(crawlerPreviews.humans > 0 || crawlerPreviews.bots > 0) && (() => {
+                const totalPreviews = crawlerPreviews.humans + crawlerPreviews.bots;
+                const botPct = totalPreviews > 0
+                  ? Math.round((crawlerPreviews.bots / totalPreviews) * 100)
+                  : 0;
+                const botPctHigh = botPct >= 50 && crawlerPreviews.bots >= 5;
+                return (
+                  <div className="mb-3" data-testid="crawler-previews-summary">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div
+                        className="rounded-xl border px-4 py-3 flex items-center gap-3"
+                        style={{ background: "#F5F7FA", borderColor: "#E0E3EB" }}
                       >
-                        {crawlerPreviews.bots === 1 ? "robô filtrado" : "robôs filtrados"}
-                        <svg
-                          viewBox="0 0 24 24"
-                          className="w-3.5 h-3.5 text-[#7A7F8C]"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        <div
+                          className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
+                          style={{ background: "#0AAE67" }}
                           aria-hidden="true"
                         >
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 16v-4" />
-                          <path d="M12 8h.01" />
-                        </svg>
-                      </span>
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: "#EEF0F5", color: "#7A7F8C" }}
+                          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7A7F8C]">
+                            Pré-visualizações — humanos
+                          </span>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span
+                              className="text-2xl font-black tabular-nums text-[#2A2D38]"
+                              data-testid="crawler-previews-humans"
+                            >
+                              {crawlerPreviews.humans.toLocaleString("pt-BR")}
+                            </span>
+                            <span className="text-xs text-[#7A7F8C]">
+                              {crawlerPreviews.humans === 1 ? "acesso real" : "acessos reais"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        className="rounded-xl border px-4 py-3 flex items-center gap-3"
+                        style={{
+                          background: botPctHigh ? "#FFF4E5" : "#F5F7FA",
+                          borderColor: botPctHigh ? "#F0C68A" : "#E0E3EB",
+                        }}
                       >
-                        WhatsApp / Facebook
-                      </span>
+                        <div
+                          className="flex items-center justify-center w-9 h-9 rounded-lg flex-shrink-0"
+                          style={{ background: botPctHigh ? "#E08A00" : "#A1A6B0" }}
+                          aria-hidden="true"
+                        >
+                          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="8" width="18" height="12" rx="2" />
+                            <path d="M12 8V4" />
+                            <circle cx="12" cy="3" r="1" />
+                            <path d="M8 13h.01M16 13h.01" />
+                            <path d="M9 17h6" />
+                          </svg>
+                        </div>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#7A7F8C]">
+                            Pré-visualizações — bots
+                          </span>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span
+                              className="text-2xl font-black tabular-nums text-[#2A2D38]"
+                              data-testid="crawler-previews-bots"
+                            >
+                              {crawlerPreviews.bots.toLocaleString("pt-BR")}
+                            </span>
+                            <span className="text-xs text-[#7A7F8C]">
+                              {crawlerPreviews.bots === 1 ? "robô filtrado" : "robôs filtrados"}
+                            </span>
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                              style={{
+                                background: botPctHigh ? "#F8D7A8" : "#EEF0F5",
+                                color: botPctHigh ? "#7A4A00" : "#7A7F8C",
+                              }}
+                              data-testid="crawler-previews-bot-pct"
+                              title={
+                                botPctHigh
+                                  ? "Mais da metade das pré-visualizações no período veio de robôs — verifique se há rajadas suspeitas."
+                                  : "Parcela das pré-visualizações que veio de robôs (WhatsApp/Facebook crawlers)."
+                              }
+                            >
+                              {botPctHigh && (
+                                <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M12 9v4" />
+                                  <path d="M12 17h.01" />
+                                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                </svg>
+                              )}
+                              {botPct}% bots
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[#7A7F8C] mt-0.5">
-                      Pré-visualizações reais (humanas) já descontam os acessos do WhatsApp/Facebook que apenas geram a prévia rica.{" "}
+                    <p className="text-[11px] text-[#7A7F8C] mt-1.5">
+                      Os totais respeitam o período, a cidade e a origem selecionados acima. Pré-visualizações reais (humanas) já descontam os acessos do WhatsApp/Facebook que apenas geram a prévia rica.{" "}
                       <span className="italic">Robôs filtrados</span> são identificados ao vivo pelo User-Agent e, em registros antigos, por um backfill que reclassifica rajadas suspeitas como <code className="text-[10px]">whatsapp-share-bot</code>.
                     </p>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               {cleanupStatus && (
                 <div
                   className="rounded-xl border px-4 py-3 mb-3"
