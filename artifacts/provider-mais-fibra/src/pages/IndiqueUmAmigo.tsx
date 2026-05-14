@@ -10,12 +10,18 @@ import {
   AlertCircle,
   Send,
   Sparkles,
+  Phone,
+  MessageCircle,
+  Clock,
+  UserPlus,
+  ChevronDown,
 } from "lucide-react";
 import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
 import friendsImage from "@assets/amigos_1778782009998.png";
+import heroBackgroundImage from "@assets/ChatGPT_Image_14_de_mai._de_2026,_11_40_54_1778782002221.png";
 import {
   maskWhatsappInput,
   sanitizeNameInput,
@@ -889,7 +895,7 @@ function ReferralHero() {
     <section
       data-testid="referral-hero"
       style={{
-        background: `linear-gradient(135deg, ${COLOR_PRIMARY} 0%, ${COLOR_PRIMARY_LIGHT} 60%, #2546E0 100%)`,
+        background: `${COLOR_PRIMARY}`,
         paddingTop: 140,
         paddingBottom: 64,
         color: "#FFFFFF",
@@ -902,8 +908,20 @@ function ReferralHero() {
         style={{
           position: "absolute",
           inset: 0,
-          background:
-            "radial-gradient(circle at 85% 15%, rgba(149,235,29,0.18), transparent 45%), radial-gradient(circle at 10% 90%, rgba(255,255,255,0.10), transparent 40%)",
+          backgroundImage: `url(${heroBackgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.55,
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `linear-gradient(135deg, rgba(32,55,206,0.85) 0%, rgba(18,42,213,0.65) 60%, rgba(37,70,224,0.85) 100%)`,
           pointerEvents: "none",
         }}
       />
@@ -955,8 +973,10 @@ function ReferralHero() {
             }}
           >
             Indique um amigo e{" "}
-            <span style={{ color: COLOR_GREEN }}>ganhe 1 mês grátis</span> de
-            internet
+            <span style={{ color: COLOR_GREEN }}>
+              ganhe 50% de desconto
+            </span>{" "}
+            na sua mensalidade
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -973,8 +993,9 @@ function ReferralHero() {
             }}
           >
             Compartilhe a melhor fibra do Oeste da Bahia com quem você gosta. A
-            cada amigo que assinar pela sua indicação, você ganha 1 mês de
-            mensalidade grátis. Sem limite de indicações.
+            cada amigo que assinar e instalar pela sua indicação, você ganha
+            50% de desconto na sua próxima mensalidade. Sem limite de
+            indicações.
           </motion.p>
 
           <ul
@@ -989,7 +1010,7 @@ function ReferralHero() {
             }}
           >
             {[
-              "1 mês grátis por indicação",
+              "50% off por indicação",
               "Sem limite de amigos",
               "Crédito direto na fatura",
               "Atendimento humano",
@@ -1074,9 +1095,7 @@ function ReferralRulesBanner() {
           display: "flex",
           gap: 18,
           alignItems: "center",
-          background:
-            "linear-gradient(90deg, rgba(149,235,29,0.16) 0%, rgba(18,42,213,0.06) 100%)",
-          border: `1px solid ${COLOR_BORDER}`,
+          background: COLOR_GREEN,
           borderRadius: 16,
           padding: "20px 24px",
           flexWrap: "wrap",
@@ -1087,7 +1106,7 @@ function ReferralRulesBanner() {
             width: 48,
             height: 48,
             borderRadius: 12,
-            background: COLOR_GREEN,
+            background: "rgba(0,0,0,0.08)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1098,30 +1117,20 @@ function ReferralRulesBanner() {
           <Gift size={24} aria-hidden />
         </div>
         <div style={{ flex: 1, minWidth: 220 }}>
-          <h3
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 800,
-              fontSize: 18,
-              lineHeight: "24px",
-              color: COLOR_HEADING,
-              margin: "0 0 4px",
-            }}
-          >
-            Como funciona o seu mês grátis?
-          </h3>
           <p
             style={{
               fontFamily: FONT_NUNITO,
-              fontSize: 14,
-              lineHeight: "20px",
-              color: COLOR_SUBTLE,
+              fontWeight: 700,
+              fontSize: 15,
+              lineHeight: "22px",
+              color: COLOR_GREEN_TEXT,
               margin: 0,
             }}
           >
-            Quando seu amigo assinar e a instalação for concluída, aplicamos um
-            crédito equivalente a 1 mensalidade do seu plano na sua próxima
-            fatura.
+            Indicações são válidas somente para clientes vigentes. O programa
+            de indicação é válido em todo o território de atuação do Provider
+            + Fibra. Consulte as condições e o regulamento no canal de
+            atendimento.
           </p>
         </div>
       </div>
@@ -1132,19 +1141,28 @@ function ReferralRulesBanner() {
 function ReferralHowItWorks() {
   const steps = [
     {
-      icon: <Users size={26} />,
-      title: "1. Você indica",
-      text: "Preencha o formulário com seus dados de assinante e os do seu amigo.",
+      n: "1",
+      icon: <Users size={24} />,
+      title: "Você indica um amigo",
+      text: "Preencha o formulário com seus dados de assinante e os dados do amigo.",
     },
     {
-      icon: <Wifi size={26} />,
-      title: "2. Seu amigo assina",
-      text: "Nosso time entra em contato, monta o melhor plano e faz a instalação grátis.",
+      n: "2",
+      icon: <Phone size={24} />,
+      title: "Nós entramos em contato",
+      text: "Nosso time comercial fala com o seu amigo pelo WhatsApp para apresentar o melhor plano.",
     },
     {
-      icon: <Gift size={26} />,
-      title: "3. Você ganha 1 mês grátis",
-      text: "Aplicamos o crédito da sua mensalidade na sua próxima fatura. Pronto!",
+      n: "3",
+      icon: <CheckCircle2 size={24} />,
+      title: "Se seu amigo assinar",
+      text: "Confirmamos o plano escolhido e agendamos a instalação grátis no melhor horário.",
+    },
+    {
+      n: "4",
+      icon: <Wifi size={24} />,
+      title: "Se seu amigo instalar",
+      text: "Quando a instalação for concluída, você ganha 50% de desconto na sua próxima mensalidade.",
     },
   ];
   return (
@@ -1171,7 +1189,8 @@ function ReferralHowItWorks() {
               margin: 0,
             }}
           >
-            Como funciona em <span style={{ fontWeight: 800 }}>3 passos</span>
+            Veja como é fácil{" "}
+            <span style={{ fontWeight: 800 }}>participar</span>
           </h2>
           <p
             style={{
@@ -1190,7 +1209,7 @@ function ReferralHowItWorks() {
           className="referral-steps"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
+            gridTemplateColumns: "repeat(4, 1fr)",
             gap: 18,
           }}
         >
@@ -1213,17 +1232,39 @@ function ReferralHowItWorks() {
             >
               <div
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 14,
-                  background: "rgba(18,42,213,0.08)",
-                  color: COLOR_PRIMARY,
+                  position: "relative",
+                  width: 56,
+                  height: 56,
+                  borderRadius: 9999,
+                  background: COLOR_PRIMARY,
+                  color: "#FFFFFF",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
                 {s.icon}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: -6,
+                    width: 24,
+                    height: 24,
+                    borderRadius: 9999,
+                    background: COLOR_GREEN,
+                    color: COLOR_GREEN_TEXT,
+                    fontFamily: FONT_MONTSERRAT,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {s.n}
+                </span>
               </div>
               <h3
                 style={{
@@ -1258,74 +1299,308 @@ function ReferralHowItWorks() {
 }
 
 function ReferralIfYouWereInvited() {
+  const cards: Array<{
+    icon: React.ReactNode;
+    title: string;
+    text: string;
+    cta?: { label: string; href: string };
+  }> = [
+    {
+      icon: <MessageCircle size={26} />,
+      title: "Fale com a gente no WhatsApp",
+      text: "Toque no botão abaixo, diga que foi indicado e informe o nome do amigo que te indicou.",
+      cta: {
+        label: "Falar no WhatsApp",
+        href: "https://wa.me/5577998444757?text=Ol%C3%A1!%20Fui%20indicado%20por%20um%20amigo%20e%20quero%20assinar%20o%20Provider%20%2B%20Fibra.",
+      },
+    },
+    {
+      icon: <Clock size={26} />,
+      title: "Aguarde nosso contato",
+      text: "Nosso time comercial confirma a indicação, apresenta o melhor plano para você e agenda a instalação grátis.",
+    },
+    {
+      icon: <UserPlus size={26} />,
+      title: "Assine um plano e indique amigos",
+      text: "Depois que você assinar, também pode participar do programa: cada amigo que assinar pela sua indicação rende 50% off.",
+    },
+  ];
+
   return (
     <section
       data-testid="referral-invited"
       style={{
         background: COLOR_PRIMARY_DARK,
-        paddingTop: 56,
-        paddingBottom: 56,
+        paddingTop: 60,
+        paddingBottom: 60,
         color: "#FFFFFF",
       }}
     >
       <div
         className="mx-auto px-6 lg:px-0"
         style={{
-          maxWidth: 920,
-          textAlign: "center",
+          maxWidth: 1100,
           display: "flex",
           flexDirection: "column",
-          gap: 16,
-          alignItems: "center",
+          gap: 30,
         }}
       >
-        <h2
+        <div style={{ textAlign: "center" }}>
+          <h2
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: "40px",
+              margin: 0,
+            }}
+          >
+            Se você foi <span style={{ fontWeight: 800 }}>indicado</span>
+          </h2>
+          <p
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontSize: 16,
+              lineHeight: "24px",
+              color: "rgba(255,255,255,0.85)",
+              margin: "8px auto 0",
+              maxWidth: 620,
+            }}
+          >
+            É super simples começar a aproveitar a fibra mais rápida do Oeste
+            da Bahia.
+          </p>
+        </div>
+        <div
+          className="referral-invited-cards"
           style={{
-            fontFamily: FONT_MONTSERRAT,
-            fontWeight: 800,
-            fontSize: 28,
-            lineHeight: "36px",
-            margin: 0,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 18,
           }}
         >
-          Foi você quem foi indicado?
-        </h2>
-        <p
-          style={{
-            fontFamily: FONT_NUNITO,
-            fontSize: 16,
-            lineHeight: "24px",
-            color: "rgba(255,255,255,0.85)",
-            margin: 0,
-            maxWidth: 600,
-          }}
-        >
-          Que ótimo! Fale com o nosso time pelo WhatsApp e diga o nome do
-          amigo que indicou. A gente cuida de tudo: escolha do plano,
-          instalação grátis e ainda garante o mês grátis para quem te indicou.
-        </p>
-        <a
-          href="https://wa.me/5577998444757?text=Ol%C3%A1!%20Fui%20indicado%20por%20um%20amigo%20e%20quero%20assinar%20o%20Provider%20+%20Fibra."
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid="invited-cta"
-          style={{
-            marginTop: 8,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: COLOR_GREEN,
-            color: COLOR_GREEN_TEXT,
-            padding: "14px 26px",
-            borderRadius: 9999,
-            fontFamily: FONT_NUNITO,
-            fontWeight: 800,
-            fontSize: 15,
-            textDecoration: "none",
-          }}
-        >
-          Falar com o time agora <ArrowRight size={18} />
-        </a>
+          {cards.map((c, i) => (
+            <motion.div
+              key={c.title}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.45, delay: i * 0.08 }}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: 18,
+                padding: 24,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  background: COLOR_GREEN,
+                  color: COLOR_GREEN_TEXT,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {c.icon}
+              </div>
+              <h3
+                style={{
+                  fontFamily: FONT_MONTSERRAT,
+                  fontWeight: 800,
+                  fontSize: 17,
+                  lineHeight: "24px",
+                  margin: 0,
+                }}
+              >
+                {c.title}
+              </h3>
+              <p
+                style={{
+                  fontFamily: FONT_NUNITO,
+                  fontWeight: 500,
+                  fontSize: 14,
+                  lineHeight: "20px",
+                  color: "rgba(255,255,255,0.85)",
+                  margin: 0,
+                  flex: 1,
+                }}
+              >
+                {c.text}
+              </p>
+              {c.cta && (
+                <a
+                  href={c.cta.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="invited-cta"
+                  style={{
+                    marginTop: 4,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    background: COLOR_GREEN,
+                    color: COLOR_GREEN_TEXT,
+                    padding: "12px 20px",
+                    borderRadius: 9999,
+                    fontFamily: FONT_NUNITO,
+                    fontWeight: 800,
+                    fontSize: 14,
+                    textDecoration: "none",
+                  }}
+                >
+                  {c.cta.label} <ArrowRight size={16} />
+                </a>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReferralFAQ() {
+  const items = [
+    {
+      q: "Quem pode indicar amigos?",
+      a: "Qualquer cliente Provider + Fibra com plano vigente (mensalidade em dia) pode indicar amigos pelo programa.",
+    },
+    {
+      q: "Quando o desconto de 50% entra na minha fatura?",
+      a: "Assim que seu amigo assinar e a instalação for concluída, aplicamos o desconto na sua próxima mensalidade.",
+    },
+    {
+      q: "Existe limite de indicações?",
+      a: "Não. Você pode indicar quantos amigos quiser — a cada indicação que virar instalação, você ganha 50% de desconto na sua mensalidade seguinte.",
+    },
+    {
+      q: "Como meu amigo precisa entrar em contato?",
+      a: "Não precisa. Após você preencher o formulário, nosso time comercial entra em contato com o seu amigo pelo WhatsApp para apresentar o melhor plano.",
+    },
+    {
+      q: "O que acontece depois que eu envio uma indicação?",
+      a: "Você recebe a confirmação no formulário, nosso time fala com o seu amigo, monta o plano ideal e agenda a instalação grátis. Quando a instalação for concluída, o desconto é lançado na sua fatura.",
+    },
+    {
+      q: "O programa vale em quais cidades?",
+      a: "O programa é válido em todo o território de atuação do Provider + Fibra no Oeste da Bahia. Consulte as condições e o regulamento no canal de atendimento.",
+    },
+  ];
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
+
+  return (
+    <section
+      data-testid="referral-faq"
+      style={{ background: "#FFFFFF", paddingTop: 60, paddingBottom: 80 }}
+    >
+      <div
+        className="mx-auto px-6 lg:px-0"
+        style={{
+          maxWidth: 920,
+          display: "flex",
+          flexDirection: "column",
+          gap: 28,
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <h2
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: "40px",
+              color: COLOR_HEADING,
+              margin: 0,
+            }}
+          >
+            Ficou com alguma{" "}
+            <span style={{ fontWeight: 800 }}>dúvida?</span>
+          </h2>
+          <p
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontSize: 16,
+              lineHeight: "24px",
+              color: COLOR_SUBTLE,
+              margin: "8px 0 0",
+            }}
+          >
+            As respostas mais comuns sobre o programa de indicação.
+          </p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {items.map((it, i) => {
+            const open = openIdx === i;
+            return (
+              <div
+                key={it.q}
+                style={{
+                  background: "#FFFFFF",
+                  border: `1px solid ${COLOR_BORDER}`,
+                  borderRadius: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenIdx(open ? null : i)}
+                  aria-expanded={open}
+                  data-testid={`faq-toggle-${i}`}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    padding: "18px 20px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONT_MONTSERRAT,
+                    fontWeight: 700,
+                    fontSize: 16,
+                    lineHeight: "22px",
+                    color: COLOR_HEADING,
+                  }}
+                >
+                  <span>{it.q}</span>
+                  <ChevronDown
+                    size={20}
+                    aria-hidden
+                    style={{
+                      transition: "transform 0.2s ease",
+                      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+                      flexShrink: 0,
+                      color: COLOR_PRIMARY,
+                    }}
+                  />
+                </button>
+                {open && (
+                  <div
+                    style={{
+                      padding: "0 20px 20px",
+                      fontFamily: FONT_NUNITO,
+                      fontWeight: 500,
+                      fontSize: 14,
+                      lineHeight: "22px",
+                      color: COLOR_SUBTLE,
+                    }}
+                  >
+                    {it.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
@@ -1359,8 +1634,8 @@ export default function IndiqueUmAmigo() {
   return (
     <>
       <SEO
-        title="Indique um amigo e ganhe 1 mês grátis"
-        description="Indique um amigo para a Provider + Fibra e ganhe 1 mês de internet grátis a cada amigo que assinar. Sem limite de indicações no Oeste da Bahia."
+        title="Indique um amigo e ganhe 50% de desconto"
+        description="Indique um amigo para a Provider + Fibra e ganhe 50% de desconto na sua mensalidade a cada amigo que assinar e instalar. Sem limite de indicações no Oeste da Bahia."
         path="/indique-um-amigo"
         jsonLd={seoSchemas}
       />
@@ -1385,6 +1660,7 @@ export default function IndiqueUmAmigo() {
         <ReferralRulesBanner />
         <ReferralHowItWorks />
         <ReferralIfYouWereInvited />
+        <ReferralFAQ />
       </main>
       <Footer />
       <WhatsAppFloat />
