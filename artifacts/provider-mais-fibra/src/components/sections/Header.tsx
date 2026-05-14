@@ -158,18 +158,6 @@ export default function Header() {
             style={{ borderColor: COLORS.divider }}
           >
             <a
-              href="#app"
-              onClick={(e) => {
-                e.preventDefault();
-                handleNav({ label: "Aplicativo", href: "#app" });
-              }}
-              data-testid="header-app-link"
-              className="text-[16px] leading-[20px] transition-colors hover:text-[#95EB1D] text-[#ffffffe6] mr-[8px] font-normal"
-              style={{ color: COLORS.inactive, fontFamily: FONT_NUNITO, fontWeight: 600 }}
-            >
-              Aplicativo
-            </a>
-            <a
               href="https://play.google.com/store/apps/details?id=br.com.telecomprovider.ixc&pli=1"
               target="_blank"
               rel="noopener noreferrer"
