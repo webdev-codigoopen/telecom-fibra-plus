@@ -918,9 +918,9 @@ function ReferralRulesBanner() {
       >
         <p
           style={{
-            fontFamily: FONT_NUNITO,
-            fontWeight: 700,
-            fontSize: 13,
+            fontFamily: FONT_MONTSERRAT,
+            fontWeight: 400,
+            fontSize: 14,
             lineHeight: "20px",
             color: COLOR_GREEN_TEXT,
             margin: 0,
