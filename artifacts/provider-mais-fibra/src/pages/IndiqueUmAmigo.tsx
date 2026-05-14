@@ -1097,7 +1097,7 @@ function ReferralIfYouWereInvited() {
         paddingBottom: 96,
         color: "#FFFFFF",
       }}
-    >
+      className="pt-[0px] pb-[80px]">
       <div
         className="mx-auto px-6 lg:px-0"
         style={{
