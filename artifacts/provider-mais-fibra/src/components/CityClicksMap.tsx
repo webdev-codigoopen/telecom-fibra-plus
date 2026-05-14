@@ -2055,12 +2055,36 @@ function TopCitiesList({
       if (/[",\n;]/.test(val)) return `"${val.replace(/"/g, '""')}"`;
       return val;
     };
-    const header = ["Cidade", "Cliques", "Participação (%)"];
+    const header = [
+      "Cidade",
+      "Cliques",
+      "Participação (%)",
+      "Previews",
+      "Signups",
+      "Conversão (%)",
+      "Meta (%)",
+      "Gap (pp)",
+    ];
     const rows = sorted
       .filter((e) => e.total > 0)
       .map((e) => {
         const share = totalClicks > 0 ? (e.total / totalClicks) * 100 : 0;
-        return [escape(e.name), String(e.total), share.toFixed(1)].join(",");
+        const c = conversion ? conversion.get(e.name) : null;
+        const previews = c ? c.previews : 0;
+        const signups = c ? c.signups : 0;
+        const rate = previews > 0 ? (signups / previews) * 100 : null;
+        const targetPct = targetPctForCity ? targetPctForCity(e.name) : null;
+        const gap = rate !== null && targetPct !== null ? rate - targetPct : null;
+        return [
+          escape(e.name),
+          String(e.total),
+          share.toFixed(1),
+          String(previews),
+          String(signups),
+          rate !== null ? rate.toFixed(1) : "",
+          targetPct !== null ? targetPct.toFixed(1) : "",
+          gap !== null ? gap.toFixed(1) : "",
+        ].join(",");
       });
     const csv = "\uFEFF" + [header.map(escape).join(","), ...rows].join("\n") + "\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
