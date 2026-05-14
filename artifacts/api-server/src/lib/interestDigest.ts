@@ -215,7 +215,7 @@ export function isDueDigest(
   return lastSentAt.getTime() < slot.getTime();
 }
 
-function buildDigestEmail(
+export function buildDigestEmail(
   frequency: DigestFrequency,
   rows: Array<{
     city: string;
@@ -288,7 +288,7 @@ function buildDigestEmail(
   return { subject, html, text: textLines.join("\n") };
 }
 
-async function fetchInterestsSince(since: Date | null): Promise<
+export async function fetchInterestsSince(since: Date | null): Promise<
   Array<{ city: string; neighborhood: string; whatsapp: string; createdAt: Date }>
 > {
   const baseSelect = db

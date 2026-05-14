@@ -7883,20 +7883,38 @@ function InterestNotificationSettings({
                         {sub.enabled ? "Pausar" : "Ativar"}
                       </button>
                       {(sub.frequency === "daily" || sub.frequency === "weekly") && (
-                        <button
-                          type="button"
-                          onClick={() => void sendDigestNow(sub)}
-                          disabled={busyId === sub.id || !emailConfigured}
-                          title={
-                            emailConfigured
-                              ? "Enviar resumo agora para testar"
-                              : "Configure o SMTP para enviar"
-                          }
-                          className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
-                          data-testid={`interest-notification-send-now-${sub.id}`}
-                        >
-                          Enviar resumo agora
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              window.open(
+                                `${baseUrl}/api/demand/interests/digest/${sub.id}/preview`,
+                                "_blank",
+                                "noopener,noreferrer",
+                              )
+                            }
+                            disabled={busyId === sub.id}
+                            title="Ver como o resumo ficaria, sem enviar email"
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                            data-testid={`interest-notification-preview-${sub.id}`}
+                          >
+                            Pré-visualizar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void sendDigestNow(sub)}
+                            disabled={busyId === sub.id || !emailConfigured}
+                            title={
+                              emailConfigured
+                                ? "Enviar resumo agora para testar"
+                                : "Configure o SMTP para enviar"
+                            }
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
+                            data-testid={`interest-notification-send-now-${sub.id}`}
+                          >
+                            Enviar resumo agora
+                          </button>
+                        </>
                       )}
                       <button
                         type="button"

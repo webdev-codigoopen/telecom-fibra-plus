@@ -3,7 +3,11 @@ import { createHash } from "crypto";
 import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailReportSubscriptionsTable } from "@workspace/db";
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
-import { sendInterestDigestToSubscription } from "../lib/interestDigest";
+import {
+  buildDigestEmail,
+  fetchInterestsSince,
+  sendInterestDigestToSubscription,
+} from "../lib/interestDigest";
 import {
   loadWhatsappNotifyState,
   sendWhatsappNotification,
@@ -687,6 +691,51 @@ router.post(
         error:
           "Falha ao enviar resumo de teste. Verifique as credenciais SMTP e tente novamente.",
       });
+    }
+  },
+);
+
+router.get(
+  "/demand/interests/digest/:id/preview",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
+    try {
+      const [sub] = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          ),
+        );
+      if (!sub) {
+        res.status(404).json({ error: "Destinatário não encontrado." });
+        return;
+      }
+      if (sub.frequency !== "daily" && sub.frequency !== "weekly") {
+        res.status(400).json({
+          error:
+            "Esse destinatário está configurado como instantâneo. Mude para diário ou semanal para pré-visualizar um resumo.",
+        });
+        return;
+      }
+      const now = new Date();
+      const lastSentAt = sub.lastSentAt ?? null;
+      const rows = await fetchInterestsSince(lastSentAt);
+      const { html } = buildDigestEmail(sub.frequency, rows, lastSentAt, now);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "no-store");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.send(html);
+    } catch (err) {
+      logger.error({ err }, "Failed to build interest digest preview");
+      res.status(500).json({ error: "Falha ao gerar pré-visualização do resumo." });
     }
   },
 );
