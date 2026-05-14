@@ -12,3 +12,4 @@ export * from "./reviews";
 export * from "./admin_users";
 export * from "./faq_items";
 export * from "./referrals";
+export * from "./banners";

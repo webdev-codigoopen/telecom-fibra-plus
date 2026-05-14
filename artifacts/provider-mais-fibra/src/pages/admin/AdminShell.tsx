@@ -15,6 +15,7 @@ import {
   Mail,
   Lock,
   Megaphone,
+  GalleryHorizontal,
   Star,
   HelpCircle,
   History,
@@ -37,12 +38,13 @@ export type AdminTabId =
   | "emails"
   | "seguranca"
   | "marketing"
+  | "banners"
   | "avaliacoes"
   | "duvidas"
   | "historico";
 
 const CONFIG_IDS: AdminTabId[] = [
-  "ctas-config", "interesses", "emails", "seguranca", "marketing",
+  "ctas-config", "interesses", "emails", "seguranca", "marketing", "banners",
   "avaliacoes", "duvidas", "historico",
 ];
 
@@ -85,6 +87,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: "emails", label: "E-mails", icon: <Mail /> },
       { id: "seguranca", label: "Segurança", icon: <Lock /> },
       { id: "marketing", label: "Marketing", icon: <Megaphone /> },
+      { id: "banners", label: "Banners", icon: <GalleryHorizontal /> },
       { id: "avaliacoes", label: "Avaliações", icon: <Star /> },
       { id: "duvidas", label: "Dúvidas", icon: <HelpCircle /> },
       { id: "historico", label: "Histórico", icon: <History /> },
@@ -106,6 +109,7 @@ export const ADMIN_TAB_LABEL: Record<AdminTabId, string> = {
   emails: "Configurações · E-mails",
   seguranca: "Configurações · Segurança",
   marketing: "Configurações · Marketing",
+  banners: "Configurações · Banners",
   avaliacoes: "Configurações · Avaliações",
   duvidas: "Configurações · Dúvidas",
   historico: "Configurações · Histórico",

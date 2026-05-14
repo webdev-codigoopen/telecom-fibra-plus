@@ -282,7 +282,7 @@ export default function Admin() {
   const ADMIN_TAB_STORAGE_KEY = "pmf-admin-active-tab";
   const ADMIN_TAB_VALID: AdminTabId[] = [
     "dashboard", "mapa", "wpp", "ctas", "indicacoes", "ctas-config", "planos", "cidades", "bots",
-    "interesses", "emails", "seguranca", "marketing", "avaliacoes", "duvidas", "historico",
+    "interesses", "emails", "seguranca", "marketing", "banners", "avaliacoes", "duvidas", "historico",
   ];
   const [activeTab, setActiveTabState] = useState<AdminTabId>(() => {
     if (typeof window === "undefined") return "dashboard";
@@ -1635,6 +1635,10 @@ export default function Admin() {
 
         {!loading && activeTab === "duvidas" && (
           <FaqManager adminKey={adminKey} baseUrl={baseUrl} />
+        )}
+
+        {!loading && activeTab === "banners" && (
+          <BannerManager adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "historico" && (
@@ -12511,5 +12515,568 @@ function PartyCard({
         🆔 {fmtCpfBr(cpf)}
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// Banner Manager (carrossel acima da seção de planos na Home)
+// ============================================================================
+
+type AdminBanner = {
+  id: number;
+  name: string;
+  description: string | null;
+  desktopImageUrl: string;
+  mobileImageUrl: string;
+  linkUrl: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+type BannerDraft = {
+  name: string;
+  description: string;
+  desktopImageUrl: string;
+  mobileImageUrl: string;
+  linkUrl: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+};
+
+const EMPTY_BANNER_DRAFT: BannerDraft = {
+  name: "",
+  description: "",
+  desktopImageUrl: "",
+  mobileImageUrl: "",
+  linkUrl: "",
+  startDate: "",
+  endDate: "",
+  isActive: true,
+};
+
+const BANNER_ALLOWED_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/svg+xml",
+]);
+const BANNER_MAX_BYTES = 5 * 1024 * 1024;
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInput(local: string): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function resolveBannerPreview(url: string, baseUrl: string): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (!baseUrl) return url;
+  if (url === baseUrl || url.startsWith(`${baseUrl}/`)) return url;
+  if (url.startsWith("/")) return `${baseUrl}${url}`;
+  return `${baseUrl}/${url}`;
+}
+
+function BannerManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: string }) {
+  const [items, setItems] = useState<AdminBanner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState<BannerDraft>(EMPTY_BANNER_DRAFT);
+  const [saving, setSaving] = useState(false);
+  const [uploadingField, setUploadingField] = useState<"desktop" | "mobile" | null>(null);
+
+  const isCreating = editingId === 0;
+  const isEditingForm = editingId !== null;
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/admin/banners`, {
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as AdminBanner[];
+      setItems(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao carregar banners.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  function startCreate() {
+    setEditingId(0);
+    setDraft({ ...EMPTY_BANNER_DRAFT });
+    setErr(null);
+  }
+
+  function startEdit(b: AdminBanner) {
+    setEditingId(b.id);
+    setDraft({
+      name: b.name,
+      description: b.description ?? "",
+      desktopImageUrl: b.desktopImageUrl,
+      mobileImageUrl: b.mobileImageUrl,
+      linkUrl: b.linkUrl ?? "",
+      startDate: toLocalInput(b.startDate),
+      endDate: toLocalInput(b.endDate),
+      isActive: b.isActive,
+    });
+    setErr(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setErr(null);
+  }
+
+  async function uploadField(field: "desktop" | "mobile", file: File) {
+    const ft = (file.type || "").toLowerCase();
+    if (!BANNER_ALLOWED_TYPES.has(ft)) {
+      setErr("Formato não suportado. Use PNG, JPG, WEBP, GIF ou SVG.");
+      return;
+    }
+    if (file.size > BANNER_MAX_BYTES) {
+      setErr("Imagem muito grande. Tamanho máximo: 5 MB.");
+      return;
+    }
+    setErr(null);
+    setUploadingField(field);
+    try {
+      const reqRes = await adminFetch(`${baseUrl}/api/storage/uploads/request-url`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+      });
+      if (!reqRes.ok) throw new Error("Falha ao obter URL de upload.");
+      const { uploadURL, objectPath } = await reqRes.json();
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!putRes.ok) throw new Error("Falha ao enviar a imagem.");
+      const servingUrl = `${baseUrl}/api/storage${objectPath}`;
+      setDraft((p) =>
+        field === "desktop"
+          ? { ...p, desktopImageUrl: servingUrl }
+          : { ...p, mobileImageUrl: servingUrl },
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha no upload.");
+    } finally {
+      setUploadingField(null);
+    }
+  }
+
+  async function save() {
+    if (draft.name.trim().length < 2) {
+      setErr("O nome do banner é obrigatório.");
+      return;
+    }
+    if (!draft.desktopImageUrl || !draft.mobileImageUrl) {
+      setErr("Envie a imagem de desktop e a imagem de mobile.");
+      return;
+    }
+    if (draft.startDate && draft.endDate) {
+      const s = new Date(draft.startDate).getTime();
+      const e = new Date(draft.endDate).getTime();
+      if (Number.isFinite(s) && Number.isFinite(e) && e < s) {
+        setErr("A data final deve ser posterior à data inicial.");
+        return;
+      }
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const isNew = editingId === 0;
+      const url = isNew
+        ? `${baseUrl}/api/banners`
+        : `${baseUrl}/api/banners/${editingId}`;
+      const body = {
+        name: draft.name.trim(),
+        description: draft.description.trim() || null,
+        desktopImageUrl: draft.desktopImageUrl.trim(),
+        mobileImageUrl: draft.mobileImageUrl.trim(),
+        linkUrl: draft.linkUrl.trim() || null,
+        startDate: fromLocalInput(draft.startDate),
+        endDate: fromLocalInput(draft.endDate),
+        isActive: draft.isActive,
+        ...(isNew ? { sortOrder: items.length } : {}),
+      };
+      const res = await adminFetch(url, {
+        method: isNew ? "POST" : "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(j.error ?? `HTTP ${res.status}`);
+      }
+      setEditingId(null);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(b: AdminBanner) {
+    try {
+      const res = await adminFetch(`${baseUrl}/api/banners/${b.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify({
+          name: b.name,
+          description: b.description,
+          desktopImageUrl: b.desktopImageUrl,
+          mobileImageUrl: b.mobileImageUrl,
+          linkUrl: b.linkUrl,
+          startDate: b.startDate,
+          endDate: b.endDate,
+          isActive: !b.isActive,
+          sortOrder: b.sortOrder,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao atualizar.");
+    }
+  }
+
+  async function remove(b: AdminBanner) {
+    if (!confirm(`Excluir o banner "${b.name}"?`)) return;
+    try {
+      const res = await adminFetch(`${baseUrl}/api/banners/${b.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao excluir.");
+    }
+  }
+
+  async function move(b: AdminBanner, dir: -1 | 1) {
+    const idx = items.findIndex((x) => x.id === b.id);
+    const swap = items[idx + dir];
+    if (!swap) return;
+    try {
+      await Promise.all([
+        adminFetch(`${baseUrl}/api/banners/${b.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminKey}` },
+          body: JSON.stringify({
+            name: b.name,
+            description: b.description,
+            desktopImageUrl: b.desktopImageUrl,
+            mobileImageUrl: b.mobileImageUrl,
+            linkUrl: b.linkUrl,
+            startDate: b.startDate,
+            endDate: b.endDate,
+            isActive: b.isActive,
+            sortOrder: swap.sortOrder,
+          }),
+        }),
+        adminFetch(`${baseUrl}/api/banners/${swap.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminKey}` },
+          body: JSON.stringify({
+            name: swap.name,
+            description: swap.description,
+            desktopImageUrl: swap.desktopImageUrl,
+            mobileImageUrl: swap.mobileImageUrl,
+            linkUrl: swap.linkUrl,
+            startDate: swap.startDate,
+            endDate: swap.endDate,
+            isActive: swap.isActive,
+            sortOrder: b.sortOrder,
+          }),
+        }),
+      ]);
+      await reload();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Falha ao reordenar.");
+    }
+  }
+
+  const labelCls = "block text-xs font-semibold text-[#4A4F61]";
+  const inputCls =
+    "mt-1 w-full rounded-md border border-[#E0E3EB] px-3 py-2 text-sm font-normal text-[#0D0D0D]";
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+      <header className="mb-5 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-[#0D0D0D]">Banners da Home</h2>
+          <p className="text-sm text-[#7A7F8C]">
+            Carrossel exibido logo acima da seção de planos. Os banners aparecem em ordem,
+            respeitando o intervalo de datas e o status ativo/desativado.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={startCreate}
+          disabled={isEditingForm}
+          className="px-4 py-2 rounded-md bg-[#122AD5] text-white text-sm font-semibold disabled:opacity-50"
+          data-testid="banner-add-button"
+        >
+          + Novo banner
+        </button>
+      </header>
+
+      {err && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-md px-3 py-2 mb-4 text-sm">
+          {err}
+        </div>
+      )}
+
+      {isEditingForm && (
+        <div className="mb-6 p-4 rounded-lg border border-[#122AD5]/30 bg-[#F4F6FF]">
+          <h3 className="font-semibold text-sm mb-3 text-[#0D0D0D]">
+            {isCreating ? "Novo banner" : `Editando #${editingId}`}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className={labelCls}>
+              Nome
+              <input
+                type="text"
+                value={draft.name}
+                onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                maxLength={120}
+                className={inputCls}
+                data-testid="banner-input-name"
+              />
+            </label>
+            <label className={labelCls}>
+              Link (opcional)
+              <input
+                type="text"
+                value={draft.linkUrl}
+                onChange={(e) => setDraft((p) => ({ ...p, linkUrl: e.target.value }))}
+                placeholder="https://..."
+                maxLength={500}
+                className={inputCls}
+                data-testid="banner-input-link"
+              />
+            </label>
+            <label className={`${labelCls} md:col-span-2`}>
+              Descrição (texto alternativo)
+              <textarea
+                value={draft.description}
+                onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                maxLength={500}
+                rows={2}
+                className={inputCls}
+                data-testid="banner-input-description"
+              />
+            </label>
+
+            {(["desktop", "mobile"] as const).map((field) => {
+              const url = field === "desktop" ? draft.desktopImageUrl : draft.mobileImageUrl;
+              return (
+                <div key={field} className={labelCls}>
+                  Imagem {field === "desktop" ? "desktop" : "mobile"}
+                  <div className="mt-1 flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void uploadField(field, f);
+                        e.target.value = "";
+                      }}
+                      disabled={uploadingField !== null}
+                      data-testid={`banner-upload-${field}`}
+                      className="text-xs"
+                    />
+                    {uploadingField === field && (
+                      <span className="text-xs text-[#7A7F8C]">Enviando...</span>
+                    )}
+                  </div>
+                  {url && (
+                    <div className="mt-2 rounded-md border border-[#E0E3EB] overflow-hidden bg-[#020B2E]">
+                      <img
+                        src={resolveBannerPreview(url, baseUrl)}
+                        alt=""
+                        style={{ display: "block", width: "100%", height: "auto" }}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            <label className={labelCls}>
+              Início da exibição (opcional)
+              <input
+                type="datetime-local"
+                value={draft.startDate}
+                onChange={(e) => setDraft((p) => ({ ...p, startDate: e.target.value }))}
+                className={inputCls}
+                data-testid="banner-input-start"
+              />
+            </label>
+            <label className={labelCls}>
+              Fim da exibição (opcional)
+              <input
+                type="datetime-local"
+                value={draft.endDate}
+                onChange={(e) => setDraft((p) => ({ ...p, endDate: e.target.value }))}
+                className={inputCls}
+                data-testid="banner-input-end"
+              />
+            </label>
+
+            <label className="text-xs font-semibold text-[#4A4F61] flex items-center gap-2 md:col-span-2">
+              <input
+                type="checkbox"
+                checked={draft.isActive}
+                onChange={(e) => setDraft((p) => ({ ...p, isActive: e.target.checked }))}
+                data-testid="banner-input-active"
+              />
+              Ativado (visível no site)
+            </label>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || uploadingField !== null}
+              className="px-4 py-2 rounded-md bg-[#122AD5] text-white text-sm font-semibold disabled:opacity-50"
+              data-testid="banner-save-button"
+            >
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              disabled={saving}
+              className="px-4 py-2 rounded-md border border-[#E0E3EB] text-sm font-semibold text-[#4A4F61]"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center text-[#7A7F8C] py-8">Carregando...</div>
+      ) : items.length === 0 ? (
+        <div className="text-center text-[#7A7F8C] py-8 text-sm">
+          Nenhum banner cadastrado ainda.
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((b, idx) => (
+            <li
+              key={b.id}
+              className={`p-3 rounded-md border flex gap-3 items-start ${
+                b.isActive ? "border-[#E0E3EB] bg-white" : "border-dashed border-[#E0E3EB] bg-[#FAFAFB] opacity-60"
+              }`}
+              data-testid={`banner-item-${b.id}`}
+            >
+              <div
+                className="rounded-md overflow-hidden bg-[#020B2E] flex-shrink-0"
+                style={{ width: 140 }}
+              >
+                <img
+                  src={resolveBannerPreview(b.desktopImageUrl, baseUrl)}
+                  alt=""
+                  style={{ display: "block", width: "100%", height: "auto" }}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-[#0D0D0D] truncate">{b.name}</div>
+                {b.description && (
+                  <div className="text-xs text-[#4A4F61] mt-0.5 line-clamp-2">{b.description}</div>
+                )}
+                <div className="text-[11px] text-[#7A7F8C] mt-1">
+                  {b.startDate || b.endDate
+                    ? `Exibição: ${b.startDate ? new Date(b.startDate).toLocaleString("pt-BR") : "—"} → ${b.endDate ? new Date(b.endDate).toLocaleString("pt-BR") : "—"}`
+                    : "Sempre visível"}
+                </div>
+                <div className="flex gap-3 mt-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(b)}
+                    disabled={isEditingForm}
+                    className="text-xs font-semibold text-[#122AD5] hover:underline disabled:opacity-50"
+                    data-testid={`banner-edit-${b.id}`}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void toggleActive(b)}
+                    className="text-xs font-semibold text-[#7A7F8C] hover:underline"
+                    data-testid={`banner-toggle-${b.id}`}
+                  >
+                    {b.isActive ? "Desativar" : "Ativar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void move(b, -1)}
+                    disabled={idx === 0}
+                    className="text-xs font-semibold text-[#7A7F8C] hover:underline disabled:opacity-30"
+                  >
+                    ↑ Subir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void move(b, 1)}
+                    disabled={idx === items.length - 1}
+                    className="text-xs font-semibold text-[#7A7F8C] hover:underline disabled:opacity-30"
+                  >
+                    ↓ Descer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void remove(b)}
+                    className="text-xs font-semibold text-red-600 hover:underline"
+                    data-testid={`banner-delete-${b.id}`}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

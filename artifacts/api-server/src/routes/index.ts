@@ -15,6 +15,7 @@ import faqRouter from "./faq";
 import mapTargetsRouter from "./map_targets";
 import botUaPatternsRouter from "./bot_ua_patterns";
 import referralsRouter from "./referrals";
+import bannersRouter from "./banners";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(faqRouter);
 router.use(mapTargetsRouter);
 router.use(botUaPatternsRouter);
 router.use(referralsRouter);
+router.use(bannersRouter);
 
 export default router;
