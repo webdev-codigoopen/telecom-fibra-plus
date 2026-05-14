@@ -730,9 +730,9 @@ function ReferralForm() {
             data-testid="button-step-next"
             onClick={goToStep2}
             className="referral-btn referral-btn--primary"
-            style={{ width: "100%" }}
+            style={{ alignSelf: "center" }}
           >
-            Continuar <ArrowRight size={18} />
+            Continuar <ArrowRight size={16} />
           </button>
         </div>
       )}
@@ -824,7 +824,7 @@ function ReferralForm() {
             </div>
           )}
 
-          <div className="referral-actions" style={{ display: "flex", gap: 12 }}>
+          <div className="referral-actions" style={{ display: "flex", gap: 12, justifyContent: "center" }}>
             <button
               type="button"
               data-testid="button-step-back"
@@ -838,13 +838,13 @@ function ReferralForm() {
               data-testid="button-submit"
               disabled={submitting}
               className="referral-btn referral-btn--primary"
-              style={{ flex: 1, opacity: submitting ? 0.7 : 1, cursor: submitting ? "wait" : "pointer" }}
+              style={{ opacity: submitting ? 0.7 : 1, cursor: submitting ? "wait" : "pointer" }}
             >
               {submitting ? (
                 "Enviando…"
               ) : (
                 <>
-                  Enviar indicação <Send size={18} />
+                  Enviar indicação <Send size={16} />
                 </>
               )}
             </button>
