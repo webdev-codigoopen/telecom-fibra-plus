@@ -28,6 +28,7 @@ import {
 import {
   PREVIEW_HEALTH_ALERT_REPORT_TYPE,
   migratePreviewHealthAlertRecipients,
+  renderPreviewHealthAlertEmail,
 } from "../lib/previewHealthAlert";
 import {
   SYSTEM_ALERT_REPORT_TYPE,
@@ -823,6 +824,58 @@ router.delete(
     } catch (err) {
       logger.error({ err }, "Failed to delete preview-health alert subscription");
       res.status(500).json({ error: "Failed to delete subscription" });
+    }
+  },
+);
+
+router.post(
+  "/email-subscriptions/preview-health-alert/:id/send-now",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    if (!(await isEmailConfigured())) {
+      res.status(503).json({
+        error:
+          "Servidor de e-mail (SMTP) não configurado. Preencha no painel, aba 'Relatórios por email'.",
+      });
+      return;
+    }
+    try {
+      const [sub] = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(
+              emailReportSubscriptionsTable.reportType,
+              PREVIEW_HEALTH_ALERT_REPORT_TYPE,
+            ),
+          ),
+        );
+      if (!sub) {
+        res.status(404).json({ error: "Not found" });
+        return;
+      }
+      const now = new Date();
+      const { subject, html } = await renderPreviewHealthAlertEmail(now);
+      await sendEmail({ to: sub.email, subject, html });
+      const [updated] = await db
+        .update(emailReportSubscriptionsTable)
+        .set({ lastSentAt: now, updatedAt: now })
+        .where(eq(emailReportSubscriptionsTable.id, id))
+        .returning();
+      res.json(updated);
+    } catch (err) {
+      logger.error({ err }, "Failed to send preview-health alert now");
+      res.status(500).json({
+        error:
+          "Falha ao enviar email de teste. Verifique as credenciais SMTP e tente novamente.",
+      });
     }
   },
 );

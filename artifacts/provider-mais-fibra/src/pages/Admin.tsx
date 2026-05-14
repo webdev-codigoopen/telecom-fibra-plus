@@ -6663,6 +6663,34 @@ function PreviewHealthAlertSubscriptionsManager({
     }
   }
 
+  async function sendNow(sub: PreviewHealthAlertSubscription) {
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/preview-health-alert/${sub.id}/send-now`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}) as { error?: string });
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setFeedback(`Email de teste enviado para ${sub.email}.`);
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Falha ao enviar email.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function remove(sub: PreviewHealthAlertSubscription) {
     if (!confirm(`Remover ${sub.email}?`)) return;
     setBusyId(sub.id);
@@ -6809,6 +6837,20 @@ function PreviewHealthAlertSubscriptionsManager({
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <div className="inline-flex flex-wrap gap-1.5 justify-end">
+                      <button
+                        type="button"
+                        onClick={() => void sendNow(sub)}
+                        disabled={busyId === sub.id || !emailConfigured}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#0040FF] hover:border-[#0040FF]/50 disabled:opacity-40"
+                        data-testid={`preview-health-send-now-${sub.id}`}
+                        title={
+                          emailConfigured
+                            ? "Enviar agora para testar"
+                            : "Configure o SMTP para enviar"
+                        }
+                      >
+                        Enviar agora
+                      </button>
                       <button
                         type="button"
                         onClick={() => void toggleEnabled(sub)}

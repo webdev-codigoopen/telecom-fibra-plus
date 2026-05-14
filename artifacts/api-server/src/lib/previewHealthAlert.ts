@@ -174,6 +174,45 @@ export async function migratePreviewHealthAlertRecipients(): Promise<void> {
   }
 }
 
+export type PreviewHealthAlertEmail = {
+  subject: string;
+  html: string;
+};
+
+const PREVIEW_HEALTH_ALERT_SUBJECT =
+  "⚠️ Pré-visualização do WhatsApp não está sendo gerada (últimas 24h)";
+const PREVIEW_HEALTH_RECOVERY_SUBJECT =
+  "✅ Pré-visualização do WhatsApp voltou a funcionar";
+
+function renderAlertFromCounts(counts: HealthCounts): PreviewHealthAlertEmail {
+  return {
+    subject: PREVIEW_HEALTH_ALERT_SUBJECT,
+    html: buildHtml(counts, adminDashboardUrl()),
+  };
+}
+
+function renderRecoveryFromCounts(
+  newBotFetchAt: string | null,
+): PreviewHealthAlertEmail {
+  return {
+    subject: PREVIEW_HEALTH_RECOVERY_SUBJECT,
+    html: buildRecoveryHtml(newBotFetchAt, adminDashboardUrl()),
+  };
+}
+
+/**
+ * Render the standard preview-health alert email using the same template as
+ * the automated incident email, populated with the current 24h counts.
+ * Exposed so the admin "Enviar agora" button can send a real-shaped test
+ * email without waiting for an actual incident.
+ */
+export async function renderPreviewHealthAlertEmail(
+  now: Date = new Date(),
+): Promise<PreviewHealthAlertEmail> {
+  const counts = await fetchHealthCounts(now);
+  return renderAlertFromCounts(counts);
+}
+
 async function fetchSubscriberEmails(): Promise<string[]> {
   await migratePreviewHealthAlertRecipients();
   const rows = await db
@@ -351,9 +390,7 @@ export async function checkAndSendPreviewHealthAlert(
       return { sent: false, reason: "no-subscribers" };
     }
 
-    const dashboardUrl = adminDashboardUrl();
-    const html = buildRecoveryHtml(counts.lastBotFetchAt, dashboardUrl);
-    const subject = "✅ Pré-visualização do WhatsApp voltou a funcionar";
+    const { subject, html } = renderRecoveryFromCounts(counts.lastBotFetchAt);
 
     try {
       await sendEmail({ to: recipients, subject, html });
@@ -406,10 +443,7 @@ export async function checkAndSendPreviewHealthAlert(
     return { sent: false, reason: "no-subscribers" };
   }
 
-  const dashboardUrl = adminDashboardUrl();
-  const html = buildHtml(counts, dashboardUrl);
-  const subject =
-    "⚠️ Pré-visualização do WhatsApp não está sendo gerada (últimas 24h)";
+  const { subject, html } = renderAlertFromCounts(counts);
 
   try {
     await sendEmail({ to: recipients, subject, html });
