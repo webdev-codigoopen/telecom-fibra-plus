@@ -176,10 +176,16 @@ const interestCreateSchema = z.object({
   enabled: z.boolean().optional(),
 });
 
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const interestUpdateSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254).optional(),
   frequency: z.enum(["instant", "daily", "weekly"]).optional(),
   enabled: z.boolean().optional(),
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStart: z.string().regex(HHMM_RE, "Use HH:MM").optional(),
+  quietHoursEnd: z.string().regex(HHMM_RE, "Use HH:MM").optional(),
+  quietHoursWeekends: z.boolean().optional(),
+  quietHoursMode: z.enum(["queue", "skip"]).optional(),
 });
 
 // One-time migration: if no interest_notification rows exist but the legacy
@@ -310,9 +316,30 @@ router.patch(
       return;
     }
     try {
+      // If the admin disables per-recipient quiet hours, clear any pending
+      // muted-streak marker so re-enabling later starts fresh and avoids a
+      // stale digest covering an unrelated past period.
+      const setData: Record<string, unknown> = {
+        ...parsed.data,
+        updatedAt: new Date(),
+      };
+      if (parsed.data.quietHoursEnabled === false) {
+        setData["quietHoursActiveSince"] = null;
+      }
+      // The per-recipient quiet-hours tick only processes "instant"
+      // recipients, so a marker left behind while the recipient is on
+      // daily/weekly would later produce an oversized digest if the admin
+      // flips back to instant. Clear it whenever frequency moves off
+      // "instant".
+      if (
+        parsed.data.frequency !== undefined &&
+        parsed.data.frequency !== "instant"
+      ) {
+        setData["quietHoursActiveSince"] = null;
+      }
       const [row] = await db
         .update(emailReportSubscriptionsTable)
-        .set({ ...parsed.data, updatedAt: new Date() })
+        .set(setData)
         .where(
           and(
             eq(emailReportSubscriptionsTable.id, id),

@@ -5,7 +5,12 @@ import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { sendInterestDigestToSubscription } from "../lib/interestDigest";
 import { isWhatsappNotifyEnabled, sendWhatsappNotification } from "../lib/sendWhatsapp";
-import { shouldNotifyNow } from "../lib/quietHours";
+import {
+  shouldNotifyNow,
+  recipientQuietHours,
+  isInRecipientQuietHours,
+  type RecipientQuietHours,
+} from "../lib/quietHours";
 import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 
@@ -175,20 +180,17 @@ async function notifyAdminOfNewInterest(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
-    // Quiet hours: skip sending. The DB row was already saved upstream and the
-    // configured digest (if enabled) will surface this lead at the end of the
-    // window.
-    if (!(await shouldNotifyNow(payload.createdAt))) {
-      logger.info(
-        { city: payload.city },
-        "Interest email notification suppressed by quiet hours",
-      );
-      return;
-    }
+    const globalAllowed = await shouldNotifyNow(payload.createdAt);
+
     // Collect all enabled "instant" recipients from the subscriptions table.
     const subs = await db
       .select({
         email: emailReportSubscriptionsTable.email,
+        quietHoursEnabled: emailReportSubscriptionsTable.quietHoursEnabled,
+        quietHoursStart: emailReportSubscriptionsTable.quietHoursStart,
+        quietHoursEnd: emailReportSubscriptionsTable.quietHoursEnd,
+        quietHoursWeekends: emailReportSubscriptionsTable.quietHoursWeekends,
+        quietHoursMode: emailReportSubscriptionsTable.quietHoursMode,
       })
       .from(emailReportSubscriptionsTable)
       .where(
@@ -218,16 +220,63 @@ async function notifyAdminOfNewInterest(payload: {
     const legacyEmail = (settingsMap.get("interest_notification_email") ?? "").trim();
     const legacyFreq = (settingsMap.get("interest_notification_frequency") ?? "instant").trim();
 
-    const recipients = new Set<string>();
-    for (const s of subs) recipients.add(s.email.trim().toLowerCase());
-    if (legacyEnabled && legacyEmail && legacyFreq === "instant") {
-      recipients.add(legacyEmail.toLowerCase());
+    // Filter recipients per-quiet-hours. A recipient with their own quiet
+    // hours always uses their own window (overrides the global setting). A
+    // recipient without per-recipient quiet hours falls back to the global
+    // setting — when global quiet hours are active, they are skipped (and the
+    // global digest, if enabled, will surface the lead later).
+    type Out = { email: string; r: RecipientQuietHours };
+    const dedup = new Map<string, Out>();
+    for (const s of subs) {
+      const r = recipientQuietHours(s);
+      if (r.enabled) {
+        if (isInRecipientQuietHours(payload.createdAt, r)) {
+          if (r.mode === "skip") {
+            logger.info(
+              { to: s.email, city: payload.city },
+              "Interest email skipped by recipient quiet hours",
+            );
+          } else {
+            logger.info(
+              { to: s.email, city: payload.city },
+              "Interest email queued by recipient quiet hours; will be sent in digest",
+            );
+          }
+          continue;
+        }
+      } else if (!globalAllowed) {
+        logger.info(
+          { to: s.email, city: payload.city },
+          "Interest email suppressed by global quiet hours",
+        );
+        continue;
+      }
+      dedup.set(s.email.trim().toLowerCase(), {
+        email: s.email.trim().toLowerCase(),
+        r,
+      });
     }
-    if (recipients.size === 0) return;
+    if (legacyEnabled && legacyEmail && legacyFreq === "instant" && globalAllowed) {
+      const key = legacyEmail.toLowerCase();
+      if (!dedup.has(key)) {
+        dedup.set(key, {
+          email: key,
+          r: {
+            enabled: false,
+            start: "22:00",
+            end: "08:00",
+            muteWeekends: false,
+            mode: "queue",
+          },
+        });
+      }
+    }
+    const recipients = Array.from(dedup.values()).map((o) => o.email);
+    if (recipients.length === 0) return;
 
     if (!(await isEmailConfigured())) {
       logger.warn(
-        { count: recipients.size },
+        { count: recipients.length },
         "Interest notification skipped: SMTP not configured",
       );
       return;

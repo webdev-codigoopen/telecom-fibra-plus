@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
 import { Helmet } from "react-helmet-async";
 import { adminFetch, clearCsrfCache } from "../lib/adminFetch";
 import { type ApiPlan } from "../hooks/usePlans";
@@ -6137,6 +6137,11 @@ type InterestRecipient = {
   lastSentAt: string | null;
   createdAt: string;
   updatedAt: string;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+  quietHoursWeekends: boolean;
+  quietHoursMode: "queue" | "skip";
 };
 
 function interestFreqLabel(f: "instant" | "daily" | "weekly"): string {
@@ -6321,6 +6326,51 @@ function InterestNotificationSettings({
       await fetchData();
     } catch {
       setErrorMsg("Não foi possível atualizar a frequência.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function patchQuietHours(
+    sub: InterestRecipient,
+    patch: Partial<{
+      quietHoursEnabled: boolean;
+      quietHoursStart: string;
+      quietHoursEnd: string;
+      quietHoursWeekends: boolean;
+      quietHoursMode: "queue" | "skip";
+    }>,
+  ) {
+    setBusyId(sub.id);
+    setErrorMsg(null);
+    // Optimistically update so the inputs feel responsive.
+    setItems((prev) =>
+      prev.map((s) => (s.id === sub.id ? { ...s, ...patch } : s)),
+    );
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/email-subscriptions/interest-notification/${sub.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify(patch),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível atualizar o silêncio.",
+      );
+      await fetchData();
     } finally {
       setBusyId(null);
     }
@@ -6566,8 +6616,8 @@ function InterestNotificationSettings({
             </thead>
             <tbody>
               {items.map((sub) => (
+                <Fragment key={sub.id}>
                 <tr
-                  key={sub.id}
                   className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
                   data-testid={`interest-notification-row-${sub.id}`}
                 >
@@ -6645,6 +6695,110 @@ function InterestNotificationSettings({
                     </div>
                   </td>
                 </tr>
+                <tr
+                  className="border-t border-dashed border-[#E0E3EB] bg-[#FAFBFD]"
+                  data-testid={`interest-notification-quiet-hours-${sub.id}`}
+                >
+                  <td colSpan={5} className="px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-[#2A2D38]">
+                      <label className="inline-flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={sub.quietHoursEnabled}
+                          onChange={(e) =>
+                            void patchQuietHours(sub, {
+                              quietHoursEnabled: e.target.checked,
+                            })
+                          }
+                          disabled={
+                            busyId === sub.id || sub.frequency !== "instant"
+                          }
+                          data-testid={`interest-notification-quiet-enabled-${sub.id}`}
+                        />
+                        <span className="font-semibold uppercase tracking-wide text-[10px] text-[#7A7F8C]">
+                          Silêncio
+                        </span>
+                      </label>
+                      <span className="text-[#7A7F8C]">das</span>
+                      <input
+                        type="time"
+                        value={sub.quietHoursStart}
+                        onChange={(e) =>
+                          void patchQuietHours(sub, {
+                            quietHoursStart: e.target.value,
+                          })
+                        }
+                        disabled={
+                          busyId === sub.id ||
+                          !sub.quietHoursEnabled ||
+                          sub.frequency !== "instant"
+                        }
+                        className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#0D0D0D] disabled:opacity-50"
+                        data-testid={`interest-notification-quiet-start-${sub.id}`}
+                      />
+                      <span className="text-[#7A7F8C]">até</span>
+                      <input
+                        type="time"
+                        value={sub.quietHoursEnd}
+                        onChange={(e) =>
+                          void patchQuietHours(sub, {
+                            quietHoursEnd: e.target.value,
+                          })
+                        }
+                        disabled={
+                          busyId === sub.id ||
+                          !sub.quietHoursEnabled ||
+                          sub.frequency !== "instant"
+                        }
+                        className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#0D0D0D] disabled:opacity-50"
+                        data-testid={`interest-notification-quiet-end-${sub.id}`}
+                      />
+                      <label className="inline-flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={sub.quietHoursWeekends}
+                          onChange={(e) =>
+                            void patchQuietHours(sub, {
+                              quietHoursWeekends: e.target.checked,
+                            })
+                          }
+                          disabled={
+                            busyId === sub.id ||
+                            !sub.quietHoursEnabled ||
+                            sub.frequency !== "instant"
+                          }
+                          data-testid={`interest-notification-quiet-weekends-${sub.id}`}
+                        />
+                        <span>Mutar finais de semana</span>
+                      </label>
+                      <span className="text-[#7A7F8C]">No silêncio:</span>
+                      <select
+                        value={sub.quietHoursMode}
+                        onChange={(e) =>
+                          void patchQuietHours(sub, {
+                            quietHoursMode: e.target.value as "queue" | "skip",
+                          })
+                        }
+                        disabled={
+                          busyId === sub.id ||
+                          !sub.quietHoursEnabled ||
+                          sub.frequency !== "instant"
+                        }
+                        className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-[#0D0D0D] disabled:opacity-50"
+                        data-testid={`interest-notification-quiet-mode-${sub.id}`}
+                      >
+                        <option value="queue">Enfileirar e enviar resumo no fim</option>
+                        <option value="skip">Descartar (não receber)</option>
+                      </select>
+                      {sub.frequency !== "instant" && (
+                        <span className="text-[10px] text-[#7A7F8C] italic">
+                          (silêncio só se aplica a instantâneo)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

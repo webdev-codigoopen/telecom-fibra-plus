@@ -1,5 +1,11 @@
-import { db, appSettingsTable, demandInterestsTable } from "@workspace/db";
-import { and, asc, gt, inArray, lte } from "drizzle-orm";
+import {
+  db,
+  appSettingsTable,
+  demandInterestsTable,
+  emailReportSubscriptionsTable,
+  type DbEmailReportSubscription,
+} from "@workspace/db";
+import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import { logger } from "./logger";
 
@@ -147,6 +153,179 @@ export async function shouldNotifyNow(now: Date = new Date()): Promise<boolean> 
   }
 }
 
+// ---------------------------------------------------------------------------
+// Per-recipient quiet hours. Each interest_notification subscription can
+// configure its own muted window (start/end/weekends) and choose what to do
+// with messages that arrive during that window: "skip" them entirely or
+// "queue" them and send a single digest at the end of the window.
+// ---------------------------------------------------------------------------
+
+export type RecipientQuietHours = {
+  enabled: boolean;
+  start: string;
+  end: string;
+  muteWeekends: boolean;
+  mode: "queue" | "skip";
+};
+
+export function recipientQuietHours(
+  sub: Pick<
+    DbEmailReportSubscription,
+    | "quietHoursEnabled"
+    | "quietHoursStart"
+    | "quietHoursEnd"
+    | "quietHoursWeekends"
+    | "quietHoursMode"
+  >,
+): RecipientQuietHours {
+  const start = isValidHHMM(sub.quietHoursStart) ? sub.quietHoursStart : "22:00";
+  const end = isValidHHMM(sub.quietHoursEnd) ? sub.quietHoursEnd : "08:00";
+  const mode = sub.quietHoursMode === "skip" ? "skip" : "queue";
+  return {
+    enabled: !!sub.quietHoursEnabled,
+    start,
+    end,
+    muteWeekends: !!sub.quietHoursWeekends,
+    mode,
+  };
+}
+
+export function isInRecipientQuietHours(
+  now: Date,
+  r: RecipientQuietHours,
+): boolean {
+  if (!r.enabled) return false;
+  return isInQuietHours(now, {
+    enabled: true,
+    start: r.start,
+    end: r.end,
+    muteWeekends: r.muteWeekends,
+    digestEnabled: false,
+    activeSince: null,
+    lastDigestSentAt: null,
+  });
+}
+
+function computeRecipientMutedSince(
+  now: Date,
+  r: RecipientQuietHours,
+): Date | null {
+  return computeMutedSince(now, {
+    enabled: r.enabled,
+    start: r.start,
+    end: r.end,
+    muteWeekends: r.muteWeekends,
+    digestEnabled: false,
+    activeSince: null,
+    lastDigestSentAt: null,
+  });
+}
+
+/**
+ * Per-recipient version of `tickQuietHours`. For each interest_notification
+ * subscription that has its own quiet-hours window configured, anchor the
+ * muted-streak start while inside the window and, on exit, send a digest of
+ * leads received during the muted period (only when the recipient's mode is
+ * "queue"). For "skip" recipients the marker is just cleared.
+ */
+export async function tickRecipientQuietHours(
+  now: Date = new Date(),
+): Promise<void> {
+  try {
+    const subs = await db
+      .select()
+      .from(emailReportSubscriptionsTable)
+      .where(
+        and(
+          eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          eq(emailReportSubscriptionsTable.frequency, "instant"),
+          eq(emailReportSubscriptionsTable.enabled, true),
+          eq(emailReportSubscriptionsTable.quietHoursEnabled, true),
+        ),
+      );
+    if (subs.length === 0) return;
+
+    let smtpReady: boolean | null = null;
+    async function ensureSmtp(): Promise<boolean> {
+      if (smtpReady !== null) return smtpReady;
+      smtpReady = await isEmailConfigured();
+      return smtpReady;
+    }
+
+    for (const sub of subs) {
+      try {
+        const r = recipientQuietHours(sub);
+        const inWindow = isInRecipientQuietHours(now, r);
+
+        if (inWindow) {
+          if (!sub.quietHoursActiveSince) {
+            const mutedSince = computeRecipientMutedSince(now, r) ?? now;
+            await db
+              .update(emailReportSubscriptionsTable)
+              .set({ quietHoursActiveSince: mutedSince, updatedAt: now })
+              .where(eq(emailReportSubscriptionsTable.id, sub.id));
+          }
+          continue;
+        }
+
+        if (!sub.quietHoursActiveSince) continue;
+
+        const activeSince = sub.quietHoursActiveSince;
+        await db
+          .update(emailReportSubscriptionsTable)
+          .set({ quietHoursActiveSince: null, updatedAt: now })
+          .where(eq(emailReportSubscriptionsTable.id, sub.id));
+
+        if (r.mode !== "queue") continue;
+        if (!(await ensureSmtp())) {
+          logger.warn(
+            { subscriptionId: sub.id },
+            "Per-recipient quiet-hours digest skipped: SMTP not configured",
+          );
+          continue;
+        }
+
+        const rows = await fetchInterestsBetween(activeSince, now);
+        if (rows.length === 0) {
+          await db
+            .update(emailReportSubscriptionsTable)
+            .set({ quietHoursLastDigestSentAt: now, updatedAt: now })
+            .where(eq(emailReportSubscriptionsTable.id, sub.id));
+          continue;
+        }
+        const { subject, html, text } = buildQuietDigestEmail(
+          rows,
+          activeSince,
+          now,
+        );
+        try {
+          await sendEmail({ to: sub.email, subject, html, text });
+          await db
+            .update(emailReportSubscriptionsTable)
+            .set({ quietHoursLastDigestSentAt: now, updatedAt: now })
+            .where(eq(emailReportSubscriptionsTable.id, sub.id));
+          logger.info(
+            { to: sub.email, leads: rows.length },
+            "Per-recipient quiet-hours digest sent",
+          );
+        } catch (err) {
+          logger.error(
+            { err, to: sub.email },
+            "Failed to send per-recipient quiet-hours digest",
+          );
+        }
+      } catch (err) {
+        logger.error(
+          { err, subscriptionId: sub.id },
+          "Per-recipient quiet hours tick failed for subscription",
+        );
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, "tickRecipientQuietHours failed");
+  }
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -205,6 +384,10 @@ async function getInstantInterestRecipients(): Promise<string[]> {
         eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
         eq(emailReportSubscriptionsTable.frequency, "instant"),
         eq(emailReportSubscriptionsTable.enabled, true),
+        // Recipients with their own quiet-hours configured opt out of the
+        // global digest entirely — they get their own per-recipient digest at
+        // the end of their own window via tickRecipientQuietHours.
+        eq(emailReportSubscriptionsTable.quietHoursEnabled, false),
       ),
     );
   // Backward-compat with the legacy single-email setting (mirrors
