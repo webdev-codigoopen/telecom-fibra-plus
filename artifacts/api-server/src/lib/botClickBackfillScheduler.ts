@@ -1,6 +1,6 @@
 import { backfillShareBotClicks } from "@workspace/scripts/backfill-share-bot-clicks";
 import { db, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { lt, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import {
   checkAndAlertIfStale,
@@ -12,6 +12,26 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 5 * 60 * 1000; // wait 5 min after boot before first run
 
 export const BOT_CLEANUP_STATUS_KEY = "bot_cleanup_last_run";
+
+// Retention window for the bot_cleanup_runs history table. The admin UI only
+// surfaces the last 7 entries, so anything older than this is safe to prune.
+export const BOT_CLEANUP_RUN_RETENTION_DAYS = 180;
+
+async function pruneOldBotCleanupRuns(now: Date): Promise<void> {
+  try {
+    const cutoff = new Date(
+      now.getTime() - BOT_CLEANUP_RUN_RETENTION_DAYS * ONE_DAY_MS,
+    );
+    await db
+      .delete(botCleanupRunsTable)
+      .where(lt(botCleanupRunsTable.startedAt, cutoff));
+  } catch (err) {
+    logger.error(
+      { err },
+      "[bot-click-backfill] failed to prune old run history",
+    );
+  }
+}
 
 export type BotCleanupStatus = {
   startedAt: string;
@@ -190,6 +210,7 @@ export async function runBotClickBackfillTick(
     }
     return { skipped: false, status };
   } finally {
+    await pruneOldBotCleanupRuns(new Date());
     runningTick = false;
   }
 }
