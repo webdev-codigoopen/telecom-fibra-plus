@@ -1196,8 +1196,86 @@ function ReferralIfYouWereInvited() {
   );
 }
 
+type ReferralFaqItem = { q: string; a: string };
+
+function ReferralFaqRow({ item }: { item: ReferralFaqItem }) {
+  const [open, setOpen] = useState(false);
+  const CHEVRON = `${BASE}images/icons/chevron-down.svg`;
+  return (
+    <div
+      className="bg-white"
+      style={{
+        border: "1px solid #E8EAEF",
+        borderRadius: 12,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between cursor-pointer"
+        style={{
+          paddingLeft: 24,
+          paddingRight: 24,
+          paddingTop: 16,
+          paddingBottom: 16,
+          background: "transparent",
+          border: 0,
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: FONT_MONTSERRAT,
+            fontWeight: 700,
+            fontSize: 14,
+            lineHeight: "20px",
+            color: "#0D0E14",
+            opacity: 0.61,
+          }}
+        >
+          {item.q}
+        </span>
+        <img
+          src={CHEVRON}
+          alt=""
+          aria-hidden="true"
+          width={18}
+          height={18}
+          style={{
+            display: "block",
+            width: 18,
+            height: 18,
+            flexShrink: 0,
+            marginLeft: 16,
+            transition: "transform 0.25s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </button>
+      {open && (
+        <div
+          style={{
+            paddingLeft: 24,
+            paddingRight: 24,
+            paddingBottom: 16,
+            fontFamily: FONT_MONTSERRAT,
+            fontWeight: 400,
+            fontSize: 14,
+            lineHeight: "20px",
+            color: "#0D0E14",
+            opacity: 0.75,
+          }}
+        >
+          {item.a}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferralFAQ() {
-  const items = [
+  const allItems: ReferralFaqItem[] = [
     {
       q: "Quem pode indicar amigos?",
       a: "Qualquer cliente Provider + Fibra com plano vigente (mensalidade em dia) pode indicar amigos pelo programa.",
@@ -1223,109 +1301,71 @@ function ReferralFAQ() {
       a: "O programa é válido em todo o território de atuação do Provider + Fibra no Oeste da Bahia. Consulte as condições e o regulamento no canal de atendimento.",
     },
   ];
-  const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const left = allItems.filter((_, i) => i % 2 === 0);
+  const right = allItems.filter((_, i) => i % 2 === 1);
 
   return (
     <section
+      id="faq"
       data-testid="referral-faq"
       style={{
-        background: COLOR_PRIMARY,
-        paddingTop: 50,
-        paddingBottom: 80,
-        color: "#FFFFFF",
+        background: "#FBFBFB",
+        paddingTop: 40,
+        paddingBottom: 100,
       }}
     >
       <div
-        className="mx-auto px-6 lg:px-0"
-        style={{
-          maxWidth: 920,
-          display: "flex",
-          flexDirection: "column",
-          gap: 28,
-        }}
+        className="mx-auto flex flex-col w-full px-6 lg:px-0"
+        style={{ maxWidth: 1022, rowGap: 30 }}
       >
-        <div style={{ textAlign: "center" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col items-center text-center"
+          style={{ rowGap: 12 }}
+        >
           <h2
+            className="m-0"
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 700,
-              fontSize: 30,
-              lineHeight: "38px",
-              color: "#FFFFFF",
-              margin: 0,
+              fontWeight: 400,
+              fontSize: 32,
+              lineHeight: "40px",
+              color: "#003F99",
             }}
           >
-            Ficou com alguma{" "}
-            <span style={{ fontWeight: 800, color: COLOR_GREEN }}>
-              dúvida?
-            </span>
+            Tire suas <span style={{ fontWeight: 800 }}>Dúvidas</span>
           </h2>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {items.map((it, i) => {
-            const open = openIdx === i;
-            return (
-              <div
-                key={it.q}
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  borderRadius: 10,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpenIdx(open ? null : i)}
-                  aria-expanded={open}
-                  data-testid={`faq-toggle-${i}`}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    padding: "16px 22px",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    fontFamily: FONT_NUNITO,
-                    fontWeight: 600,
-                    fontSize: 14,
-                    lineHeight: "20px",
-                    color: "#FFFFFF",
-                  }}
-                >
-                  <span>{it.q}</span>
-                  <ChevronDown
-                    size={18}
-                    aria-hidden
-                    style={{
-                      transition: "transform 0.2s ease",
-                      transform: open ? "rotate(180deg)" : "rotate(0deg)",
-                      flexShrink: 0,
-                      color: "#FFFFFF",
-                      opacity: 0.8,
-                    }}
-                  />
-                </button>
-                {open && (
-                  <div
-                    style={{
-                      padding: "0 22px 18px",
-                      fontFamily: FONT_NUNITO,
-                      fontWeight: 500,
-                      fontSize: 13,
-                      lineHeight: "20px",
-                      color: "rgba(255,255,255,0.8)",
-                    }}
-                  >
-                    {it.a}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <p
+            className="m-0"
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: "24px",
+              color: "#4A4F61",
+            }}
+          >
+            Tudo o que você precisa saber sobre o programa Indique um Amigo
+          </p>
+        </motion.div>
+
+        <div
+          className="grid grid-cols-1 md:grid-cols-2 w-full"
+          style={{ columnGap: 22, rowGap: 8 }}
+        >
+          <div className="flex flex-col" style={{ rowGap: 8 }}>
+            {left.map((item) => (
+              <ReferralFaqRow key={item.q} item={item} />
+            ))}
+          </div>
+          <div className="flex flex-col" style={{ rowGap: 8 }}>
+            {right.map((item) => (
+              <ReferralFaqRow key={item.q} item={item} />
+            ))}
+          </div>
         </div>
       </div>
     </section>
