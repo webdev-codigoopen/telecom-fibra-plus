@@ -1465,12 +1465,11 @@ export default function IndiqueUmAmigo() {
         style={{ background: COLOR_PRIMARY, color: "#FFFFFF" }}
       >
         <div style={{ position: "relative" }}>
-          <ReferralHero />
           <section
             data-testid="referral-form-section"
             style={{
               background: "transparent",
-              marginTop: -150,
+              paddingTop: 60,
               paddingBottom: 40,
               position: "relative",
               zIndex: 2,
