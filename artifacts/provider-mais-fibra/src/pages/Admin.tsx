@@ -10246,6 +10246,8 @@ type RecentClickRow = {
   geoRegion: string | null;
   geoCity: string | null;
   isBot: boolean;
+  botReason?: "pattern" | "whatsapp-heuristic" | "cleanup-source" | null;
+  matchedPattern?: { id: number; label: string } | null;
 };
 
 type TopCountryRow = {
@@ -10717,6 +10719,50 @@ function BotVsHumanPanel({
                       >
                         {r.isBot ? "robô" : "humano"}
                       </span>
+                      {r.isBot && (() => {
+                        if (r.botReason === "pattern" && r.matchedPattern) {
+                          return (
+                            <span
+                              className="block text-[10px] text-[#7A7F8C] mt-0.5 max-w-[10rem] truncate"
+                              title={`Capturado pela regra: ${r.matchedPattern.label}`}
+                              data-testid={`bot-rule-${r.id}`}
+                            >
+                              {r.matchedPattern.label}
+                            </span>
+                          );
+                        }
+                        if (r.botReason === "whatsapp-heuristic") {
+                          return (
+                            <span
+                              className="block text-[10px] text-[#7A7F8C] italic mt-0.5"
+                              title="Heurística: User-Agent bare WhatsApp/x.y.z sem token de navegador real"
+                              data-testid={`bot-rule-${r.id}`}
+                            >
+                              heurística WhatsApp
+                            </span>
+                          );
+                        }
+                        if (r.botReason === "cleanup-source") {
+                          return (
+                            <span
+                              className="block text-[10px] text-[#7A7F8C] italic mt-0.5"
+                              title="Marcado como robô pela limpeza retroativa (origem whatsapp-share-bot*)"
+                              data-testid={`bot-rule-${r.id}`}
+                            >
+                              limpeza retroativa
+                            </span>
+                          );
+                        }
+                        return (
+                          <span
+                            className="block text-[10px] text-[#7A7F8C] italic mt-0.5"
+                            title="Marcado como robô, mas a regra correspondente não pôde ser identificada"
+                            data-testid={`bot-rule-${r.id}`}
+                          >
+                            sem regra
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-2 py-2 whitespace-nowrap text-[#2A2D38]">
                       {r.countryCode ? (

@@ -122,6 +122,9 @@ export async function refreshBotUaPatternCache(): Promise<void> {
       }
     }
     cache = { patterns, combined, combinedRegex: regex };
+    // Invalidate the per-pattern compiled cache so label changes (and any
+    // other pattern edits) are picked up on the very next match call.
+    perPatternRegexCache = null;
     initialized = true;
   } catch (err) {
     logger.error({ err }, "[bot-ua-patterns] failed to refresh cache");
@@ -149,4 +152,50 @@ export function isCacheReady(): boolean {
 // Mirrors the SQL semantics in clicks.ts (case-insensitive ~* match).
 export function matchesEnabledPattern(ua: string): boolean {
   return cache.combinedRegex ? cache.combinedRegex.test(ua) : false;
+}
+
+// Return the first enabled pattern that matches `ua`, or null. Used by the
+// admin "recent clicks" view so each bot-flagged row can show *which* rule
+// caught it. We compile each pattern individually here (case-insensitive,
+// matching the combined-regex semantics) and cache the compiled list lazily
+// so repeated calls within a request don't re-parse every regex.
+let perPatternRegexCache: { signature: string; entries: { id: number; label: string; regex: RegExp }[] } | null = null;
+
+function getPerPatternRegexes(): { id: number; label: string; regex: RegExp }[] {
+  const enabled = cache.patterns.filter((p) => p.enabled);
+  const signature = enabled.map((p) => `${p.id}:${p.pattern}`).join("|");
+  if (perPatternRegexCache && perPatternRegexCache.signature === signature) {
+    return perPatternRegexCache.entries;
+  }
+  const entries: { id: number; label: string; regex: RegExp }[] = [];
+  for (const p of enabled) {
+    try {
+      entries.push({ id: p.id, label: p.label, regex: new RegExp(p.pattern, "i") });
+    } catch {
+      // Skip invalid individual patterns; refreshBotUaPatternCache already
+      // disables the combined regex if the OR-join fails to compile, so a
+      // single broken entry just gets ignored here.
+    }
+  }
+  perPatternRegexCache = { signature, entries };
+  return entries;
+}
+
+export function findMatchingPattern(
+  ua: string,
+): { id: number; label: string } | null {
+  for (const e of getPerPatternRegexes()) {
+    if (e.regex.test(ua)) return { id: e.id, label: e.label };
+  }
+  return null;
+}
+
+// Mirrors the WhatsApp link-preview heuristic in routes/clicks.ts:
+// bare `WhatsApp/<version>` UA without a real browser token.
+// Case-insensitive to match Postgres ~*/!~* semantics in buildIsBotSqlExpr.
+const WHATSAPP_HEURISTIC_RE = /\bWhatsApp\/[0-9.]+/i;
+const REAL_BROWSER_TOKENS_RE = /Mozilla|AppleWebKit|Chrome|Safari/i;
+
+export function matchesWhatsappHeuristic(ua: string): boolean {
+  return WHATSAPP_HEURISTIC_RE.test(ua) && !REAL_BROWSER_TOKENS_RE.test(ua);
 }

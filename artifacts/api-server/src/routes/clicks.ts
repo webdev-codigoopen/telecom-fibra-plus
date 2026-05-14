@@ -12,7 +12,11 @@ import {
   sendBotCleanupTestAlert,
 } from "../lib/botCleanupAlert";
 import { extractClientIp, hashIp, lookupGeo, countryNameFor } from "../lib/geoip";
-import { getCombinedUaPattern } from "../lib/botUaPatterns";
+import {
+  getCombinedUaPattern,
+  findMatchingPattern,
+  matchesWhatsappHeuristic,
+} from "../lib/botUaPatterns";
 
 const router: IRouter = Router();
 
@@ -1031,7 +1035,37 @@ router.get("/clicks/recent", requireAdminKey, async (req, res) => {
     const rows = await filtered
       .orderBy(desc(planClicksTable.clickedAt))
       .limit(limit);
-    res.json({ rows, limit });
+
+    // Annotate each bot-flagged row with *why* it was caught so the admin
+    // view can show the matched rule. The DB returns `isBot` as the SQL
+    // truth value; we re-derive the reason in JS using the same cached
+    // patterns + heuristic the SQL expression uses.
+    const annotated = rows.map((r) => {
+      let botReason:
+        | "pattern"
+        | "whatsapp-heuristic"
+        | "cleanup-source"
+        | null = null;
+      let matchedPattern: { id: number; label: string } | null = null;
+      if (r.isBot) {
+        const ua = r.userAgent ?? "";
+        const m = ua ? findMatchingPattern(ua) : null;
+        if (m) {
+          botReason = "pattern";
+          matchedPattern = m;
+        } else if (ua && matchesWhatsappHeuristic(ua)) {
+          botReason = "whatsapp-heuristic";
+        } else if (
+          typeof r.source === "string" &&
+          r.source.startsWith("whatsapp-share-bot")
+        ) {
+          botReason = "cleanup-source";
+        }
+      }
+      return { ...r, botReason, matchedPattern };
+    });
+
+    res.json({ rows: annotated, limit });
   } catch {
     res.status(500).json({ error: "Failed to fetch recent clicks" });
   }
