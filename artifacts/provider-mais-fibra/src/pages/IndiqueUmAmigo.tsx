@@ -964,8 +964,8 @@ function ReferralHowItWorks() {
       data-testid="referral-how-it-works"
       style={{
         background: COLOR_PRIMARY,
-        paddingTop: 70,
-        paddingBottom: 60,
+        paddingTop: 96,
+        paddingBottom: 80,
         color: "#FFFFFF",
       }}
     >
@@ -1093,8 +1093,8 @@ function ReferralIfYouWereInvited() {
       data-testid="referral-invited"
       style={{
         background: COLOR_PRIMARY,
-        paddingTop: 30,
-        paddingBottom: 60,
+        paddingTop: 80,
+        paddingBottom: 96,
         color: "#FFFFFF",
       }}
     >
@@ -1310,8 +1310,8 @@ function ReferralFAQ() {
       data-testid="referral-faq"
       style={{
         background: "#FBFBFB",
-        paddingTop: 40,
-        paddingBottom: 100,
+        paddingTop: 96,
+        paddingBottom: 110,
       }}
     >
       <div
