@@ -360,7 +360,6 @@ export default function Contato() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <p className="text-[15px] text-[#4A4F61] mb-2 font-normal">Fale Conosco</p>
                 <h1
                   className="text-[#122AD5] font-bold mb-6 text-[36px] md:text-[44px] leading-[1.1]"
                   style={{ letterSpacing: "-0.02em" }}
