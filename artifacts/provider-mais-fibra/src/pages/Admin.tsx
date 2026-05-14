@@ -278,6 +278,7 @@ export default function Admin() {
   const [previewOpen, setPreviewOpen] = useState<boolean>(() => loadStoredUiState().previewOpen);
   const [previewMode, setPreviewMode] = useState<PreviewMode>(() => loadStoredUiState().previewMode);
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
+  const [brandFilterId, setBrandFilterId] = useState<number | null>(null);
   const ADMIN_TAB_STORAGE_KEY = "pmf-admin-active-tab";
   const ADMIN_TAB_VALID: AdminTabId[] = [
     "dashboard", "mapa", "wpp", "ctas", "indicacoes", "ctas-config", "planos", "cidades", "bots",
@@ -3091,6 +3092,15 @@ export default function Admin() {
                     ?.scrollIntoView({ behavior: "smooth", block: "start" });
                 });
               }}
+              activeBrandFilterId={brandFilterId}
+              onFilterPlansByBrand={(brandId) => {
+                setBrandFilterId(brandId);
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("admin-plans-list")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+              }}
             />
 
             {plans.length > 0 && (
@@ -3205,11 +3215,88 @@ export default function Admin() {
               </div>
             )}
 
+            <div
+              id="admin-plans-list"
+              className="mb-3 flex items-center gap-2 flex-wrap bg-white rounded-xl border border-[#E0E3EB] px-4 py-3"
+              data-testid="admin-plans-brand-filter"
+            >
+              <label
+                htmlFor="admin-plans-brand-filter-select"
+                className="text-xs font-semibold text-[#2A2D38]"
+              >
+                Filtrar por marca de streaming:
+              </label>
+              <select
+                id="admin-plans-brand-filter-select"
+                value={brandFilterId ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setBrandFilterId(v === "" ? null : Number(v));
+                }}
+                className="text-xs px-2 py-1 rounded-md border border-[#E0E3EB] bg-white text-[#0D0D0D] focus:outline-none focus:border-[#0040FF]"
+                data-testid="admin-plans-brand-filter-select"
+              >
+                <option value="">Todas as marcas</option>
+                {streamingBrands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              {brandFilterId !== null && (
+                <>
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[#E6EEFF] border border-[#0040FF]/30 pl-2.5 pr-1 py-0.5 text-xs font-semibold text-[#0040FF]"
+                    data-testid="admin-plans-brand-filter-chip"
+                  >
+                    {streamingBrands.find((b) => b.id === brandFilterId)?.name ?? `#${brandFilterId}`}
+                    <button
+                      type="button"
+                      onClick={() => setBrandFilterId(null)}
+                      className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-white text-[#0040FF] hover:bg-[#0040FF] hover:text-white transition-colors"
+                      aria-label="Limpar filtro de marca de streaming"
+                      title="Limpar filtro"
+                    >
+                      <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setBrandFilterId(null)}
+                    className="text-xs font-medium text-[#0040FF] hover:underline"
+                    data-testid="admin-plans-brand-filter-clear"
+                  >
+                    Limpar filtro
+                  </button>
+                </>
+              )}
+              <span className="text-[11px] text-[#7A7F8C] ml-auto">
+                {(() => {
+                  const total = plans.length;
+                  const shown = brandFilterId === null
+                    ? total
+                    : plans.filter((p) => (p.streamingBrands ?? []).some((sb) => sb.id === brandFilterId)).length;
+                  if (brandFilterId === null) {
+                    return total === 1 ? "1 plano" : `${total} planos`;
+                  }
+                  return `${shown} de ${total} ${total === 1 ? "plano" : "planos"}`;
+                })()}
+              </span>
+            </div>
+
             <div className="space-y-3">
-              {plans.map((plan) => (
+              {plans
+                .filter((plan) =>
+                  brandFilterId === null
+                    ? true
+                    : (plan.streamingBrands ?? []).some((sb) => sb.id === brandFilterId),
+                )
+                .map((plan) => (
                 <div
                   key={plan.id}
-                  draggable={!editingPlan && !reordering}
+                  draggable={!editingPlan && !reordering && brandFilterId === null}
                   onDragStart={(e) => {
                     setDragId(plan.id);
                     e.dataTransfer.effectAllowed = "move";
@@ -3320,6 +3407,24 @@ export default function Admin() {
                   Nenhum plano cadastrado. Clique em "Novo Plano" para começar.
                 </div>
               )}
+              {plans.length > 0 &&
+                brandFilterId !== null &&
+                plans.filter((p) => (p.streamingBrands ?? []).some((sb) => sb.id === brandFilterId))
+                  .length === 0 && (
+                  <div
+                    className="text-center text-[#7A7F8C] py-8 bg-white rounded-xl border border-[#E0E3EB]"
+                    data-testid="admin-plans-brand-filter-empty"
+                  >
+                    Nenhum plano usa a marca "{streamingBrands.find((b) => b.id === brandFilterId)?.name ?? ""}".{" "}
+                    <button
+                      type="button"
+                      onClick={() => setBrandFilterId(null)}
+                      className="text-[#0040FF] font-medium hover:underline"
+                    >
+                      Limpar filtro
+                    </button>
+                  </div>
+                )}
             </div>
           </>
         )}
@@ -4087,11 +4192,13 @@ type StreamingBrandsManagerProps = {
   baseUrl: string;
   onChange: () => Promise<void> | void;
   onEditPlan: (planId: number) => void;
+  onFilterPlansByBrand: (brandId: number) => void;
+  activeBrandFilterId: number | null;
 };
 
 type AffectedPlan = { id: number; speed: string; price: string };
 
-function StreamingBrandsManager({ brands, plans, adminKey, baseUrl, onChange, onEditPlan }: StreamingBrandsManagerProps) {
+function StreamingBrandsManager({ brands, plans, adminKey, baseUrl, onChange, onEditPlan, onFilterPlansByBrand, activeBrandFilterId }: StreamingBrandsManagerProps) {
   const [editing, setEditing] = useState<StreamingBrand | null>(null);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -4723,6 +4830,22 @@ function StreamingBrandsManager({ brands, plans, adminKey, baseUrl, onChange, on
                 )}
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
+                {(b.planCount ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onFilterPlansByBrand(b.id)}
+                    disabled={activeBrandFilterId === b.id}
+                    title={
+                      activeBrandFilterId === b.id
+                        ? `Já filtrando planos por "${b.name}"`
+                        : `Filtrar planos por "${b.name}"`
+                    }
+                    className="px-2.5 py-1 rounded-md text-xs font-medium text-[#0040FF] border border-[#0040FF]/20 hover:bg-[#0040FF]/5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid={`streaming-brand-filter-plans-${b.id}`}
+                  >
+                    Filtrar planos por esta marca
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => startEdit(b)}
