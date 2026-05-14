@@ -13,6 +13,7 @@ const DemandaCidades = lazy(() => import("@/pages/DemandaCidades"));
 const PoliticaPrivacidade = lazy(() => import("@/pages/PoliticaPrivacidade"));
 const TermosDeUso = lazy(() => import("@/pages/TermosDeUso"));
 const Admin = lazy(() => import("@/pages/Admin"));
+const IndiqueUmAmigo = lazy(() => import("@/pages/IndiqueUmAmigo"));
 
 function RouteFallback() {
   return (
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/quem-somos" component={QuemSomos} />
       <Route path="/contato" component={Contato} />
+      <Route path="/indique-um-amigo" component={IndiqueUmAmigo} />
       <Route path="/onde-estamos" component={OndeEstamos} />
       <Route path="/demanda" component={DemandaCidades} />
       <Route path="/politica-de-privacidade" component={PoliticaPrivacidade} />
