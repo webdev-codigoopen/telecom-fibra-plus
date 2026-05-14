@@ -18,6 +18,13 @@ export interface BackfillOptions {
    * combined pattern from the bot_ua_patterns table.
    */
   botUaPattern?: string;
+  /**
+   * When true, skip the same-second burst detection pass and only run the
+   * user-agent based relabeling. Used when applying a single new/edited
+   * admin pattern to historical rows so we don't accidentally relabel rows
+   * unrelated to the pattern being saved.
+   */
+  skipBurstDetection?: boolean;
   logger?: BackfillLogger;
 }
 
@@ -71,6 +78,7 @@ export async function backfillShareBotClicks(
   const dryRun = opts.dryRun ?? false;
   const useUserAgent = opts.useUserAgent ?? false;
   const botUaPattern = opts.botUaPattern ?? DEFAULT_BOT_UA_SQL_PATTERN;
+  const skipBurstDetection = opts.skipBurstDetection ?? false;
   const log = opts.logger ?? consoleLogger();
 
   if (!Number.isInteger(windowSeconds) || windowSeconds < 1) {
@@ -140,6 +148,22 @@ export async function backfillShareBotClicks(
   }
 
   const bucketSeconds = sql.raw(String(windowSeconds));
+
+  if (skipBurstDetection) {
+    log.info(
+      "[backfill-share-bot-clicks] skipBurstDetection=true — skipping burst pass",
+    );
+    return {
+      windowSeconds,
+      minBurst,
+      dryRun,
+      useUserAgent,
+      burstGroupsFound: 0,
+      burstGroupsSample: [],
+      rowsRelabeled: 0,
+      rowsRelabeledByUserAgent,
+    };
+  }
 
   const burstRows = await db.execute<{
     bucket: string;

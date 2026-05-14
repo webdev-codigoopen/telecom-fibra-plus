@@ -8,6 +8,8 @@ import {
   getCombinedUaPattern,
   isValidJsRegex,
 } from "../lib/botUaPatterns";
+import { backfillShareBotClicks } from "@workspace/scripts/backfill-share-bot-clicks";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -201,6 +203,56 @@ router.post("/bot-ua-patterns/preview", requireAdminKey, async (req, res) => {
     });
   } catch {
     res.status(500).json({ error: "Falha ao avaliar padrão" });
+  }
+});
+
+// One-shot relabel of historical rows whose user-agent matches the supplied
+// pattern. Mirrors the user-agent pass of the daily bot-cleanup backfill, but
+// is scoped to a single admin-supplied pattern so saving a new/edited rule can
+// retroactively flip already-stored clicks from "human" to "bot".
+const applySchema = z.object({
+  pattern: z.string().trim().min(1).max(500),
+});
+
+router.post("/bot-ua-patterns/apply", requireAdminKey, async (req, res) => {
+  const parsed = applySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Dados inválidos" });
+    return;
+  }
+  if (!isValidJsRegex(parsed.data.pattern)) {
+    res.status(400).json({ error: "Expressão regular inválida (JavaScript)" });
+    return;
+  }
+  const sqlErr = await validateSqlRegex(parsed.data.pattern);
+  if (sqlErr) {
+    res.status(400).json({ error: `Expressão regular inválida no banco: ${sqlErr}` });
+    return;
+  }
+  try {
+    const result = await backfillShareBotClicks({
+      useUserAgent: true,
+      botUaPattern: parsed.data.pattern,
+      skipBurstDetection: true,
+      logger: {
+        info: (obj, msg) => {
+          if (typeof obj === "string") logger.info(obj);
+          else logger.info(obj, msg);
+        },
+        warn: (obj, msg) => {
+          if (typeof obj === "string") logger.warn(obj);
+          else logger.warn(obj, msg);
+        },
+        error: (obj, msg) => {
+          if (typeof obj === "string") logger.error(obj);
+          else logger.error(obj, msg);
+        },
+      },
+    });
+    res.json({ rowsRelabeled: result.rowsRelabeledByUserAgent });
+  } catch (err) {
+    logger.error({ err }, "[bot-ua-patterns] apply failed");
+    res.status(500).json({ error: "Falha ao aplicar padrão a cliques existentes" });
   }
 });
 

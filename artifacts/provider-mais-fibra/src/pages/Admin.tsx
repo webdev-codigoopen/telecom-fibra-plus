@@ -11186,6 +11186,55 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [creating, setCreating] = useState(false);
+  const [applyingNew, setApplyingNew] = useState(false);
+  const [applyResult, setApplyResult] = useState<{ rowsRelabeled: number } | null>(null);
+  const [applyingRowId, setApplyingRowId] = useState<number | null>(null);
+  const [rowApplyResults, setRowApplyResults] = useState<Record<number, number>>({});
+
+  async function applyPattern(pattern: string): Promise<number> {
+    const res = await adminFetch(`${baseUrl}/api/bot-ua-patterns/apply`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${adminKey}`, "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ pattern }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+    return Number(data.rowsRelabeled ?? 0);
+  }
+
+  async function applyExistingRow(row: BotUaPatternRow) {
+    if (
+      !window.confirm(
+        `Aplicar o padrão "${row.label || row.pattern}" aos cliques já armazenados? Cliques cujo User-Agent corresponde serão reclassificados como bots.`,
+      )
+    ) {
+      return;
+    }
+    setApplyingRowId(row.id);
+    try {
+      const rowsRelabeled = await applyPattern(row.pattern);
+      setRowApplyResults((prev) => ({ ...prev, [row.id]: rowsRelabeled }));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao aplicar padrão.");
+    } finally {
+      setApplyingRowId(null);
+    }
+  }
+
+  async function applyNewPattern() {
+    if (!newPattern.trim()) return;
+    setApplyingNew(true);
+    setApplyResult(null);
+    try {
+      const rowsRelabeled = await applyPattern(newPattern.trim());
+      setApplyResult({ rowsRelabeled });
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Falha ao aplicar padrão.");
+    } finally {
+      setApplyingNew(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -11365,6 +11414,16 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
                 <td className="py-2 pr-3 text-right whitespace-nowrap">
                   <button
                     type="button"
+                    onClick={() => applyExistingRow(r)}
+                    disabled={applyingRowId === r.id}
+                    className="text-xs text-[#122AD5] hover:underline mr-3 disabled:opacity-60"
+                    data-testid={`bot-ua-apply-${r.id}`}
+                    title="Reclassificar cliques já armazenados que correspondem a este padrão"
+                  >
+                    {applyingRowId === r.id ? "Aplicando..." : "Aplicar"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => editPattern(r)}
                     className="text-xs text-[#122AD5] hover:underline mr-3"
                   >
@@ -11377,6 +11436,15 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
                   >
                     Remover
                   </button>
+                  {rowApplyResults[r.id] !== undefined && (
+                    <div
+                      className="text-[11px] text-[#7A7F8C] mt-1"
+                      data-testid={`bot-ua-apply-result-${r.id}`}
+                    >
+                      {rowApplyResults[r.id]?.toLocaleString("pt-BR")}{" "}
+                      {rowApplyResults[r.id] === 1 ? "clique reclassificado" : "cliques reclassificados"}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -11399,7 +11467,7 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
             type="text"
             placeholder="Regex (ex: meucrawler|outro-bot)"
             value={newPattern}
-            onChange={(e) => { setNewPattern(e.target.value); setPreview(null); }}
+            onChange={(e) => { setNewPattern(e.target.value); setPreview(null); setApplyResult(null); }}
             className="px-3 py-2 text-sm border border-[#E0E3EB] rounded-md font-mono"
             data-testid="bot-ua-new-pattern"
           />
@@ -11433,6 +11501,27 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
             {preview.sampleUserAgent && (
               <div className="mt-2 text-xs text-[#7A7F8C]">
                 Exemplo de UA: <span className="font-mono break-all">{preview.sampleUserAgent}</span>
+              </div>
+            )}
+            {preview.wouldFlip > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={applyNewPattern}
+                  disabled={applyingNew}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-md border border-[#122AD5] text-[#122AD5] hover:bg-[#122AD5]/5 disabled:opacity-60"
+                  data-testid="bot-ua-apply-new"
+                >
+                  {applyingNew ? "Aplicando..." : "Aplicar aos cliques existentes"}
+                </button>
+                {applyResult && (
+                  <span className="text-xs text-[#0D0D0D]" data-testid="bot-ua-apply-new-result">
+                    <strong>{applyResult.rowsRelabeled.toLocaleString("pt-BR")}</strong>{" "}
+                    {applyResult.rowsRelabeled === 1
+                      ? "clique reclassificado como bot."
+                      : "cliques reclassificados como bots."}
+                  </span>
+                )}
               </div>
             )}
           </div>
