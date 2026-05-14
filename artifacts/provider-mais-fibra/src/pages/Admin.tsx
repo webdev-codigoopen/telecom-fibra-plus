@@ -3552,8 +3552,29 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
     }
   }
 
+  const previewBrandsForCard: StreamingBrand[] = streamingBrandIds
+    .map((id, idx) => {
+      const b = brandById.get(id);
+      if (!b) return null;
+      return { id: b.id, name: b.name, logoUrl: b.logoUrl, sortOrder: idx };
+    })
+    .filter((b): b is StreamingBrand => b !== null);
+  const previewPlan: Plan = {
+    id: form.id,
+    speed: form.speed,
+    wifi: form.wifi,
+    price: form.price,
+    inclusions: form.inclusions,
+    streamingBrands: previewBrandsForCard,
+    featured: form.featured,
+    badge: form.badge ?? undefined,
+    bonus: form.bonus ?? undefined,
+    imageUrl: form.imageUrl ?? undefined,
+  };
+
   return (
-    <div className="bg-white rounded-xl border-2 border-[#0040FF]/30 px-6 py-5 mb-6">
+    <div className="lg:flex lg:items-start lg:gap-5 mb-6">
+    <div className="bg-white rounded-xl border-2 border-[#0040FF]/30 px-6 py-5 lg:flex-1 lg:min-w-0">
       <h2 className="font-bold text-[#0D0D0D] mb-4">{isNew ? "Novo Plano" : "Editar Plano"}</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -4027,6 +4048,34 @@ function PlanForm({ plan, isNew, saving, adminKey, allInclusions, streamingBrand
           onConfirm={handleCropConfirm}
         />
       )}
+    </div>
+    <aside
+      className="hidden lg:block flex-shrink-0 mt-4 lg:mt-0"
+      style={{ width: 300 }}
+      aria-label="Pré-visualização do plano"
+    >
+      <div className="sticky top-4 bg-white rounded-xl border border-[#E0E3EB] px-4 pt-3 pb-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold uppercase text-[#7A7F8C] tracking-wide">
+            Pré-visualização do plano
+          </h3>
+          <span className="text-[10px] text-[#7A7F8C]">ao vivo</span>
+        </div>
+        <div
+          className="flex justify-center origin-top"
+          style={{
+            transform: "scale(0.88)",
+            height: 490 * 0.88 + 8,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+          aria-hidden="true"
+          data-testid="plan-card-live-preview"
+        >
+          <PlanCard plan={previewPlan} idSuffix="-admin-preview" source="admin-preview" />
+        </div>
+      </div>
+    </aside>
     </div>
   );
 }
