@@ -279,6 +279,220 @@ router.get("/clicks/cities-conversion", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get(
+  "/clicks/cities-persistent-underperformance",
+  requireAdminKey,
+  async (req, res) => {
+    try {
+      const periodsRaw = Number(req.query["periods"]);
+      const periods = Number.isFinite(periodsRaw)
+        ? Math.max(2, Math.min(12, Math.floor(periodsRaw)))
+        : 4;
+      const periodDaysRaw = Number(req.query["periodDays"]);
+      const periodDays = Number.isFinite(periodDaysRaw)
+        ? Math.max(1, Math.min(60, Math.floor(periodDaysRaw)))
+        : 7;
+      const minBelowRaw = Number(req.query["minBelow"]);
+      const minBelow = Number.isFinite(minBelowRaw)
+        ? Math.max(1, Math.min(periods, Math.floor(minBelowRaw)))
+        : Math.min(periods, 3);
+      const minPreviewsRaw = Number(req.query["minPreviews"]);
+      const minPreviews = Number.isFinite(minPreviewsRaw)
+        ? Math.max(1, Math.min(1000, Math.floor(minPreviewsRaw)))
+        : 5;
+      const defaultTargetRaw = Number(req.query["defaultTargetPct"]);
+      const defaultTargetPct =
+        Number.isFinite(defaultTargetRaw) &&
+        defaultTargetRaw > 0 &&
+        defaultTargetRaw <= 100
+          ? defaultTargetRaw
+          : null;
+
+      const now = new Date();
+      const totalDays = periodDays * periods;
+      const since = new Date(now.getTime() - totalDays * 86400 * 1000);
+
+      // Bucket index 0 = most recent period, periods-1 = oldest.
+      const bucketExpr = sql<number>`cast(floor(extract(epoch from (${now} - ${planClicksTable.clickedAt})) / ${periodDays * 86400}) as int)`;
+      const previewExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} = 'whatsapp-share' or ${planClicksTable.source} like 'whatsapp-share:%') as int)`;
+      const signupExpr = sql<number>`cast(count(*) filter (where ${planClicksTable.source} not like 'whatsapp-share%') as int)`;
+
+      const rows = await db
+        .select({
+          city: planClicksTable.city,
+          bucket: bucketExpr,
+          previews: previewExpr,
+          signups: signupExpr,
+        })
+        .from(planClicksTable)
+        .where(
+          and(
+            gte(planClicksTable.clickedAt, since),
+            lt(planClicksTable.clickedAt, now),
+            isNotNull(planClicksTable.city),
+          ),
+        )
+        .groupBy(planClicksTable.city, bucketExpr);
+
+      // Load per-city targets from app_settings (shared with /admin/map-per-city-targets).
+      const settingsRows = await db
+        .select()
+        .from(appSettingsTable)
+        .where(eq(appSettingsTable.key, "map_per_city_targets"))
+        .limit(1);
+      const perCityTargets: Record<string, number> = {};
+      const rawSetting = settingsRows[0]?.value;
+      if (rawSetting) {
+        try {
+          const parsed = JSON.parse(rawSetting) as unknown;
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            for (const [k, v] of Object.entries(
+              parsed as Record<string, unknown>,
+            )) {
+              const n = Number(v);
+              if (
+                typeof k === "string" &&
+                k &&
+                Number.isFinite(n) &&
+                n > 0 &&
+                n <= 100
+              ) {
+                perCityTargets[k] = n;
+              }
+            }
+          }
+        } catch {
+          // ignore malformed setting
+        }
+      }
+
+      type PerPeriod = {
+        index: number;
+        since: string;
+        until: string;
+        previews: number;
+        signups: number;
+        ratePct: number | null;
+        eligible: boolean;
+        below: boolean | null;
+      };
+
+      const windows: { since: string; until: string }[] = [];
+      for (let i = 0; i < periods; i++) {
+        const wUntil = new Date(now.getTime() - i * periodDays * 86400 * 1000);
+        const wSince = new Date(
+          wUntil.getTime() - periodDays * 86400 * 1000,
+        );
+        windows.push({ since: wSince.toISOString(), until: wUntil.toISOString() });
+      }
+
+      type CityAgg = Map<number, { previews: number; signups: number }>;
+      const byCity = new Map<string, CityAgg>();
+      for (const r of rows) {
+        if (!r.city) continue;
+        if (r.bucket < 0 || r.bucket >= periods) continue;
+        let agg = byCity.get(r.city);
+        if (!agg) {
+          agg = new Map();
+          byCity.set(r.city, agg);
+        }
+        const cur = agg.get(r.bucket) ?? { previews: 0, signups: 0 };
+        cur.previews += r.previews;
+        cur.signups += r.signups;
+        agg.set(r.bucket, cur);
+      }
+
+      const out = [];
+      for (const [city, agg] of byCity.entries()) {
+        const override = perCityTargets[city];
+        const isPerCityTarget =
+          Number.isFinite(override) && (override as number) > 0;
+        const targetPct = isPerCityTarget
+          ? (override as number)
+          : defaultTargetPct;
+        if (targetPct == null) continue;
+
+        const perPeriod: PerPeriod[] = [];
+        let periodsBelow = 0;
+        let periodsEligible = 0;
+        for (let i = 0; i < periods; i++) {
+          const w = windows[i]!;
+          const v = agg.get(i) ?? { previews: 0, signups: 0 };
+          const eligible = v.previews >= minPreviews;
+          const ratePct = v.previews > 0 ? (v.signups / v.previews) * 100 : null;
+          let below: boolean | null = null;
+          if (eligible && ratePct != null) {
+            below = ratePct < targetPct;
+            periodsEligible += 1;
+            if (below) periodsBelow += 1;
+          }
+          perPeriod.push({
+            index: i,
+            since: w.since,
+            until: w.until,
+            previews: v.previews,
+            signups: v.signups,
+            ratePct,
+            eligible,
+            below,
+          });
+        }
+
+        // Current consecutive streak = how many of the most recent
+        // *eligible* weeks were below target, walking from newest (index 0)
+        // backwards, stopping at the first eligible non-below week.
+        // Ineligible weeks (too few previews) are skipped so a quiet week
+        // doesn't artificially break the streak.
+        let consecutiveBelow = 0;
+        for (let i = 0; i < perPeriod.length; i++) {
+          const p = perPeriod[i]!;
+          if (!p.eligible || p.below === null) continue;
+          if (p.below) consecutiveBelow += 1;
+          else break;
+        }
+
+        if (periodsBelow < minBelow) continue;
+
+        const recent = perPeriod[0]!;
+        out.push({
+          city,
+          targetPct,
+          isPerCityTarget,
+          periodsBelow,
+          periodsEligible,
+          consecutiveBelow,
+          currentRatePct: recent.ratePct,
+          currentPreviews: recent.previews,
+          currentSignups: recent.signups,
+          perPeriod,
+        });
+      }
+
+      out.sort((a, b) => {
+        if (b.periodsBelow !== a.periodsBelow)
+          return b.periodsBelow - a.periodsBelow;
+        if (b.consecutiveBelow !== a.consecutiveBelow)
+          return b.consecutiveBelow - a.consecutiveBelow;
+        return a.city.localeCompare(b.city, "pt-BR");
+      });
+
+      res.json({
+        periods,
+        periodDays,
+        minBelow,
+        minPreviews,
+        defaultTargetPct,
+        windows,
+        rows: out,
+      });
+    } catch {
+      res
+        .status(500)
+        .json({ error: "Failed to fetch persistent underperformance" });
+    }
+  },
+);
+
 router.get("/clicks/preview-health", requireAdminKey, async (_req, res) => {
   try {
     const now = new Date();

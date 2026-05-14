@@ -162,6 +162,64 @@ async function fetchCityConversion(
 
 type ColorMode = "volume" | "growth" | "conversion";
 
+type PersistentPeriod = {
+  index: number;
+  since: string;
+  until: string;
+  previews: number;
+  signups: number;
+  ratePct: number | null;
+  eligible: boolean;
+  below: boolean | null;
+};
+
+type PersistentUnderperformanceRow = {
+  city: string;
+  targetPct: number;
+  isPerCityTarget: boolean;
+  periodsBelow: number;
+  periodsEligible: number;
+  consecutiveBelow: number;
+  currentRatePct: number | null;
+  currentPreviews: number;
+  currentSignups: number;
+  perPeriod: PersistentPeriod[];
+};
+
+type PersistentUnderperformanceResponse = {
+  periods: number;
+  periodDays: number;
+  minBelow: number;
+  minPreviews: number;
+  defaultTargetPct: number | null;
+  windows: { since: string; until: string }[];
+  rows: PersistentUnderperformanceRow[];
+};
+
+const PERSISTENT_PERIODS = 4;
+const PERSISTENT_PERIOD_DAYS = 7;
+const PERSISTENT_MIN_BELOW = 3;
+const PERSISTENT_SEEN_KEY_PREFIX = "pmf:persistentUnderperformanceSeen";
+
+async function fetchPersistentUnderperformance(
+  baseUrl: string,
+  adminKey: string,
+  defaultTargetPct: number | null,
+): Promise<PersistentUnderperformanceResponse> {
+  const params = new URLSearchParams();
+  params.set("periods", String(PERSISTENT_PERIODS));
+  params.set("periodDays", String(PERSISTENT_PERIOD_DAYS));
+  params.set("minBelow", String(PERSISTENT_MIN_BELOW));
+  params.set("minPreviews", String(BELOW_TARGET_MIN_PREVIEWS));
+  if (defaultTargetPct != null) {
+    params.set("defaultTargetPct", String(defaultTargetPct));
+  }
+  const url = `${baseUrl}/api/clicks/cities-persistent-underperformance?${params.toString()}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${adminKey}` } });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()) as PersistentUnderperformanceResponse;
+}
+
 type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
 
 const CONVERSION_SCALE_STORAGE_PREFIX = "pmf:mapConversionScale";
@@ -317,6 +375,10 @@ export default function CityClicksMap(props: Props) {
   const [perCityTargetsError, setPerCityTargetsError] = useState<string | null>(null);
   const [showPerCityEditor, setShowPerCityEditor] = useState(false);
   const [perCityDrafts, setPerCityDrafts] = useState<Record<string, string>>({});
+  const [persistent, setPersistent] = useState<PersistentUnderperformanceResponse | null>(null);
+  const [persistentError, setPersistentError] = useState<string | null>(null);
+  const [persistentDismissed, setPersistentDismissed] = useState<Set<string>>(new Set());
+  const persistentReqIdRef = useRef(0);
   const reqIdRef = useRef(0);
   const targetsReqIdRef = useRef(0);
   const targetsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -385,6 +447,61 @@ export default function CityClicksMap(props: Props) {
       }
     };
   }, [isAdminMode, baseUrl, perCityTargets]);
+
+  // Load the per-admin "already seen" set so newly persistent cities can be
+  // visually flagged with a "Novo" badge until the admin acknowledges them.
+  useEffect(() => {
+    if (typeof window === "undefined" || !isAdminMode) return;
+    try {
+      const key = `${PERSISTENT_SEEN_KEY_PREFIX}:${hashAdminKey(adminKey)}`;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        setPersistentDismissed(new Set());
+        return;
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        const set = new Set<string>();
+        for (const v of parsed) if (typeof v === "string") set.add(v);
+        setPersistentDismissed(set);
+      } else {
+        setPersistentDismissed(new Set());
+      }
+    } catch {
+      setPersistentDismissed(new Set());
+    }
+  }, [adminKey, isAdminMode]);
+
+  function persistDismissed(set: Set<string>) {
+    if (typeof window === "undefined") return;
+    try {
+      const key = `${PERSISTENT_SEEN_KEY_PREFIX}:${hashAdminKey(adminKey)}`;
+      window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
+    } catch {
+      // ignore
+    }
+  }
+
+  // Fetch the persistent-underperformance signal independently of the
+  // selected date range so it's always visible to admins. We only refetch
+  // when the admin identity, the default-target preference, or the per-city
+  // targets change — not when the selected `range` changes.
+  const defaultTargetForPersistent =
+    conversionScale.mode === "target" ? conversionScale.targetPct : null;
+  useEffect(() => {
+    if (!isAdminMode || !adminKey || !baseUrl) return;
+    const myReq = ++persistentReqIdRef.current;
+    setPersistentError(null);
+    fetchPersistentUnderperformance(baseUrl, adminKey, defaultTargetForPersistent)
+      .then((data) => {
+        if (myReq !== persistentReqIdRef.current) return;
+        setPersistent(data);
+      })
+      .catch(() => {
+        if (myReq !== persistentReqIdRef.current) return;
+        setPersistentError("Não foi possível carregar o alerta de cidades persistentemente abaixo da meta.");
+      });
+  }, [isAdminMode, adminKey, baseUrl, defaultTargetForPersistent, perCityTargets]);
 
   function targetPctForCity(name: string): number | null {
     const override = perCityTargets[name];
@@ -1512,6 +1629,30 @@ export default function CityClicksMap(props: Props) {
           )}
         </svg>
       </div>
+      {isAdminMode && (
+        <PersistentUnderperformancePanel
+          data={persistent}
+          error={persistentError}
+          dismissed={persistentDismissed}
+          onAcknowledge={(city) => {
+            setPersistentDismissed((prev) => {
+              const next = new Set(prev);
+              next.add(city);
+              persistDismissed(next);
+              return next;
+            });
+          }}
+          onResetAcknowledgements={() => {
+            setPersistentDismissed(() => {
+              const empty = new Set<string>();
+              persistDismissed(empty);
+              return empty;
+            });
+          }}
+          onSelectCity={onSelectCity ?? null}
+          selectedCity={selectedCity}
+        />
+      )}
       {effectiveColorMode === "conversion" && (
         <div
           className="mt-3 rounded-lg border border-[#E0E3EB] bg-white px-3 py-2"
@@ -1641,6 +1782,208 @@ export default function CityClicksMap(props: Props) {
 }
 
 type DeltaInfo = { current: number; prev: number; abs: number; pct: number | null };
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+function PersistentUnderperformancePanel({
+  data,
+  error,
+  dismissed,
+  onAcknowledge,
+  onResetAcknowledgements,
+  onSelectCity,
+  selectedCity,
+}: {
+  data: PersistentUnderperformanceResponse | null;
+  error: string | null;
+  dismissed: Set<string>;
+  onAcknowledge: (city: string) => void;
+  onResetAcknowledgements: () => void;
+  onSelectCity: ((city: string | null) => void) | null;
+  selectedCity: string | null;
+}) {
+  // Always render the panel so the signal is visible regardless of date range.
+  // We show explanatory states for "no target set", "no data yet", and the
+  // happy path where every city is hitting target.
+  const periodsLabel = data
+    ? `${data.minBelow} de ${data.periods} últimas semanas`
+    : `${PERSISTENT_MIN_BELOW} de ${PERSISTENT_PERIODS} últimas semanas`;
+  const rows = data?.rows ?? [];
+  const hasUnacknowledged = rows.some((r) => !dismissed.has(r.city));
+  const noTargetConfigured =
+    data != null &&
+    rows.length === 0 &&
+    data.defaultTargetPct == null &&
+    Object.keys(data.windows).length > 0;
+
+  return (
+    <div
+      className={`mt-3 rounded-lg border px-3 py-2 ${
+        hasUnacknowledged
+          ? "border-[#E03131]/40 bg-[#FFF5F5]"
+          : "border-[#E0E3EB] bg-white"
+      }`}
+      data-testid="persistent-underperformance-panel"
+    >
+      <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
+        <h4 className="font-bold text-xs text-[#0D0D0D] flex items-center gap-1.5">
+          <span aria-hidden>⚠️</span>
+          Cidades persistentemente abaixo da meta
+          <span className="ml-1 font-normal text-[10px] text-[#7A7F8C]">
+            (abaixo da meta em {periodsLabel} · independe do período selecionado)
+          </span>
+        </h4>
+        <div className="flex items-center gap-2">
+          {rows.length > 0 && (
+            <span
+              className="text-[10px] text-[#7A7F8C] tabular-nums"
+              data-testid="persistent-underperformance-count"
+            >
+              {rows.length}{" "}
+              {rows.length === 1 ? "cidade" : "cidades"}
+            </span>
+          )}
+          {dismissed.size > 0 && (
+            <button
+              type="button"
+              onClick={onResetAcknowledgements}
+              className="text-[10px] text-[#0040FF] underline hover:no-underline"
+            >
+              Limpar marcações
+            </button>
+          )}
+        </div>
+      </div>
+      {error ? (
+        <p className="text-[11px] text-red-600">{error}</p>
+      ) : data == null ? (
+        <p className="text-[11px] text-[#7A7F8C] italic">Carregando...</p>
+      ) : noTargetConfigured ? (
+        <p className="text-[11px] text-[#7A7F8C] italic">
+          Defina uma meta de conversão (geral ou por cidade) para começar a receber alertas
+          de queda persistente.
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="text-[11px] text-[#7A7F8C] italic">
+          Nenhuma cidade está abaixo da meta em {data.minBelow} das últimas{" "}
+          {data.periods} semanas.
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-2">
+          {rows.map((r) => {
+            const isNew = !dismissed.has(r.city);
+            const isSelected = selectedCity === r.city;
+            return (
+              <li
+                key={r.city}
+                className={`rounded-md border px-2 py-1.5 ${
+                  isNew
+                    ? "border-[#E03131]/30 bg-white"
+                    : "border-[#E0E3EB] bg-[#FAFAFA]"
+                } ${isSelected ? "ring-2 ring-[#0040FF]/40" : ""}`}
+                data-testid="persistent-underperformance-row"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {onSelectCity ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onSelectCity(isSelected ? null : r.city)
+                        }
+                        className="font-semibold text-[12px] text-[#2A2D38] truncate hover:underline text-left"
+                        title="Ver tendência da cidade"
+                      >
+                        {r.city}
+                      </button>
+                    ) : (
+                      <span className="font-semibold text-[12px] text-[#2A2D38] truncate">
+                        {r.city}
+                      </span>
+                    )}
+                    {isNew && (
+                      <span
+                        className="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-[#E03131] text-white"
+                        data-testid="persistent-underperformance-new-badge"
+                      >
+                        Novo
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] tabular-nums shrink-0">
+                    <span className="font-semibold text-[#C92020]">
+                      {r.periodsBelow}/{data.periods} semanas abaixo
+                    </span>
+                    {r.consecutiveBelow > 1 && (
+                      <span className="text-[#C92020]">
+                        · {r.consecutiveBelow} seguidas
+                      </span>
+                    )}
+                    <span className="text-[#7A7F8C]">
+                      meta {r.targetPct >= 10 ? r.targetPct.toFixed(0) : r.targetPct.toFixed(1)}%
+                      {r.isPerCityTarget ? " (cidade)" : ""}
+                    </span>
+                    {isNew && (
+                      <button
+                        type="button"
+                        onClick={() => onAcknowledge(r.city)}
+                        className="text-[10px] text-[#7A7F8C] underline hover:no-underline"
+                        data-testid="persistent-underperformance-ack"
+                      >
+                        Marcar como visto
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1" aria-label="histórico semana a semana">
+                  {/* Render oldest -> newest left to right so the rightmost cell is the most recent week. */}
+                  {[...r.perPeriod]
+                    .slice()
+                    .reverse()
+                    .map((p) => {
+                      let bg = "#E0E3EB";
+                      let title = `${formatShortDate(p.since)}–${formatShortDate(p.until)}: sem dados suficientes`;
+                      if (p.eligible && p.below === true) {
+                        bg = "#E03131";
+                        title = `${formatShortDate(p.since)}–${formatShortDate(p.until)}: ${(p.ratePct ?? 0).toFixed(1)}% (abaixo da meta de ${r.targetPct}%)`;
+                      } else if (p.eligible && p.below === false) {
+                        bg = "#00C040";
+                        title = `${formatShortDate(p.since)}–${formatShortDate(p.until)}: ${(p.ratePct ?? 0).toFixed(1)}% (na meta)`;
+                      }
+                      return (
+                        <span
+                          key={p.index}
+                          title={title}
+                          className="h-3 flex-1 rounded-sm"
+                          style={{ background: bg }}
+                          data-testid={`persistent-underperformance-cell-${p.eligible ? (p.below ? "below" : "above") : "ineligible"}`}
+                        />
+                      );
+                    })}
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[10px] text-[#7A7F8C]">
+                  <span>{data.periods} semanas atrás</span>
+                  <span>
+                    Última semana:{" "}
+                    {r.currentRatePct != null
+                      ? `${r.currentRatePct.toFixed(1)}% (${r.currentSignups}/${r.currentPreviews})`
+                      : "sem previews"}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 function TopCitiesList({
   entries,
