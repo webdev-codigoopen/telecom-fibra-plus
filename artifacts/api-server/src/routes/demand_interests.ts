@@ -12,6 +12,8 @@ import {
   shouldNotifyNow,
   recipientQuietHours,
   isInRecipientQuietHours,
+  loadQuietHoursSettings,
+  isInQuietHours,
   type RecipientQuietHours,
 } from "../lib/quietHours";
 import { logger } from "../lib/logger";
@@ -425,6 +427,7 @@ router.get("/demand/interests", requireAdminKey, async (req, res) => {
       : undefined;
     const limitParam = typeof req.query["limit"] === "string" ? parseInt(req.query["limit"], 10) : NaN;
     const limit = Number.isFinite(limitParam) && limitParam > 0 && limitParam <= 1000 ? limitParam : 500;
+    const mutedOnly = req.query["mutedOnly"] === "true" || req.query["mutedOnly"] === "1";
 
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
@@ -455,9 +458,18 @@ router.get("/demand/interests", requireAdminKey, async (req, res) => {
 
     const rows = await filtered
       .orderBy(desc(demandInterestsTable.createdAt))
-      .limit(limit);
+      .limit(mutedOnly ? Math.min(limit * 4, 1000) : limit);
 
-    res.json(rows);
+    const quietSettings = await loadQuietHoursSettings();
+    const enriched = rows.map((r) => ({
+      ...r,
+      mutedByQuietHours: isInQuietHours(r.createdAt, quietSettings),
+    }));
+
+    const out = mutedOnly
+      ? enriched.filter((r) => r.mutedByQuietHours).slice(0, limit)
+      : enriched;
+    res.json(out);
   } catch {
     res.status(500).json({ error: "Failed to fetch interests" });
   }
@@ -566,6 +578,15 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
       : baseSelect;
 
     const rows = await filtered.orderBy(desc(demandInterestsTable.createdAt));
+    const quietSettings = await loadQuietHoursSettings();
+    const mutedOnly = req.query["mutedOnly"] === "true" || req.query["mutedOnly"] === "1";
+    const enrichedAll = rows.map((r) => ({
+      ...r,
+      mutedByQuietHours: isInQuietHours(r.createdAt, quietSettings),
+    }));
+    const enriched = mutedOnly
+      ? enrichedAll.filter((r) => r.mutedByQuietHours)
+      : enrichedAll;
 
     const escape = (val: string | Date | null | undefined): string => {
       let s = val == null ? "" : val instanceof Date ? val.toISOString() : String(val);
@@ -578,8 +599,8 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
       return s;
     };
 
-    const header = "created_at,city,neighborhood,whatsapp,status,note";
-    const body = rows
+    const header = "created_at,city,neighborhood,whatsapp,status,note,muted_by_quiet_hours";
+    const body = enriched
       .map((r) =>
         [
           escape(r.createdAt),
@@ -588,6 +609,7 @@ router.get("/demand/interests/export", requireAdminKey, async (req, res) => {
           escape(r.whatsapp),
           escape(r.status),
           escape(r.note),
+          r.mutedByQuietHours ? "true" : "false",
         ].join(","),
       )
       .join("\n");

@@ -4580,6 +4580,7 @@ type DemandInterest = {
   note: string | null;
   createdAt: string;
   updatedAt?: string;
+  mutedByQuietHours?: boolean;
 };
 
 const STATUS_OPTIONS: { value: InterestStatus; label: string; badge: string }[] = [
@@ -4632,6 +4633,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
   const [statusFilter, setStatusFilter] = useState<"" | InterestStatus>("");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [mutedOnly, setMutedOnly] = useState<boolean>(false);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>("");
@@ -4651,8 +4653,9 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
         params.set("until", until.toISOString());
       }
     }
+    if (mutedOnly) params.set("mutedOnly", "true");
     return params;
-  }, [cityFilter, statusFilter, fromDate, toDate]);
+  }, [cityFilter, statusFilter, fromDate, toDate, mutedOnly]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -4757,6 +4760,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
     setStatusFilter("");
     setFromDate("");
     setToDate("");
+    setMutedOnly(false);
   }
 
   const totalLabel = items.length === 1 ? "1 cadastro" : `${items.length} cadastros`;
@@ -4826,7 +4830,17 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
             data-testid="interest-to-date"
           />
         </label>
-        {(cityFilter || statusFilter || fromDate || toDate) && (
+        <label className="flex items-center gap-2 text-xs text-[#2A2D38] bg-[#F5F7FA] border border-[#E0E3EB] rounded-md px-2.5 py-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={mutedOnly}
+            onChange={(e) => setMutedOnly(e.target.checked)}
+            className="accent-[#0040FF]"
+            data-testid="interest-muted-only-toggle"
+          />
+          <span>Apenas recebidos durante silêncio</span>
+        </label>
+        {(cityFilter || statusFilter || fromDate || toDate || mutedOnly) && (
           <button
             type="button"
             onClick={clearFilters}
@@ -4897,7 +4911,23 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
                 const isSaving = savingId === it.id;
                 return (
                   <tr key={it.id} className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]">
-                    <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">{dateLabel}</td>
+                    <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
+                        <span>{dateLabel}</span>
+                        {it.mutedByQuietHours && (
+                          <span
+                            title="Este interesse chegou enquanto as notificações estavam silenciadas (silêncio noturno ou final de semana)."
+                            className="inline-flex items-center gap-1 self-start text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-[#EEF2FF] text-[#3730A3] border-[#C7D2FE]"
+                            data-testid={`interest-muted-badge-${it.id}`}
+                          >
+                            <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="currentColor">
+                              <path d="M12 3a4 4 0 0 0-4 4v3.6L4.3 18h15.4L16 10.6V7a4 4 0 0 0-4-4zm-2 17a2 2 0 0 0 4 0h-4z" />
+                            </svg>
+                            Recebido durante silêncio
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-[#0D0D0D] font-medium">{it.city}</td>
                     <td className="px-3 py-2 text-[#2A2D38]">{it.neighborhood}</td>
                     <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap font-mono text-xs">
