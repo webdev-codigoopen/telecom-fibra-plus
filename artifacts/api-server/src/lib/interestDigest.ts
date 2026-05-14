@@ -331,6 +331,78 @@ export async function sendInterestDigestToSubscription(
   return { count: rows.length };
 }
 
+function fmtScheduleSlot(
+  frequency: DigestFrequency,
+  schedule: DigestSchedule,
+): string {
+  const hh = `${String(schedule.hour).padStart(2, "0")}h`;
+  if (frequency === "daily") return `todos os dias às ${hh}`;
+  const weekdays = [
+    "domingo",
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+  ];
+  const wd = weekdays[schedule.weekday] ?? "segunda-feira";
+  return `toda ${wd} às ${hh}`;
+}
+
+function markEmailAsPreview(
+  base: { subject: string; html: string; text: string },
+  frequency: DigestFrequency,
+  schedule: DigestSchedule,
+): { subject: string; html: string; text: string } {
+  const slotLabel = fmtScheduleSlot(frequency, schedule);
+  const subject = `[PRÉVIA] ${base.subject}`;
+  const banner = `
+<div style="max-width:720px;margin:0 auto 12px;background:#FFF7E0;border:1px solid #F0C36D;border-radius:12px;padding:12px 16px;font-family:Arial,sans-serif">
+  <p style="margin:0;color:#7A5A00;font-size:13px">
+    <strong>Pré-visualização —</strong> este é um exemplo de como o resumo vai chegar
+    ${escapeHtml(slotLabel)} (horário de Brasília). O envio agendado não foi alterado.
+  </p>
+</div>`.trim();
+  const html = base.html.replace(
+    /<body([^>]*)>/i,
+    (_m, attrs) => `<body${attrs}>${banner}`,
+  );
+  const text = [
+    `[PRÉVIA] Este é um exemplo de como o resumo vai chegar ${slotLabel} (horário de Brasília).`,
+    "O envio agendado não foi alterado.",
+    "",
+    base.text,
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export async function sendInterestDigestPreviewToSubscription(
+  sub: {
+    id: number;
+    email: string;
+    frequency: string;
+    lastSentAt: Date | null;
+  },
+  now: Date = new Date(),
+): Promise<{ count: number }> {
+  if (sub.frequency !== "daily" && sub.frequency !== "weekly") {
+    throw new Error(
+      `Cannot send preview digest for frequency "${sub.frequency}" (must be daily or weekly).`,
+    );
+  }
+  const frequency: DigestFrequency = sub.frequency;
+  const lastSentAt = sub.lastSentAt ?? null;
+  const rows = await fetchInterestsSince(lastSentAt);
+  const schedule = await loadDigestSchedule();
+  const base = buildDigestEmail(frequency, rows, lastSentAt, now);
+  const { subject, html, text } = markEmailAsPreview(base, frequency, schedule);
+  await sendEmail({ to: sub.email, subject, html, text });
+  // Intentionally do NOT update lastSentAt — this is a dry-run preview
+  // so the next scheduled send still goes out as planned.
+  return { count: rows.length };
+}
+
 function buildDigestWhatsappText(
   frequency: WhatsappNotifyFrequency,
   rows: Array<{

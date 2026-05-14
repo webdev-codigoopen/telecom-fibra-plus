@@ -7,6 +7,7 @@ import {
   buildDigestEmail,
   fetchInterestsSince,
   sendInterestDigestToSubscription,
+  sendInterestDigestPreviewToSubscription,
 } from "../lib/interestDigest";
 import {
   loadWhatsappNotifyState,
@@ -690,6 +691,60 @@ router.post(
       res.status(500).json({
         error:
           "Falha ao enviar resumo de teste. Verifique as credenciais SMTP e tente novamente.",
+      });
+    }
+  },
+);
+
+router.post(
+  "/demand/interests/digest/:id/send-preview",
+  requireAdminKey,
+  async (req, res) => {
+    const id = Number(req.params["id"]);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "ID inválido." });
+      return;
+    }
+    if (!(await isEmailConfigured())) {
+      res.status(503).json({
+        error:
+          "Servidor de e-mail (SMTP) não configurado. Preencha no painel, aba 'Relatórios por email'.",
+      });
+      return;
+    }
+    try {
+      const [sub] = await db
+        .select()
+        .from(emailReportSubscriptionsTable)
+        .where(
+          and(
+            eq(emailReportSubscriptionsTable.id, id),
+            eq(emailReportSubscriptionsTable.reportType, "interest_notification"),
+          ),
+        );
+      if (!sub) {
+        res.status(404).json({ error: "Destinatário não encontrado." });
+        return;
+      }
+      if (sub.frequency !== "daily" && sub.frequency !== "weekly") {
+        res.status(400).json({
+          error:
+            "Esse destinatário está configurado como instantâneo. Mude para diário ou semanal para enviar uma prévia.",
+        });
+        return;
+      }
+      const { count } = await sendInterestDigestPreviewToSubscription({
+        id: sub.id,
+        email: sub.email,
+        frequency: sub.frequency,
+        lastSentAt: sub.lastSentAt ?? null,
+      });
+      res.json({ ok: true, count });
+    } catch (err) {
+      logger.error({ err }, "Failed to send interest digest preview");
+      res.status(500).json({
+        error:
+          "Falha ao enviar a prévia do resumo. Verifique as credenciais SMTP e tente novamente.",
       });
     }
   },
