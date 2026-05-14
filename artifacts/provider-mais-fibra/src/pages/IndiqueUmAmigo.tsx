@@ -881,6 +881,7 @@ function ReferralHero() {
   return (
     <section
       data-testid="referral-hero"
+      className="referral-hero-banner"
       style={{
         background: COLOR_PRIMARY,
         position: "relative",
@@ -893,12 +894,29 @@ function ReferralHero() {
         alt="Indique um amigo e ganhe 50% de desconto na sua mensalidade"
         loading="eager"
         decoding="async"
-        style={{
-          display: "block",
-          width: "100%",
-          height: "auto",
-        }}
+        className="referral-hero-banner__img"
       />
+      <style>{`
+        .referral-hero-banner__img {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+        @media (max-width: 768px) {
+          .referral-hero-banner__img {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            object-position: 70% center;
+          }
+        }
+        @media (max-width: 480px) {
+          .referral-hero-banner__img {
+            height: 260px;
+            object-position: 75% center;
+          }
+        }
+      `}</style>
     </section>
   );
 }
