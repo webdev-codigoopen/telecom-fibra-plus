@@ -2394,6 +2394,53 @@ function CityTrendPanel({
   const formatExtremeDelta = (d: number) =>
     `${d > 0 ? "+" : ""}${d} ${Math.abs(d) === 1 ? "clique" : "cliques"}`;
 
+  const slugifyCity = (name: string) =>
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+  const periodForFilename = () => {
+    if (range === "custom") {
+      return customFrom && customTo ? `${customFrom}_${customTo}` : "personalizado";
+    }
+    if (range === "today") return "hoje";
+    if (range === "all") return "tudo";
+    return range;
+  };
+
+  const handleExportTrendCsv = () => {
+    if (!points || points.length === 0) return;
+    const escape = (v: string) => {
+      let s = v;
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+    const header = ["bucket", "label", "current_total", "previous_total"];
+    const rows = points.map((p) => [
+      escape(p.bucket),
+      escape(p.label),
+      String(p.total),
+      hasComparison && p.previous !== null ? String(p.previous) : "",
+    ]);
+    const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n") + "\r\n";
+
+    const filename = `tendencia_${slugifyCity(city)}_${periodForFilename()}.csv`;
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
   const handleExportSourcesCsv = () => {
     const escape = (v: string) => {
       let s = v;
@@ -2414,23 +2461,7 @@ function CityTrendPanel({
     });
     const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n") + "\r\n";
 
-    const slugCity = city
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
-    let periodPart: string;
-    if (range === "custom") {
-      periodPart = customFrom && customTo ? `${customFrom}_${customTo}` : "personalizado";
-    } else if (range === "today") {
-      periodPart = "hoje";
-    } else if (range === "all") {
-      periodPart = "tudo";
-    } else {
-      periodPart = range;
-    }
-    const filename = `tendencia-origens_${slugCity}_${periodPart}.csv`;
+    const filename = `tendencia-origens_${slugifyCity(city)}_${periodForFilename()}.csv`;
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -2539,6 +2570,17 @@ function CityTrendPanel({
               className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
               data-testid="city-trend-source-export-csv"
               title="Baixar CSV com totais por origem"
+            >
+              Exportar CSV
+            </button>
+          )}
+          {effectiveViewMode === "total" && points && points.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportTrendCsv}
+              className="text-[11px] font-semibold rounded-md px-2 py-1 border border-[#0D0D0D]/20 text-[#2A2D38] hover:bg-white"
+              data-testid="city-trend-total-export-csv"
+              title="Baixar CSV com a série temporal"
             >
               Exportar CSV
             </button>
