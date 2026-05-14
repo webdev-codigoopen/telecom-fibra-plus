@@ -1,0 +1,188 @@
+# 🔐 Camadas de Segurança — SaaS com Supabase
+
+> Guia completo para proteger seu projeto Supabase em produção.
+
+---
+
+## 🔑 1. Gerenciamento de Chaves
+
+**Nunca exponha a `service_role` no frontend.**
+
+| Chave | Onde usar |
+|-------|-----------|
+| `anon key` | Frontend (é pública por design) |
+| `service_role` | Apenas no backend/servidor |
+
+### Configuração `.env`
+
+```bash
+# .env
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=...        # frontend
+SUPABASE_SERVICE_ROLE=...    # backend apenas
+```
+
+> ⚠️ Sempre adicione `.env` no `.gitignore`. Nunca suba chaves para o Git.
+
+---
+
+## 🛡️ 2. Row Level Security (RLS) — A mais importante
+
+Ative RLS em **todas as tabelas** sem exceção.
+
+```sql
+-- Ativar RLS
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Usuário só vê seus próprios dados
+CREATE POLICY "user_own_data" ON profiles
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Usuário só edita seus próprios dados
+CREATE POLICY "user_edit_own" ON profiles
+  FOR UPDATE USING (auth.uid() = user_id);
+```
+
+> ⚠️ Sem RLS, qualquer usuário autenticado pode acessar dados de outros. É a camada mais crítica.
+
+---
+
+## 👤 3. Autenticação Segura
+
+- Use **Supabase Auth** nativo (email, OAuth, magic link)
+- Ative **MFA** para usuários admin
+- Configure **JWT expiry** curto (ex: 1 hora)
+- Use **Refresh Tokens** para renovar sessão
+- Ative **Email confirmation** obrigatório
+
+**Onde configurar no painel:**
+`Authentication → Providers → Email → Enable email confirmations`
+
+---
+
+## 🔒 4. Políticas por Role/Perfil
+
+Crie roles para separar permissões entre usuários comuns e administradores.
+
+```sql
+-- Tabela com role do usuário
+CREATE TABLE profiles (
+  id uuid references auth.users,
+  role text DEFAULT 'user' -- 'user', 'admin', 'moderator'
+);
+
+-- Policy que verifica o role
+CREATE POLICY "only_admin" ON sensitive_table
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+```
+
+---
+
+## 🌐 5. Restrição de Origens (CORS)
+
+No painel: `Project Settings → API → Allowed origins`
+
+Coloque **apenas seus domínios**:
+
+```
+https://seuapp.com
+https://www.seuapp.com
+```
+
+> ⚠️ Nunca deixe `*` em produção.
+
+---
+
+## 📡 6. Rate Limiting
+
+O Supabase tem rate limit nativo na API. Para rotas críticas (login, signup), adicione proteção extra no seu servidor.
+
+```javascript
+// Exemplo Next.js middleware
+import rateLimit from 'express-rate-limit'
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100                   // máximo 100 requisições
+})
+```
+
+---
+
+## 🗄️ 7. Segurança no Banco de Dados
+
+```sql
+-- Revogar permissões diretas em tabelas sensíveis
+REVOKE ALL ON sensitive_table FROM anon;
+REVOKE ALL ON sensitive_table FROM authenticated;
+
+-- Usar funções com SECURITY DEFINER para operações críticas
+CREATE OR REPLACE FUNCTION get_sensitive_data()
+RETURNS TABLE(...)
+SECURITY DEFINER
+AS $$
+  SELECT * FROM sensitive_table WHERE user_id = auth.uid();
+$$ LANGUAGE sql;
+```
+
+---
+
+## 🪣 8. Storage Seguro
+
+```sql
+-- Bucket privado (nunca público para dados sensíveis)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('documentos', 'documentos', false);
+
+-- Policy de acesso ao storage
+CREATE POLICY "user_own_files" ON storage.objects
+  FOR ALL USING (
+    bucket_id = 'documentos' AND
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+```
+
+---
+
+## 📋 9. Logs e Monitoramento
+
+- Ative **Database logs** no painel Supabase
+- Use `Supabase → Logs Explorer` para auditar queries suspeitas
+- Integre com **Sentry** para capturar erros no app
+- Configure alertas para tentativas de login falhas
+
+---
+
+## ✅ Checklist de Segurança
+
+| Camada | Prioridade | Status |
+|--------|------------|--------|
+| RLS ativo em todas as tabelas | 🔴 Obrigatório | |
+| `service_role` só no backend | 🔴 Obrigatório | |
+| `.env` no `.gitignore` | 🔴 Obrigatório | |
+| CORS restrito ao seu domínio | 🔴 Obrigatório | |
+| Email confirmation ativo | 🟡 Recomendado | |
+| MFA para admins | 🟡 Recomendado | |
+| Rate limiting nas rotas | 🟡 Recomendado | |
+| Buckets de storage privados | 🟡 Recomendado | |
+| Logs e monitoramento | 🟡 Recomendado | |
+| Funções SECURITY DEFINER | 🟢 Situacional | |
+
+---
+
+## 🚨 Regras de Ouro
+
+1. **Nunca suba `.env` para o Git**
+2. **RLS é inegociável** — ative em todas as tabelas
+3. **`service_role` nunca no frontend**
+4. **CORS restrito** — apenas seus domínios em produção
+5. **Monitore logs** — identifique acessos suspeitos cedo
+
+---
+
+*Gerado para o projeto Supabase: `gshtxnrishtqoheaxyeu`*
