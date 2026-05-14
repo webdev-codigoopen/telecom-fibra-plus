@@ -10,6 +10,7 @@ import Hero from "@/components/sections/Hero";
 import About from "@/components/sections/About";
 import Differentials from "@/components/sections/Differentials";
 import ComboPowerTop from "@/components/sections/ComboPowerTop";
+import WatchBanner from "@/components/sections/WatchBanner";
 import AppSection from "@/components/sections/AppSection";
 import WhatsAppSection from "@/components/sections/WhatsAppSection";
 import WatchSection from "@/components/sections/WatchSection";
@@ -46,6 +47,7 @@ export default function Home() {
         <About />
         <Differentials />
         <ComboPowerTop />
+        <WatchBanner />
         <AppSection />
         <WhatsAppSection />
         <WatchSection />
