@@ -1106,7 +1106,7 @@ function ReferralIfYouWereInvited() {
           gap: 30,
         }}
       >
-        <div style={{ textAlign: "left" }}>
+        <div style={{ textAlign: "center" }}>
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
