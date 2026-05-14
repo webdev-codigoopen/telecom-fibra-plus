@@ -7,6 +7,10 @@ import {
 } from "@workspace/db";
 import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
+import {
+  isWhatsappNotifyEnabled,
+  sendWhatsappNotification,
+} from "./sendWhatsapp";
 import { logger } from "./logger";
 
 const TIME_ZONE = "America/Sao_Paulo";
@@ -476,6 +480,38 @@ function buildQuietDigestEmail(
   return { subject, html, text };
 }
 
+function buildQuietDigestWhatsappText(
+  rows: Array<{
+    city: string;
+    neighborhood: string;
+    whatsapp: string;
+    createdAt: Date;
+  }>,
+  windowStart: Date,
+  now: Date,
+): string {
+  const MAX_LEN = 3500;
+  const header = [
+    `*Resumo do silêncio noturno* — ${rows.length} cadastro(s)`,
+    `Período: ${fmtDateTimeBR(windowStart)} até ${fmtDateTimeBR(now)}`,
+    "",
+  ].join("\n");
+  const lines: string[] = [];
+  let included = 0;
+  for (const r of rows) {
+    const line = `• ${fmtDateTimeBR(r.createdAt)} — ${r.city} / ${r.neighborhood}\n  ${whatsappLink(r.whatsapp)}`;
+    const projected = header.length + lines.join("\n").length + line.length + 2;
+    if (projected > MAX_LEN) break;
+    lines.push(line);
+    included += 1;
+  }
+  let body = header + lines.join("\n");
+  if (included < rows.length) {
+    body += `\n\n…e mais ${rows.length - included} cadastro(s). Veja todos no painel.`;
+  }
+  return body;
+}
+
 /**
  * Tracks transitions in/out of the configured quiet-hours window and, when
  * configured, sends a digest of the muted interests at the end of the window.
@@ -511,32 +547,85 @@ export async function tickQuietHours(now: Date = new Date()): Promise<void> {
     if (!s.digestEnabled) return;
 
     const recipients = await getInstantInterestRecipients();
-    if (recipients.length === 0) return;
-    if (!(await isEmailConfigured())) {
+    const smtpReady = await isEmailConfigured();
+    const whatsappReady = await isWhatsappNotifyEnabled();
+
+    if (recipients.length === 0 && !whatsappReady) return;
+    if (recipients.length > 0 && !smtpReady) {
       logger.warn(
         { count: recipients.length },
-        "Quiet-hours digest skipped: SMTP not configured",
+        "Quiet-hours digest email skipped: SMTP not configured",
       );
-      return;
     }
+
     const rows = await fetchInterestsBetween(s.activeSince, now);
     if (rows.length === 0) {
       await setSetting("quiet_hours_digest_last_sent_at", now.toISOString(), now);
       return;
     }
-    const { subject, html, text } = buildQuietDigestEmail(rows, s.activeSince, now);
-    await Promise.all(
-      recipients.map((to) =>
-        sendEmail({ to, subject, html, text }).catch((err) => {
-          logger.error({ err, to }, "Failed to send quiet-hours digest to recipient");
-        }),
-      ),
-    );
-    await setSetting("quiet_hours_digest_last_sent_at", now.toISOString(), now);
-    logger.info(
-      { recipients: recipients.length, leads: rows.length },
-      "Quiet-hours digest sent",
-    );
+
+    let emailDelivered = 0;
+    let whatsappDelivered = false;
+
+    if (recipients.length > 0 && smtpReady) {
+      const { subject, html, text } = buildQuietDigestEmail(
+        rows,
+        s.activeSince,
+        now,
+      );
+      const results = await Promise.all(
+        recipients.map((to) =>
+          sendEmail({ to, subject, html, text })
+            .then(() => true)
+            .catch((err) => {
+              logger.error(
+                { err, to },
+                "Failed to send quiet-hours digest to recipient",
+              );
+              return false;
+            }),
+        ),
+      );
+      emailDelivered = results.filter(Boolean).length;
+    }
+
+    if (whatsappReady) {
+      const waText = buildQuietDigestWhatsappText(rows, s.activeSince, now);
+      try {
+        const result = await sendWhatsappNotification(waText);
+        if (!result.ok) {
+          logger.error(
+            { error: result.error },
+            "Failed to send quiet-hours digest via WhatsApp",
+          );
+        } else {
+          whatsappDelivered = true;
+          logger.info(
+            { leads: rows.length },
+            "Quiet-hours digest sent via WhatsApp",
+          );
+        }
+      } catch (err) {
+        logger.error({ err }, "Failed to send quiet-hours digest via WhatsApp");
+      }
+    }
+
+    if (emailDelivered > 0 || whatsappDelivered) {
+      await setSetting("quiet_hours_digest_last_sent_at", now.toISOString(), now);
+      logger.info(
+        {
+          emailDelivered,
+          whatsappDelivered,
+          leads: rows.length,
+        },
+        "Quiet-hours digest sent",
+      );
+    } else {
+      logger.warn(
+        { leads: rows.length },
+        "Quiet-hours digest had no successful delivery on any channel",
+      );
+    }
   } catch (err) {
     logger.error({ err }, "tickQuietHours failed");
   }
