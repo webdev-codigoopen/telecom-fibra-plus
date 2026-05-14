@@ -7,6 +7,7 @@ import PlanCard, { StreamingBox } from "../components/PlanCard";
 import MobilePlansPreview from "../components/MobilePlansPreview";
 import { type Plan } from "../lib/plans";
 import CityClicksMap from "../components/CityClicksMap";
+import WorldClicksMap from "../components/WorldClicksMap";
 import CityAccessDashboard from "../components/CityAccessDashboard";
 import AdminShell, { type AdminTabId } from "./admin/AdminShell";
 import DashboardOverview from "./admin/DashboardOverview";
@@ -10388,7 +10389,12 @@ function BotVsHumanPanel({
       if (kind !== "all") recentParams.set("kind", kind);
       if (debouncedSearch) recentParams.set("q", debouncedSearch);
       const recentUrl = `${baseUrl}/api/clicks/recent?${recentParams.toString()}`;
-      const countriesUrl = `${baseUrl}/api/clicks/top-countries${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
+      const countriesParams = new URLSearchParams(rangeParams);
+      // The backend caps `limit` at 50 — request the full ceiling so the world
+      // map can colour every country with traffic, not just the leaderboard's
+      // top 8.
+      countriesParams.set("limit", "50");
+      const countriesUrl = `${baseUrl}/api/clicks/top-countries?${countriesParams.toString()}`;
       const regionsUrl = `${baseUrl}/api/clicks/top-regions${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
       const [sRes, rRes, cRes, gRes] = await Promise.all([
         adminFetch(summaryUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
@@ -10568,6 +10574,14 @@ function BotVsHumanPanel({
       )}
 
       {topCountries && topCountries.rows.length > 0 && (
+        <WorldClicksMap
+          rows={topCountries.rows}
+          totalIdentified={topCountries.totalIdentified}
+          loading={loading}
+        />
+      )}
+
+      {topCountries && topCountries.rows.length > 0 && (
         <div className="rounded-xl border border-[#E0E3EB] px-4 py-3 mb-4" data-testid="top-countries-panel">
           <div className="flex items-baseline justify-between gap-2 flex-wrap mb-2">
             <div className="text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide">
@@ -10598,7 +10612,9 @@ function BotVsHumanPanel({
             </div>
           )}
           <ul className="space-y-1.5">
-            {topCountries.rows.map((c) => {
+            {/* The map uses the full 50-row payload; the leaderboard stays
+                scannable with the previous top-8 cap. */}
+            {topCountries.rows.slice(0, 8).map((c) => {
               const pct = topCountries.totalIdentified > 0
                 ? Math.round((c.total / topCountries.totalIdentified) * 100)
                 : 0;
