@@ -1442,20 +1442,66 @@ export default function IndiqueUmAmigo() {
       <style>{`
         @media (max-width: 899px) {
           .referral-steps {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .referral-invited-cards {
             grid-template-columns: 1fr !important;
+          }
+          [data-testid="referral-how-it-works"],
+          [data-testid="referral-invited"] {
+            padding-top: 64px !important;
+            padding-bottom: 64px !important;
+          }
+          [data-testid="referral-faq"] {
+            padding-top: 64px !important;
+            padding-bottom: 72px !important;
+          }
+          [data-testid="referral-how-it-works"] h2,
+          [data-testid="referral-invited"] h2,
+          [data-testid="referral-faq"] h2 {
+            font-size: 26px !important;
+            line-height: 32px !important;
           }
         }
         @media (max-width: 599px) {
           .referral-grid {
             grid-template-columns: 1fr !important;
           }
+          .referral-steps {
+            grid-template-columns: 1fr !important;
+          }
           [data-testid="referral-form-section"] {
-            padding-top: 56px !important;
+            padding-top: 48px !important;
+            padding-bottom: 48px !important;
+          }
+          [data-testid="referral-how-it-works"],
+          [data-testid="referral-invited"] {
+            padding-top: 48px !important;
+            padding-bottom: 48px !important;
+          }
+          [data-testid="referral-faq"] {
+            padding-top: 48px !important;
             padding-bottom: 56px !important;
+          }
+          [data-testid="referral-how-it-works"] h2,
+          [data-testid="referral-invited"] h2,
+          [data-testid="referral-faq"] h2 {
+            font-size: 22px !important;
+            line-height: 28px !important;
+          }
+          [data-testid="referral-rules"] {
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+          }
+          [data-testid="referral-rules"] p {
+            font-size: 13px !important;
+            line-height: 18px !important;
           }
           .referral-actions {
             flex-direction: column-reverse !important;
+            gap: 10px !important;
           }
+          .referral-actions .referral-btn,
           .referral-actions .referral-btn--ghost {
             width: 100% !important;
             justify-content: center !important;
