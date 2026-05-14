@@ -1,6 +1,6 @@
 import { backfillShareBotClicks } from "@workspace/scripts/backfill-share-bot-clicks";
 import { db, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
-import { lt, sql } from "drizzle-orm";
+import { and, lt, notInArray, sql } from "drizzle-orm";
 import { logger } from "./logger";
 import {
   checkAndAlertIfStale,
@@ -13,18 +13,33 @@ const INITIAL_DELAY_MS = 5 * 60 * 1000; // wait 5 min after boot before first ru
 
 export const BOT_CLEANUP_STATUS_KEY = "bot_cleanup_last_run";
 
-// Retention window for the bot_cleanup_runs history table. The admin UI only
-// surfaces the last 7 entries, so anything older than this is safe to prune.
-export const BOT_CLEANUP_RUN_RETENTION_DAYS = 180;
+// Retention policy for the bot_cleanup_runs history table. The admin UI only
+// surfaces the last ~20 entries, so we keep a generous buffer beyond that:
+// always retain at least the most recent N runs, plus anything within the
+// last D days. A row is pruned only when it is BOTH older than the day window
+// AND not among the most-recent N rows.
+export const BOT_CLEANUP_RUN_RETENTION_DAYS = 90;
+export const BOT_CLEANUP_RUN_RETENTION_MIN_ROWS = 200;
 
 async function pruneOldBotCleanupRuns(now: Date): Promise<void> {
   try {
     const cutoff = new Date(
       now.getTime() - BOT_CLEANUP_RUN_RETENTION_DAYS * ONE_DAY_MS,
     );
-    await db
-      .delete(botCleanupRunsTable)
-      .where(lt(botCleanupRunsTable.startedAt, cutoff));
+    const recent = await db
+      .select({ id: botCleanupRunsTable.id })
+      .from(botCleanupRunsTable)
+      .orderBy(sql`${botCleanupRunsTable.finishedAt} desc`)
+      .limit(BOT_CLEANUP_RUN_RETENTION_MIN_ROWS);
+    const keepIds = recent.map((r) => r.id);
+    const condition =
+      keepIds.length > 0
+        ? and(
+            lt(botCleanupRunsTable.startedAt, cutoff),
+            notInArray(botCleanupRunsTable.id, keepIds),
+          )
+        : lt(botCleanupRunsTable.startedAt, cutoff);
+    await db.delete(botCleanupRunsTable).where(condition);
   } catch (err) {
     logger.error(
       { err },
