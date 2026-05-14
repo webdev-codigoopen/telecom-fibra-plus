@@ -977,8 +977,8 @@ function ReferralHowItWorks() {
             style={{
               fontFamily: FONT_MONTSERRAT,
               fontWeight: 400,
-              fontSize: 30,
-              lineHeight: "38px",
+              fontSize: 40,
+              lineHeight: "48px",
               color: "#FFFFFF",
               margin: 0,
             }}
@@ -1111,8 +1111,8 @@ function ReferralIfYouWereInvited() {
             style={{
               fontFamily: FONT_MONTSERRAT,
               fontWeight: 400,
-              fontSize: 28,
-              lineHeight: "36px",
+              fontSize: 40,
+              lineHeight: "48px",
               margin: 0,
             }}
           >
@@ -1330,8 +1330,8 @@ function ReferralFAQ() {
             style={{
               fontFamily: FONT_MONTSERRAT,
               fontWeight: 400,
-              fontSize: 32,
-              lineHeight: "40px",
+              fontSize: 40,
+              lineHeight: "48px",
               color: "#003F99",
             }}
           >
