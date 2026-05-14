@@ -20,6 +20,8 @@ import { logger } from "../lib/logger";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
 import {
   CITY_BELOW_TARGET_REPORT_TYPE,
+  computeBelowTargetRows,
+  parsePreviousCities,
   sendBelowTargetDigest,
   type BelowTargetFrequency,
 } from "../lib/cityBelowTargetDigest";
@@ -633,10 +635,24 @@ router.post(
           ? override.data.frequency
           : (sub.frequency as BelowTargetFrequency);
       const now = new Date();
-      await sendBelowTargetDigest({ to: sub.email, frequency: freq, now });
+      const previousCities = parsePreviousCities(sub.belowTargetLastCities);
+      const precomputed = await computeBelowTargetRows(freq, now);
+      await sendBelowTargetDigest({
+        to: sub.email,
+        frequency: freq,
+        now,
+        previousCities,
+        precomputed,
+      });
       const [updated] = await db
         .update(emailReportSubscriptionsTable)
-        .set({ lastSentAt: now, updatedAt: now })
+        .set({
+          lastSentAt: now,
+          updatedAt: now,
+          belowTargetLastCities: JSON.stringify(
+            precomputed.rows.map((r) => r.city),
+          ),
+        })
         .where(eq(emailReportSubscriptionsTable.id, id))
         .returning();
       res.json(updated);

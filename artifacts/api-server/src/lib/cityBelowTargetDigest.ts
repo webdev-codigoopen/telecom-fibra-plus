@@ -32,6 +32,16 @@ export type BelowTargetRow = {
   isPerCityTarget: boolean;
 };
 
+export type RecoveryRow = {
+  city: string;
+  previews: number;
+  signups: number;
+  ratePct: number;
+  targetPct: number;
+  surplusPct: number;
+  isPerCityTarget: boolean;
+};
+
 function parsePerCityTargets(raw: string | undefined | null): PerCityTargets {
   if (!raw) return {};
   try {
@@ -120,6 +130,15 @@ export function windowForFrequency(
   return { since, until, days };
 }
 
+type CityStat = {
+  city: string;
+  previews: number;
+  signups: number;
+  ratePct: number;
+  targetPct: number;
+  isPerCityTarget: boolean;
+};
+
 export async function computeBelowTargetRows(
   frequency: BelowTargetFrequency,
   now: Date = new Date(),
@@ -130,19 +149,29 @@ export async function computeBelowTargetRows(
   windowDays: number;
   since: Date;
   until: Date;
+  cityStats: Map<string, CityStat>;
 }> {
   const { perCityTargets, defaultPct, minPreviews } = await loadDigestSettings();
   const { since, until, days } = windowForFrequency(frequency, now);
   const conv = await fetchCityConversion(since, until);
 
   const rows: BelowTargetRow[] = [];
+  const cityStats = new Map<string, CityStat>();
   for (const c of conv) {
-    if (c.previews < minPreviews) continue;
     const override = perCityTargets[c.city];
     const isPerCityTarget = Number.isFinite(override) && override > 0 && override <= 100;
     const targetPct = isPerCityTarget ? (override as number) : defaultPct;
     if (!Number.isFinite(targetPct) || targetPct <= 0) continue;
-    const ratePct = (c.signups / c.previews) * 100;
+    const ratePct = c.previews > 0 ? (c.signups / c.previews) * 100 : 0;
+    cityStats.set(c.city, {
+      city: c.city,
+      previews: c.previews,
+      signups: c.signups,
+      ratePct,
+      targetPct,
+      isPerCityTarget,
+    });
+    if (c.previews < minPreviews) continue;
     if (ratePct >= targetPct) continue;
     rows.push({
       city: c.city,
@@ -158,7 +187,51 @@ export async function computeBelowTargetRows(
     if (b.gapPct !== a.gapPct) return b.gapPct - a.gapPct;
     return a.city.localeCompare(b.city, "pt-BR");
   });
-  return { rows, defaultPct, minPreviews, windowDays: days, since, until };
+  return { rows, defaultPct, minPreviews, windowDays: days, since, until, cityStats };
+}
+
+export function computeRecoveryRows(
+  previousCities: string[],
+  result: { cityStats: Map<string, CityStat>; minPreviews: number; rows: BelowTargetRow[] },
+): RecoveryRow[] {
+  if (previousCities.length === 0) return [];
+  const stillBelow = new Set(result.rows.map((r) => r.city));
+  const seen = new Set<string>();
+  const out: RecoveryRow[] = [];
+  for (const city of previousCities) {
+    if (seen.has(city)) continue;
+    seen.add(city);
+    if (stillBelow.has(city)) continue;
+    const s = result.cityStats.get(city);
+    if (!s) continue;
+    if (s.previews < result.minPreviews) continue;
+    if (s.ratePct < s.targetPct) continue;
+    out.push({
+      city: s.city,
+      previews: s.previews,
+      signups: s.signups,
+      ratePct: s.ratePct,
+      targetPct: s.targetPct,
+      surplusPct: s.ratePct - s.targetPct,
+      isPerCityTarget: s.isPerCityTarget,
+    });
+  }
+  out.sort((a, b) => {
+    if (b.surplusPct !== a.surplusPct) return b.surplusPct - a.surplusPct;
+    return a.city.localeCompare(b.city, "pt-BR");
+  });
+  return out;
+}
+
+export function parsePreviousCities(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x): x is string => typeof x === "string" && x.length > 0);
+  } catch {
+    return [];
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -196,18 +269,28 @@ function adminDashboardUrl(): string {
 export function buildDigestSubject(
   frequency: BelowTargetFrequency,
   rowsCount: number,
+  recoveriesCount = 0,
 ): string {
   const periodo = frequency === "weekly" ? "semanal" : "diário";
-  if (rowsCount === 0) {
+  if (rowsCount === 0 && recoveriesCount === 0) {
     return `✅ Resumo ${periodo}: nenhuma cidade abaixo da meta`;
   }
+  if (rowsCount === 0 && recoveriesCount > 0) {
+    const plural = recoveriesCount === 1 ? "cidade voltou" : "cidades voltaram";
+    return `✅ Resumo ${periodo}: ${recoveriesCount} ${plural} para a meta`;
+  }
   const plural = rowsCount === 1 ? "cidade" : "cidades";
-  return `⚠️ Resumo ${periodo}: ${rowsCount} ${plural} abaixo da meta`;
+  const base = `⚠️ Resumo ${periodo}: ${rowsCount} ${plural} abaixo da meta`;
+  if (recoveriesCount > 0) {
+    return `${base} (+${recoveriesCount} recuperada${recoveriesCount === 1 ? "" : "s"})`;
+  }
+  return base;
 }
 
 export function buildDigestHtml(
   frequency: BelowTargetFrequency,
   result: Awaited<ReturnType<typeof computeBelowTargetRows>>,
+  recoveries: RecoveryRow[] = [],
 ): string {
   const periodoLabel = frequency === "weekly" ? "últimos 7 dias" : "últimas 24 horas";
   const dashboardUrl = adminDashboardUrl();
@@ -250,13 +333,56 @@ ${rowsHtml}
 </table>`;
   }
 
+  let recoverySection = "";
+  if (recoveries.length > 0) {
+    const recoveryRowsHtml = recoveries
+      .map((r) => {
+        const tag = r.isPerCityTarget ? "específica" : "padrão";
+        return `<tr>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#0D0D0D; font-weight:600;">${escapeHtml(r.city)}</td>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#0E7D3D; font-weight:700;">${fmtPct(r.ratePct)}%</td>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#2A2D38;">${fmtPct(r.targetPct)}% <span style="color:#7A7F8C; font-size:11px;">(${tag})</span></td>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#0E7D3D;">+${fmtPct(r.surplusPct)} p.p.</td>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#2A2D38;">${r.previews}</td>
+  <td style="padding:8px 10px; border-top:1px solid #CDE9D6; color:#2A2D38;">${r.signups}</td>
+</tr>`;
+      })
+      .join("\n");
+    recoverySection = `<h3 style="margin:24px 0 8px; color:#0E7D3D; font-size:16px;">✅ Cidades que voltaram para a meta</h3>
+<p style="margin:0 0 12px;">Estas cidades foram alertadas no resumo anterior e agora estão <strong>acima ou na meta</strong> de conversão. Bom trabalho!</p>
+<table cellpadding="0" cellspacing="0" style="border-collapse:collapse; width:100%; font-size:13px; margin:0 0 16px; background:#F1FAF3;">
+<thead>
+  <tr style="background:#E0F2E6; color:#0E5C2C; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em;">
+    <th style="padding:8px 10px;">Cidade</th>
+    <th style="padding:8px 10px;">Conversão</th>
+    <th style="padding:8px 10px;">Meta</th>
+    <th style="padding:8px 10px;">Diferença</th>
+    <th style="padding:8px 10px;">Prévias</th>
+    <th style="padding:8px 10px;">Cadastros</th>
+  </tr>
+</thead>
+<tbody>
+${recoveryRowsHtml}
+</tbody>
+</table>`;
+  }
+
+  const headerColor =
+    result.rows.length === 0
+      ? recoveries.length > 0
+        ? "#0E7D3D"
+        : "#0E7D3D"
+      : "#A11A1A";
+  const headerIcon = result.rows.length === 0 ? "✅" : "⚠️";
+
   return `<!doctype html>
 <html lang="pt-BR">
 <body style="font-family: Arial, sans-serif; color:#0D0D0D; max-width:720px; margin:0 auto; padding:24px;">
-  <h2 style="margin:0 0 8px; color:${result.rows.length === 0 ? "#0E7D3D" : "#A11A1A"};">${result.rows.length === 0 ? "✅" : "⚠️"} Cidades abaixo da meta — resumo ${frequency === "weekly" ? "semanal" : "diário"}</h2>
+  <h2 style="margin:0 0 8px; color:${headerColor};">${headerIcon} Cidades abaixo da meta — resumo ${frequency === "weekly" ? "semanal" : "diário"}</h2>
   <p style="margin:0 0 4px; color:#7A7F8C; font-size:12px;">Período: ${escapeHtml(fmtDateBR(result.since))} a ${escapeHtml(fmtDateBR(result.until))}</p>
   ${headerNote}
   ${table}
+  ${recoverySection}
   <p style="margin:0 0 16px;">
     <a href="${linkAttr}" style="color:#0A55C2;">Abrir o painel administrativo</a> para ver detalhes e ajustar metas por cidade.
   </p>
@@ -285,13 +411,20 @@ export async function sendBelowTargetDigest(opts: {
   to: string | string[];
   frequency: BelowTargetFrequency;
   now?: Date;
-}): Promise<{ rowsCount: number }> {
+  previousCities?: string[];
+  precomputed?: Awaited<ReturnType<typeof computeBelowTargetRows>>;
+}): Promise<{
+  rowsCount: number;
+  recoveriesCount: number;
+  result: Awaited<ReturnType<typeof computeBelowTargetRows>>;
+}> {
   const now = opts.now ?? new Date();
-  const result = await computeBelowTargetRows(opts.frequency, now);
-  const subject = buildDigestSubject(opts.frequency, result.rows.length);
-  const html = buildDigestHtml(opts.frequency, result);
+  const result = opts.precomputed ?? (await computeBelowTargetRows(opts.frequency, now));
+  const recoveries = computeRecoveryRows(opts.previousCities ?? [], result);
+  const subject = buildDigestSubject(opts.frequency, result.rows.length, recoveries.length);
+  const html = buildDigestHtml(opts.frequency, result, recoveries);
   await sendEmail({ to: opts.to, subject, html });
-  return { rowsCount: result.rows.length };
+  return { rowsCount: result.rows.length, recoveriesCount: recoveries.length, result };
 }
 
 export async function tickBelowTargetDigest(now: Date = new Date()): Promise<void> {
@@ -334,22 +467,34 @@ export async function tickBelowTargetDigest(now: Date = new Date()): Promise<voi
         result = await computeBelowTargetRows(freq, now);
         cache.set(freq, result);
       }
-      // Avoid noise: don't email when nothing is below target. Still
-      // advance lastSentAt so the next due window is from "now", and the
-      // admin can still trigger an empty-state preview via /send-now.
-      if (result.rows.length === 0) {
+      const previousCities = parsePreviousCities(sub.belowTargetLastCities);
+      const recoveries = computeRecoveryRows(previousCities, result);
+      const newCitiesJson = JSON.stringify(result.rows.map((r) => r.city));
+
+      // Avoid noise: don't email when nothing is below target AND nothing
+      // recovered. Still advance lastSentAt so the next due window is from
+      // "now", and refresh the tracked cities list (now empty).
+      if (result.rows.length === 0 && recoveries.length === 0) {
         await db
           .update(emailReportSubscriptionsTable)
-          .set({ lastSentAt: now, updatedAt: now })
+          .set({
+            lastSentAt: now,
+            updatedAt: now,
+            belowTargetLastCities: newCitiesJson,
+          })
           .where(eq(emailReportSubscriptionsTable.id, sub.id));
         continue;
       }
-      const subject = buildDigestSubject(freq, result.rows.length);
-      const html = buildDigestHtml(freq, result);
+      const subject = buildDigestSubject(freq, result.rows.length, recoveries.length);
+      const html = buildDigestHtml(freq, result, recoveries);
       await sendEmail({ to: sub.email, subject, html });
       await db
         .update(emailReportSubscriptionsTable)
-        .set({ lastSentAt: now, updatedAt: now })
+        .set({
+          lastSentAt: now,
+          updatedAt: now,
+          belowTargetLastCities: newCitiesJson,
+        })
         .where(eq(emailReportSubscriptionsTable.id, sub.id));
     } catch (err) {
       logger.error(

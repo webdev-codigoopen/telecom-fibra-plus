@@ -22,6 +22,7 @@ export const emailReportSubscriptionsTable = pgTable(
     quietHoursLastDigestSentAt: timestamp("quiet_hours_last_digest_sent_at", {
       withTimezone: true,
     }),
+    belowTargetLastCities: text("below_target_last_cities"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
