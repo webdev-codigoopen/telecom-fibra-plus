@@ -1411,6 +1411,19 @@ export default function Admin() {
 
         {!loading && activeTab === "emails" && (
           <div className="space-y-6">
+            <EmailRecipientsOverview
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+              onNavigate={(target) => {
+                if (target.tab !== activeTab) setActiveTab(target.tab);
+                requestAnimationFrame(() => {
+                  const el = document.getElementById(target.anchor);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }
+                });
+              }}
+            />
             <SmtpSettings
               settings={appSettings}
               adminKey={adminKey}
@@ -5042,6 +5055,291 @@ type EmailSubscription = {
   updatedAt: string;
 };
 
+type RecipientNavTarget = { tab: AdminTabId; anchor: string };
+
+type RecipientAlertKind =
+  | "comparison"
+  | "below-target"
+  | "interest"
+  | "preview-health";
+
+type RecipientCellInfo = {
+  enabled: boolean;
+  frequency?: string;
+};
+
+type OverviewRow = {
+  email: string;
+  cells: Partial<Record<RecipientAlertKind, RecipientCellInfo>>;
+};
+
+const ALERT_META: Record<
+  RecipientAlertKind,
+  { label: string; nav: RecipientNavTarget }
+> = {
+  comparison: {
+    label: "Comparativo de cidades",
+    nav: { tab: "emails", anchor: "email-overview-comparativo" },
+  },
+  "below-target": {
+    label: "Abaixo da meta",
+    nav: { tab: "emails", anchor: "email-overview-below-target" },
+  },
+  interest: {
+    label: "Novos interesses",
+    nav: { tab: "interesses", anchor: "email-overview-interest" },
+  },
+  "preview-health": {
+    label: "Pré-visualização WhatsApp",
+    nav: { tab: "emails", anchor: "email-overview-preview-health" },
+  },
+};
+
+const ALERT_ORDER: RecipientAlertKind[] = [
+  "comparison",
+  "below-target",
+  "interest",
+  "preview-health",
+];
+
+function formatFrequencyLabel(
+  kind: RecipientAlertKind,
+  freq?: string,
+): string {
+  if (!freq) return "";
+  if (kind === "comparison") return freq === "weekly" ? "Semanal" : "Mensal";
+  if (kind === "below-target") return freq === "weekly" ? "Semanal" : "Diário";
+  if (kind === "interest") {
+    if (freq === "instant") return "Instantâneo";
+    if (freq === "weekly") return "Semanal";
+    return "Diário";
+  }
+  return "";
+}
+
+function EmailRecipientsOverview({
+  adminKey,
+  baseUrl,
+  onNavigate,
+}: {
+  adminKey: string;
+  baseUrl: string;
+  onNavigate: (target: RecipientNavTarget) => void;
+}) {
+  const [rows, setRows] = useState<OverviewRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setErrorMsg(null);
+      try {
+        const headers = { Authorization: `Bearer ${adminKey}` };
+        const endpoints: Array<{ kind: RecipientAlertKind; url: string }> = [
+          {
+            kind: "comparison",
+            url: `${baseUrl}/api/email-subscriptions/city-comparison`,
+          },
+          {
+            kind: "below-target",
+            url: `${baseUrl}/api/email-subscriptions/city-below-target`,
+          },
+          {
+            kind: "interest",
+            url: `${baseUrl}/api/email-subscriptions/interest-notification`,
+          },
+          {
+            kind: "preview-health",
+            url: `${baseUrl}/api/email-subscriptions/preview-health-alert`,
+          },
+        ];
+        const results = await Promise.all(
+          endpoints.map(async ({ kind, url }) => {
+            const res = await adminFetch(url, { headers });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data: {
+              items: Array<{
+                email: string;
+                frequency?: string;
+                enabled: boolean;
+              }>;
+            } = await res.json();
+            return { kind, items: data.items ?? [] };
+          }),
+        );
+        if (cancelled) return;
+        const map = new Map<string, OverviewRow>();
+        for (const { kind, items } of results) {
+          for (const item of items) {
+            const key = item.email.trim().toLowerCase();
+            if (!key) continue;
+            let row = map.get(key);
+            if (!row) {
+              row = { email: item.email, cells: {} };
+              map.set(key, row);
+            }
+            row.cells[kind] = {
+              enabled: item.enabled,
+              frequency: item.frequency,
+            };
+          }
+        }
+        const list = Array.from(map.values()).sort((a, b) =>
+          a.email.localeCompare(b.email, "pt-BR"),
+        );
+        setRows(list);
+      } catch {
+        if (!cancelled) {
+          setErrorMsg(
+            "Não foi possível carregar a visão consolidada de destinatários.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [adminKey, baseUrl, reloadKey]);
+
+  const totalRecipients = rows.length;
+
+  return (
+    <section
+      id="email-recipients-overview"
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      data-testid="email-recipients-overview"
+    >
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-bold text-[#0D0D0D] text-base">
+            Quem recebe cada alerta
+          </h2>
+          <p className="text-sm text-[#7A7F8C] mt-1">
+            Visão consolidada de todos os destinatários cadastrados nos
+            diferentes alertas por email. Use os links para editar cada
+            assinatura.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setReloadKey((n) => n + 1)}
+          disabled={loading}
+          className="text-xs font-semibold px-3 py-1.5 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+          data-testid="email-recipients-refresh"
+        >
+          {loading ? "Atualizando..." : "Atualizar"}
+        </button>
+      </header>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="text-xs text-[#7A7F8C] mb-2">
+        {loading
+          ? "Carregando..."
+          : totalRecipients === 0
+            ? "Nenhum destinatário cadastrado em nenhum alerta."
+            : totalRecipients === 1
+              ? "1 destinatário cadastrado no total"
+              : `${totalRecipients} destinatários cadastrados no total`}
+      </div>
+
+      {!loading && totalRecipients === 0 ? (
+        <div className="text-center text-[#7A7F8C] py-10 border border-dashed border-[#E0E3EB] rounded-xl">
+          Cadastre destinatários nos cards abaixo para que apareçam aqui.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#E0E3EB] rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F5F7FA] text-[#7A7F8C] text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Email</th>
+                {ALERT_ORDER.map((kind) => (
+                  <th
+                    key={kind}
+                    className="text-left px-3 py-2 font-semibold"
+                  >
+                    {ALERT_META[kind].label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  key={row.email}
+                  className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
+                  data-testid={`email-recipients-row-${row.email}`}
+                >
+                  <td className="px-3 py-2 text-[#0D0D0D] font-medium align-top">
+                    {row.email}
+                  </td>
+                  {ALERT_ORDER.map((kind) => {
+                    const cell = row.cells[kind];
+                    const meta = ALERT_META[kind];
+                    if (!cell) {
+                      return (
+                        <td
+                          key={kind}
+                          className="px-3 py-2 text-[#B7BCC9] align-top"
+                          data-testid={`email-recipients-cell-${row.email}-${kind}`}
+                        >
+                          —
+                        </td>
+                      );
+                    }
+                    const freqLabel = formatFrequencyLabel(
+                      kind,
+                      cell.frequency,
+                    );
+                    return (
+                      <td
+                        key={kind}
+                        className="px-3 py-2 align-top"
+                        data-testid={`email-recipients-cell-${row.email}-${kind}`}
+                      >
+                        <div className="flex flex-col gap-1 items-start">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                              cell.enabled
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB] line-through decoration-[#B7BCC9]"
+                            }`}
+                          >
+                            {cell.enabled ? "Ativo" : "Pausado"}
+                            {freqLabel ? ` · ${freqLabel}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onNavigate(meta.nav)}
+                            className="text-[11px] font-semibold text-[#0040FF] hover:underline"
+                            data-testid={`email-recipients-edit-${row.email}-${kind}`}
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function EmailReportSubscriptionsManager({
   adminKey,
   baseUrl,
@@ -5208,7 +5506,10 @@ function EmailReportSubscriptionsManager({
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+    <section
+      id="email-overview-comparativo"
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6 scroll-mt-24"
+    >
       <header className="mb-5">
         <h2 className="font-bold text-[#0D0D0D] text-base">
           Comparativo de cidades por email
@@ -5638,7 +5939,8 @@ function BelowTargetDigestManager({
 
   return (
     <section
-      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      id="email-overview-below-target"
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6 scroll-mt-24"
       data-testid="below-target-digest-section"
     >
       <header className="mb-5">
@@ -6003,7 +6305,8 @@ function PreviewHealthAlertSubscriptionsManager({
 
   return (
     <section
-      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      id="email-overview-preview-health"
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6 scroll-mt-24"
       data-testid="preview-health-alert-section"
     >
       <header className="mb-5">
@@ -6475,7 +6778,10 @@ function InterestNotificationSettings({
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-[#E0E3EB] p-6">
+    <section
+      id="email-overview-interest"
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6 scroll-mt-24"
+    >
       <header className="mb-5">
         <h2 className="font-bold text-[#0D0D0D] text-base">
           Notificação por email
