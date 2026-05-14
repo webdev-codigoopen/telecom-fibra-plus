@@ -1401,6 +1401,10 @@ export default function Admin() {
               baseUrl={baseUrl}
               onChange={fetchAppSettingsAdmin}
             />
+            <WhatsappDestinationsList
+              adminKey={adminKey}
+              baseUrl={baseUrl}
+            />
             <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
         )}
@@ -7016,7 +7020,6 @@ function WhatsappNotifySettings({
   const [enabled, setEnabled] = useState(
     settings.whatsapp_notify_enabled === "true",
   );
-  const [to, setTo] = useState(settings.whatsapp_notify_to);
   const [phoneNumberId, setPhoneNumberId] = useState(
     settings.whatsapp_notify_phone_number_id,
   );
@@ -7046,7 +7049,6 @@ function WhatsappNotifySettings({
 
   useEffect(() => {
     setEnabled(settings.whatsapp_notify_enabled === "true");
-    setTo(settings.whatsapp_notify_to);
     setPhoneNumberId(settings.whatsapp_notify_phone_number_id);
     setAccessToken(settings.whatsapp_notify_access_token);
     setFrequency(
@@ -7057,13 +7059,11 @@ function WhatsappNotifySettings({
     );
   }, [
     settings.whatsapp_notify_enabled,
-    settings.whatsapp_notify_to,
     settings.whatsapp_notify_phone_number_id,
     settings.whatsapp_notify_access_token,
     settings.whatsapp_notify_frequency,
   ]);
 
-  const trimmedTo = to.replace(/\D/g, "");
   const savedFrequency =
     settings.whatsapp_notify_frequency === "daily" ||
     settings.whatsapp_notify_frequency === "weekly"
@@ -7071,19 +7071,12 @@ function WhatsappNotifySettings({
       : "instant";
   const dirty =
     String(enabled) !== settings.whatsapp_notify_enabled ||
-    trimmedTo !== settings.whatsapp_notify_to ||
     phoneNumberId.trim() !== settings.whatsapp_notify_phone_number_id ||
     accessToken.trim() !== settings.whatsapp_notify_access_token ||
     frequency !== savedFrequency;
 
-  const toInvalid = trimmedTo.length > 0 && (trimmedTo.length < 10 || trimmedTo.length > 15);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (toInvalid) {
-      setErrorMsg("Número de WhatsApp inválido. Use somente dígitos com DDI/DDD (ex.: 5577998444757).");
-      return;
-    }
     setSaving(true);
     setErrorMsg(null);
     try {
@@ -7095,7 +7088,6 @@ function WhatsappNotifySettings({
         },
         body: JSON.stringify({
           whatsapp_notify_enabled: enabled ? "true" : "false",
-          whatsapp_notify_to: trimmedTo,
           whatsapp_notify_phone_number_id: phoneNumberId.trim(),
           whatsapp_notify_access_token: accessToken.trim(),
           whatsapp_notify_frequency: frequency,
@@ -7135,9 +7127,15 @@ function WhatsappNotifySettings({
         setTestMsg({ ok: false, text: body?.error || `HTTP ${res.status}` });
         return;
       }
+      const sent = typeof body?.sent === "number" ? body.sent : 0;
+      const total = typeof body?.total === "number" ? body.total : sent;
+      const failed = Array.isArray(body?.failed) ? body.failed.length : 0;
       setTestMsg({
         ok: true,
-        text: `Mensagem de teste enviada para ${trimmedTo || "o número configurado"}.`,
+        text:
+          failed > 0
+            ? `Mensagem de teste enviada para ${sent} de ${total} destino(s). ${failed} falha(s).`
+            : `Mensagem de teste enviada para ${sent} destino(s) ativo(s).`,
       });
     } catch (err) {
       setTesting(false);
@@ -7153,7 +7151,6 @@ function WhatsappNotifySettings({
 
   const canTest =
     !dirty &&
-    trimmedTo.length >= 10 &&
     phoneNumberId.trim().length > 0 &&
     accessToken.trim().length > 0;
 
@@ -7238,23 +7235,11 @@ function WhatsappNotifySettings({
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
-          <span>Número de destino (com DDI e DDD, somente dígitos)</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder="5577998444757"
-            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
-            data-testid="whatsapp-notify-to"
-          />
-          {toInvalid && (
-            <span className="text-[11px] text-red-600 mt-1">
-              Use 10 a 15 dígitos. Ex.: 5577998444757.
-            </span>
-          )}
-        </label>
+        <p className="text-xs text-[#7A7F8C] leading-relaxed">
+          Configure abaixo as credenciais da Meta. Os números de destino
+          ficam na lista logo após este formulário — você pode cadastrar
+          quantos quiser, pausar individualmente e testar cada um.
+        </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <label className="flex flex-col gap-1 text-xs text-[#7A7F8C]">
@@ -7346,7 +7331,7 @@ function WhatsappNotifySettings({
         <div className="flex items-center gap-3 flex-wrap">
           <button
             type="submit"
-            disabled={saving || !dirty || toInvalid}
+            disabled={saving || !dirty}
             className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
             data-testid="whatsapp-notify-save"
           >
@@ -7411,6 +7396,380 @@ function WhatsappNotifySettings({
           </div>
         )}
       </form>
+    </section>
+  );
+}
+
+type WhatsappDestination = {
+  id: number;
+  label: string | null;
+  number: string;
+  enabled: boolean;
+  lastSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type WhatsappDestinationsListProps = {
+  adminKey: string;
+  baseUrl: string;
+};
+
+function WhatsappDestinationsList({
+  adminKey,
+  baseUrl,
+}: WhatsappDestinationsListProps) {
+  const [items, setItems] = useState<WhatsappDestination[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [credentialsConfigured, setCredentialsConfigured] = useState(true);
+  const [newNumber, setNewNumber] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: {
+        items: WhatsappDestination[];
+        credentialsConfigured: boolean;
+      } = await res.json();
+      setItems(data.items);
+      setCredentialsConfigured(data.credentialsConfigured);
+    } catch {
+      setErrorMsg("Não foi possível carregar os destinos.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  const trimmedNew = newNumber.replace(/\D/g, "");
+  const newInvalid =
+    trimmedNew.length > 0 && (trimmedNew.length < 10 || trimmedNew.length > 15);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify({
+            number: trimmedNew,
+            label: newLabel.trim() || undefined,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      setNewNumber("");
+      setNewLabel("");
+      setFeedback("Destino adicionado.");
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível adicionar.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function patchItem(id: number, patch: Record<string, unknown>) {
+    setBusyId(id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify(patch),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      await fetchData();
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível atualizar.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(item: WhatsappDestination) {
+    if (!confirm(`Remover o número ${item.number}?`)) return;
+    setBusyId(item.id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations/${item.id}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchData();
+    } catch {
+      setErrorMsg("Não foi possível remover o destino.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function testItem(item: WhatsappDestination) {
+    setBusyId(item.id);
+    setErrorMsg(null);
+    setFeedback(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations/${item.id}/test`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${adminKey}` },
+        },
+      );
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      setFeedback(`Mensagem de teste enviada para ${item.number}.`);
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Não foi possível enviar o teste.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function formatTimestamp(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  return (
+    <section
+      className="bg-white rounded-2xl border border-[#E0E3EB] p-6"
+      data-testid="whatsapp-destinations-section"
+    >
+      <header className="mb-5">
+        <h2 className="font-bold text-[#0D0D0D] text-base">
+          Números de destino do WhatsApp
+        </h2>
+        <p className="text-sm text-[#7A7F8C] mt-1 leading-relaxed">
+          Cadastre quantos números quiser para receber os novos cadastros de{" "}
+          <code className="px-1 py-0.5 bg-[#F5F7FA] rounded text-[11px]">/demanda</code>.
+          Cada destino pode ser pausado ou testado individualmente. Todos os
+          ativos recebem cada lead (ou cada resumo, se a frequência estiver
+          como diária/semanal).
+        </p>
+      </header>
+
+      {!credentialsConfigured && (
+        <div
+          className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 mb-4 text-sm"
+          data-testid="whatsapp-destinations-credentials-warning"
+        >
+          <strong>Credenciais da Meta ainda não configuradas.</strong> Preencha
+          o Phone Number ID e o Access Token acima para que as mensagens sejam
+          enviadas. Você pode cadastrar destinos mesmo assim.
+        </div>
+      )}
+
+      <form
+        onSubmit={handleAdd}
+        className="flex flex-wrap items-end gap-3 mb-5 p-4 rounded-xl border border-[#E0E3EB] bg-[#F8FAFF]"
+      >
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[220px]">
+          <span>Número (com DDI e DDD, somente dígitos)</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            required
+            value={newNumber}
+            onChange={(e) => setNewNumber(e.target.value)}
+            placeholder="5577998444757"
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="whatsapp-destination-number"
+          />
+          {newInvalid && (
+            <span className="text-[11px] text-red-600 mt-1">
+              Use 10 a 15 dígitos. Ex.: 5577998444757.
+            </span>
+          )}
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] flex-1 min-w-[180px]">
+          <span>Identificação (opcional)</span>
+          <input
+            type="text"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="ex.: Comercial 1"
+            maxLength={60}
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="whatsapp-destination-label"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={submitting || trimmedNew.length < 10 || newInvalid}
+          className="text-sm font-semibold px-4 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+          data-testid="whatsapp-destination-add"
+        >
+          {submitting ? "Adicionando..." : "Adicionar destino"}
+        </button>
+      </form>
+
+      {feedback && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg px-4 py-2 text-sm mb-4">
+          {feedback}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="text-xs text-[#7A7F8C] mb-2">
+        {loading
+          ? "Carregando..."
+          : items.length === 1
+            ? "1 destino cadastrado"
+            : `${items.length} destinos cadastrados`}
+      </div>
+
+      {!loading && items.length === 0 ? (
+        <div
+          className="text-center text-[#7A7F8C] py-12 border border-dashed border-[#E0E3EB] rounded-xl"
+          data-testid="whatsapp-destinations-empty"
+        >
+          Nenhum destino cadastrado ainda.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#E0E3EB] rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-[#F5F7FA] text-[#7A7F8C] text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-2 font-semibold">Número</th>
+                <th className="text-left px-3 py-2 font-semibold">
+                  Identificação
+                </th>
+                <th className="text-left px-3 py-2 font-semibold">Status</th>
+                <th className="text-left px-3 py-2 font-semibold">
+                  Último envio
+                </th>
+                <th className="text-right px-3 py-2 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.id}
+                  className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
+                  data-testid={`whatsapp-destination-row-${item.id}`}
+                >
+                  <td className="px-3 py-2 text-[#0D0D0D] font-medium font-mono">
+                    {item.number}
+                  </td>
+                  <td className="px-3 py-2 text-[#2A2D38]">
+                    {item.label ?? (
+                      <span className="text-[#7A7F8C]">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        item.enabled
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB]"
+                      }`}
+                    >
+                      {item.enabled ? "Ativo" : "Pausado"}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
+                    {formatTimestamp(item.lastSentAt)}
+                  </td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <div className="inline-flex flex-wrap gap-1.5 justify-end">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void patchItem(item.id, { enabled: !item.enabled })
+                        }
+                        disabled={busyId === item.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                        data-testid={`whatsapp-destination-toggle-${item.id}`}
+                      >
+                        {item.enabled ? "Pausar" : "Ativar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void testItem(item)}
+                        disabled={busyId === item.id || !credentialsConfigured}
+                        title={
+                          credentialsConfigured
+                            ? "Enviar mensagem de teste para este número"
+                            : "Configure as credenciais da Meta para enviar"
+                        }
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
+                        data-testid={`whatsapp-destination-test-${item.id}`}
+                      >
+                        Testar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(item)}
+                        disabled={busyId === item.id}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
+                        data-testid={`whatsapp-destination-remove-${item.id}`}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

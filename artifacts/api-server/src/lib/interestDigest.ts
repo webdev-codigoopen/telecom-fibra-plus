@@ -7,8 +7,9 @@ import {
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import {
+  loadEnabledDestinationNumbers,
   loadWhatsappNotifyState,
-  sendWhatsappWithConfig,
+  sendWhatsappToAllDestinations,
   type WhatsappNotifyFrequency,
 } from "./sendWhatsapp";
 import { logger } from "./logger";
@@ -391,8 +392,10 @@ async function writeWhatsappDigestLastSentAt(now: Date): Promise<void> {
 export async function sendWhatsappDigestNow(
   now: Date = new Date(),
 ): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
-  const { config, frequency } = await loadWhatsappNotifyState();
-  if (!config) return { ok: false, error: "WhatsApp notifications not configured" };
+  const { credentials, frequency } = await loadWhatsappNotifyState();
+  if (!credentials) {
+    return { ok: false, error: "WhatsApp notifications not configured" };
+  }
   if (frequency !== "daily" && frequency !== "weekly") {
     return {
       ok: false,
@@ -400,19 +403,26 @@ export async function sendWhatsappDigestNow(
         "WhatsApp está configurado como instantâneo. Mude para diário ou semanal para enviar um resumo.",
     };
   }
+  const numbers = await loadEnabledDestinationNumbers();
+  if (numbers.length === 0) {
+    return { ok: false, error: "Nenhum destino de WhatsApp ativo cadastrado." };
+  }
   const lastSentAt = await readWhatsappDigestLastSentAt();
   const rows = await fetchInterestsSince(lastSentAt);
   const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
-  const result = await sendWhatsappWithConfig(config, text);
-  if (!result.ok) return result;
+  const result = await sendWhatsappToAllDestinations(text, { previewUrl: true });
+  if (!result.ok) return { ok: false, error: result.error };
   await writeWhatsappDigestLastSentAt(now);
   return { ok: true, count: rows.length };
 }
 
 export async function sendDueWhatsappDigest(now: Date = new Date()): Promise<void> {
-  const { enabled, config, frequency } = await loadWhatsappNotifyState();
-  if (!enabled || !config) return;
+  const { enabled, credentials, frequency } = await loadWhatsappNotifyState();
+  if (!enabled || !credentials) return;
   if (frequency !== "daily" && frequency !== "weekly") return;
+
+  const numbers = await loadEnabledDestinationNumbers();
+  if (numbers.length === 0) return;
 
   const schedule = await loadDigestSchedule();
   const lastSentAt = await readWhatsappDigestLastSentAt();
@@ -426,17 +436,27 @@ export async function sendDueWhatsappDigest(now: Date = new Date()): Promise<voi
     return;
   }
   const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
-  const result = await sendWhatsappWithConfig(config, text);
+  const result = await sendWhatsappToAllDestinations(text, { previewUrl: true });
   if (!result.ok) {
     logger.error(
-      { error: result.error, count: rows.length, frequency },
-      "WhatsApp interest digest failed",
+      {
+        error: result.error,
+        count: rows.length,
+        frequency,
+        failed: result.result?.failed ?? [],
+      },
+      "WhatsApp interest digest failed for every destination",
     );
     return;
   }
   await writeWhatsappDigestLastSentAt(now);
   logger.info(
-    { frequency, count: rows.length },
+    {
+      frequency,
+      count: rows.length,
+      sent: result.result.sent,
+      failed: result.result.failed.length,
+    },
     "WhatsApp interest digest sent",
   );
 }

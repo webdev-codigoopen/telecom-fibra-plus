@@ -7,6 +7,7 @@ export * from "./app_settings";
 export * from "./bot_cleanup_runs";
 export * from "./bot_ua_patterns";
 export * from "./email_report_subscriptions";
+export * from "./whatsapp_notify_destinations";
 export * from "./reviews";
 export * from "./admin_users";
 export * from "./faq_items";

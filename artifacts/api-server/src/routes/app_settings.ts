@@ -334,7 +334,7 @@ router.post("/settings/whatsapp/test", requireAdminKey, async (_req, res) => {
     if (!(await isWhatsappNotifyConfigured())) {
       res.status(400).json({
         error:
-          "WhatsApp não configurado. Preencha o número de destino, o Phone Number ID e o Access Token.",
+          "WhatsApp não configurado. Preencha o Phone Number ID e o Access Token, e cadastre pelo menos um número de destino ativo.",
       });
       return;
     }
@@ -345,7 +345,12 @@ router.post("/settings/whatsapp/test", requireAdminKey, async (_req, res) => {
       res.status(400).json({ error: `Falha ao enviar: ${result.error}` });
       return;
     }
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+      sent: result.result.sent,
+      total: result.result.total,
+      failed: result.result.failed,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro desconhecido";
     res.status(500).json({ error: msg });

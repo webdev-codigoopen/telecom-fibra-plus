@@ -339,8 +339,8 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
-    const { enabled, config, frequency } = await loadWhatsappNotifyState();
-    if (!enabled || !config) return;
+    const { enabled, credentials, frequency } = await loadWhatsappNotifyState();
+    if (!enabled || !credentials) return;
     // Daily/weekly recipients receive the digest later — skip the per-lead message.
     if (frequency !== "instant") {
       logger.info(
