@@ -280,7 +280,7 @@ export default function Admin() {
   const [streamingBrands, setStreamingBrands] = useState<StreamingBrand[]>([]);
   const ADMIN_TAB_STORAGE_KEY = "pmf-admin-active-tab";
   const ADMIN_TAB_VALID: AdminTabId[] = [
-    "dashboard", "mapa", "wpp", "ctas", "ctas-config", "planos", "cidades", "bots",
+    "dashboard", "mapa", "wpp", "ctas", "indicacoes", "ctas-config", "planos", "cidades", "bots",
     "interesses", "emails", "seguranca", "marketing", "avaliacoes", "duvidas", "historico",
   ];
   const [activeTab, setActiveTabState] = useState<AdminTabId>(() => {
@@ -1510,6 +1510,10 @@ export default function Admin() {
             since={periodWindow.since}
             until={periodWindow.until}
           />
+        )}
+
+        {!loading && activeTab === "indicacoes" && (
+          <ReferralsManager adminKey={adminKey} baseUrl={baseUrl} />
         )}
 
         {!loading && activeTab === "ctas-config" && (
@@ -11435,5 +11439,532 @@ function BotUaPatternsPanel({ adminKey, baseUrl }: { adminKey: string; baseUrl: 
         )}
       </div>
     </section>
+  );
+}
+
+type ReferralStatus = "novo" | "em_contato" | "convertido" | "descartado";
+type ReferralRow = {
+  id: number;
+  indicadorNome: string;
+  indicadorTelefone: string;
+  indicadorCidade: string;
+  indicadorCpf: string;
+  amigoNome: string;
+  amigoTelefone: string;
+  amigoCidade: string;
+  amigoCpf: string;
+  status: ReferralStatus;
+  note: string | null;
+  whatsappNotifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+type ReferralsListResponse = {
+  ok: true;
+  total: number;
+  limit: number;
+  offset: number;
+  statusBreakdown: Array<{ status: string; c: number }>;
+  rows: ReferralRow[];
+};
+
+const REFERRAL_STATUS_META: Record<
+  ReferralStatus,
+  { label: string; bg: string; fg: string }
+> = {
+  novo: { label: "Novo", bg: "#E0E7FF", fg: "#1E3A8A" },
+  em_contato: { label: "Em contato", bg: "#FEF3C7", fg: "#92400E" },
+  convertido: { label: "Convertido", bg: "#DCFCE7", fg: "#166534" },
+  descartado: { label: "Descartado", bg: "#FEE2E2", fg: "#991B1B" },
+};
+
+function fmtPhoneBr(d: string): string {
+  const x = d.replace(/\D/g, "");
+  if (x.length === 11) return `(${x.slice(0, 2)}) ${x.slice(2, 7)}-${x.slice(7)}`;
+  if (x.length === 10) return `(${x.slice(0, 2)}) ${x.slice(2, 6)}-${x.slice(6)}`;
+  return d;
+}
+function fmtCpfBr(d: string): string {
+  const x = d.replace(/\D/g, "");
+  if (x.length !== 11) return d;
+  return `${x.slice(0, 3)}.${x.slice(3, 6)}.${x.slice(6, 9)}-${x.slice(9)}`;
+}
+function waLink(digits: string): string {
+  const d = digits.replace(/\D/g, "");
+  const withCountry = d.length <= 11 ? `55${d}` : d;
+  return `https://wa.me/${withCountry}`;
+}
+function fmtDateTimeBr(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(d);
+}
+
+function ReferralsManager({
+  adminKey,
+  baseUrl,
+}: {
+  adminKey: string;
+  baseUrl: string;
+}) {
+  const [rows, setRows] = useState<ReferralRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [statusBreakdown, setStatusBreakdown] = useState<
+    Array<{ status: string; c: number }>
+  >([]);
+  const [statusFilter, setStatusFilter] = useState<"" | ReferralStatus>("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set("status", statusFilter);
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      params.set("limit", "100");
+      const res = await adminFetch(
+        `${baseUrl}/api/admin/referrals?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: ReferralsListResponse = await res.json();
+      setRows(data.rows);
+      setTotal(data.total);
+      setStatusBreakdown(data.statusBreakdown);
+    } catch {
+      setErrorMsg("Não foi possível carregar as indicações.");
+    } finally {
+      setLoading(false);
+    }
+  }, [adminKey, baseUrl, statusFilter, debouncedSearch]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  async function updateRow(
+    id: number,
+    patch: { status?: ReferralStatus; note?: string | null },
+  ): Promise<boolean> {
+    setSavingId(id);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/admin/referrals/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminKey}`,
+        },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: { ok: true; row: ReferralRow } = await res.json();
+      setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...data.row } : r)));
+      return true;
+    } catch {
+      setErrorMsg("Não foi possível salvar a alteração.");
+      return false;
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function totalsByStatus(s: ReferralStatus): number {
+    return statusBreakdown.find((b) => b.status === s)?.c ?? 0;
+  }
+  const overall = statusBreakdown.reduce((acc, b) => acc + b.c, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="admin-card" style={{ padding: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("")}
+              className="admin-btn-outline"
+              style={{
+                background: statusFilter === "" ? "var(--as-bg)" : "transparent",
+                fontWeight: statusFilter === "" ? 600 : 400,
+              }}
+            >
+              Todos · {overall}
+            </button>
+            {(Object.keys(REFERRAL_STATUS_META) as ReferralStatus[]).map((s) => {
+              const meta = REFERRAL_STATUS_META[s];
+              const active = statusFilter === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter(s)}
+                  className="admin-btn-outline"
+                  style={{
+                    background: active ? meta.bg : "transparent",
+                    color: active ? meta.fg : undefined,
+                    borderColor: active ? meta.bg : undefined,
+                    fontWeight: active ? 600 : 400,
+                  }}
+                >
+                  {meta.label} · {totalsByStatus(s)}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="search"
+              placeholder="Buscar por nome, cidade, telefone ou CPF…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                fontSize: 12,
+                padding: "6px 10px",
+                border: "1px solid var(--as-border)",
+                borderRadius: 6,
+                background: "var(--as-surface)",
+                color: "var(--as-text)",
+                width: 280,
+              }}
+              data-testid="referrals-search"
+            />
+            <button
+              type="button"
+              onClick={() => void fetchData()}
+              className="admin-btn-outline"
+              data-testid="referrals-refresh"
+            >
+              Atualizar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div
+          className="admin-card"
+          style={{ padding: 12, color: "#991B1B", background: "#FEF2F2" }}
+        >
+          {errorMsg}
+        </div>
+      )}
+
+      <div className="admin-card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--as-border)" }}>
+          <div className="admin-card-title" style={{ margin: 0 }}>
+            Indicações recebidas
+          </div>
+          <div className="admin-card-sub" style={{ margin: 0 }}>
+            {loading
+              ? "Carregando…"
+              : `Mostrando ${rows.length} de ${total} indicação(ões)`}
+          </div>
+        </div>
+
+        {!loading && rows.length === 0 && (
+          <div style={{ padding: 24, color: "var(--as-text2)", fontSize: 13 }}>
+            Nenhuma indicação encontrada.
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {rows.map((r) => {
+            const meta = REFERRAL_STATUS_META[r.status];
+            const isEditingNote = editingNoteId === r.id;
+            return (
+              <div
+                key={r.id}
+                data-testid={`referral-row-${r.id}`}
+                style={{
+                  padding: 16,
+                  borderTop: "1px solid var(--as-border)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: meta.bg,
+                        color: meta.fg,
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {meta.label}
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--as-text3)" }}>
+                      #{r.id} · {fmtDateTimeBr(r.createdAt)}
+                    </span>
+                    {r.whatsappNotifiedAt && (
+                      <span
+                        title={`WhatsApp enviado em ${fmtDateTimeBr(r.whatsappNotifiedAt)}`}
+                        style={{
+                          fontSize: 11,
+                          color: "#166534",
+                          background: "#DCFCE7",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                        }}
+                      >
+                        WhatsApp ✓
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <select
+                      value={r.status}
+                      onChange={(e) =>
+                        void updateRow(r.id, {
+                          status: e.target.value as ReferralStatus,
+                        })
+                      }
+                      disabled={savingId === r.id}
+                      data-testid={`referral-status-${r.id}`}
+                      style={{
+                        fontSize: 12,
+                        padding: "5px 8px",
+                        border: "1px solid var(--as-border)",
+                        borderRadius: 6,
+                        background: "var(--as-surface)",
+                        color: "var(--as-text)",
+                      }}
+                    >
+                      {(Object.keys(REFERRAL_STATUS_META) as ReferralStatus[]).map(
+                        (s) => (
+                          <option key={s} value={s}>
+                            {REFERRAL_STATUS_META[s].label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: 12,
+                  }}
+                >
+                  <PartyCard
+                    label="Cliente (indicador)"
+                    name={r.indicadorNome}
+                    cidade={r.indicadorCidade}
+                    telefone={r.indicadorTelefone}
+                    cpf={r.indicadorCpf}
+                  />
+                  <PartyCard
+                    label="Amigo indicado"
+                    name={r.amigoNome}
+                    cidade={r.amigoCidade}
+                    telefone={r.amigoTelefone}
+                    cpf={r.amigoCpf}
+                  />
+                </div>
+
+                <div>
+                  {isEditingNote ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <textarea
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        placeholder="Observação interna…"
+                        style={{
+                          fontSize: 12,
+                          padding: 8,
+                          border: "1px solid var(--as-border)",
+                          borderRadius: 6,
+                          background: "var(--as-surface)",
+                          color: "var(--as-text)",
+                          fontFamily: "inherit",
+                          resize: "vertical",
+                        }}
+                        data-testid={`referral-note-textarea-${r.id}`}
+                      />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="admin-btn-outline"
+                          onClick={async () => {
+                            const ok = await updateRow(r.id, {
+                              note: noteDraft.trim() || null,
+                            });
+                            if (ok) {
+                              setEditingNoteId(null);
+                              setNoteDraft("");
+                            }
+                          }}
+                          disabled={savingId === r.id}
+                          style={{ fontWeight: 600 }}
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          type="button"
+                          className="admin-btn-outline"
+                          onClick={() => {
+                            setEditingNoteId(null);
+                            setNoteDraft("");
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "flex-start",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 200,
+                          fontSize: 12,
+                          color: r.note ? "var(--as-text)" : "var(--as-text3)",
+                          fontStyle: r.note ? "normal" : "italic",
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {r.note ?? "Sem observação."}
+                      </div>
+                      <button
+                        type="button"
+                        className="admin-btn-outline"
+                        onClick={() => {
+                          setEditingNoteId(r.id);
+                          setNoteDraft(r.note ?? "");
+                        }}
+                        data-testid={`referral-note-edit-${r.id}`}
+                      >
+                        {r.note ? "Editar nota" : "Adicionar nota"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PartyCard({
+  label,
+  name,
+  cidade,
+  telefone,
+  cpf,
+}: {
+  label: string;
+  name: string;
+  cidade: string;
+  telefone: string;
+  cpf: string;
+}) {
+  return (
+    <div
+      style={{
+        background: "var(--as-bg)",
+        border: "1px solid var(--as-border)",
+        borderRadius: 8,
+        padding: 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          color: "var(--as-text3)",
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--as-text)" }}>
+        {name}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--as-text2)" }}>📍 {cidade}</div>
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--as-text2)",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span>📱 {fmtPhoneBr(telefone)}</span>
+        <a
+          href={waLink(telefone)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ fontSize: 11, color: "#16A34A", fontWeight: 600 }}
+        >
+          WhatsApp
+        </a>
+      </div>
+      <div style={{ fontSize: 12, color: "var(--as-text2)" }}>
+        🆔 {fmtCpfBr(cpf)}
+      </div>
+    </div>
   );
 }

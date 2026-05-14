@@ -19,6 +19,7 @@ import {
   HelpCircle,
   History,
   ChevronDown,
+  UserPlus,
 } from "lucide-react";
 import "./admin-shell.css";
 
@@ -27,6 +28,7 @@ export type AdminTabId =
   | "mapa"
   | "wpp"
   | "ctas"
+  | "indicacoes"
   | "ctas-config"
   | "planos"
   | "cidades"
@@ -60,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "wpp", label: "WhatsApp", icon: <MessageCircle /> },
       { id: "ctas", label: "CTAs", icon: <Target /> },
+      { id: "indicacoes", label: "Indique um Amigo", icon: <UserPlus /> },
     ],
   },
   {
@@ -94,6 +97,7 @@ export const ADMIN_TAB_LABEL: Record<AdminTabId, string> = {
   mapa: "Mapa de cliques por cidade",
   wpp: "WhatsApp",
   ctas: "CTAs · Análise",
+  indicacoes: "Indique um Amigo · Indicações recebidas",
   "ctas-config": "Configurações · CTAs",
   planos: "Desempenho dos planos",
   cidades: "Cidades",

@@ -1,12 +1,24 @@
 import { Router, type IRouter, type Request } from "express";
 import { createHash, createHmac, timingSafeEqual } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, or, ilike, sql } from "drizzle-orm";
 import { db, referralsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { requireAdmin } from "../lib/auth";
 import {
   loadWhatsappNotifyState,
   sendWhatsappNotification,
 } from "../lib/sendWhatsapp";
+
+const REFERRAL_STATUSES = [
+  "novo",
+  "em_contato",
+  "convertido",
+  "descartado",
+] as const;
+type ReferralStatus = (typeof REFERRAL_STATUSES)[number];
+function isReferralStatus(v: unknown): v is ReferralStatus {
+  return typeof v === "string" && (REFERRAL_STATUSES as readonly string[]).includes(v);
+}
 
 const router: IRouter = Router();
 
@@ -398,5 +410,146 @@ async function notifyReferralViaWhatsapp(payload: {
     logger.error({ err }, "referrals: whatsapp notification crashed");
   }
 }
+
+router.get("/admin/referrals", requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(
+      Math.max(parseInt(String(req.query["limit"] ?? "50"), 10) || 50, 1),
+      200,
+    );
+    const offset = Math.max(
+      parseInt(String(req.query["offset"] ?? "0"), 10) || 0,
+      0,
+    );
+    const statusParam = req.query["status"];
+    const search = typeof req.query["q"] === "string" ? req.query["q"].trim() : "";
+
+    const filters = [] as ReturnType<typeof eq>[];
+    if (isReferralStatus(statusParam)) {
+      filters.push(eq(referralsTable.status, statusParam));
+    }
+    if (search) {
+      const like = `%${search.replace(/[%_]/g, "")}%`;
+      const onlyDigits = search.replace(/\D/g, "");
+      const orParts = [
+        ilike(referralsTable.indicadorNome, like),
+        ilike(referralsTable.amigoNome, like),
+        ilike(referralsTable.indicadorCidade, like),
+        ilike(referralsTable.amigoCidade, like),
+      ];
+      if (onlyDigits) {
+        const digitsLike = `%${onlyDigits}%`;
+        orParts.push(
+          ilike(referralsTable.indicadorTelefone, digitsLike),
+          ilike(referralsTable.amigoTelefone, digitsLike),
+          ilike(referralsTable.indicadorCpf, digitsLike),
+          ilike(referralsTable.amigoCpf, digitsLike),
+        );
+      }
+      const orExpr = or(...orParts);
+      if (orExpr) filters.push(orExpr as ReturnType<typeof eq>);
+    }
+    const whereExpr =
+      filters.length === 0
+        ? undefined
+        : filters.length === 1
+          ? filters[0]
+          : and(...filters);
+
+    const rowsQ = db
+      .select()
+      .from(referralsTable)
+      .orderBy(desc(referralsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+    const rows = await (whereExpr ? rowsQ.where(whereExpr) : rowsQ);
+
+    const countQ = db
+      .select({ c: sql<number>`count(*)::int` })
+      .from(referralsTable);
+    const countRows = await (whereExpr ? countQ.where(whereExpr) : countQ);
+    const total = countRows[0]?.c ?? 0;
+
+    const statusBreakdown = await db
+      .select({
+        status: referralsTable.status,
+        c: sql<number>`count(*)::int`,
+      })
+      .from(referralsTable)
+      .groupBy(referralsTable.status);
+
+    res.json({
+      ok: true,
+      total,
+      limit,
+      offset,
+      statusBreakdown,
+      rows: rows.map((r) => ({
+        id: r.id,
+        indicadorNome: r.indicadorNome,
+        indicadorTelefone: r.indicadorTelefone,
+        indicadorCidade: r.indicadorCidade,
+        indicadorCpf: r.indicadorCpf,
+        amigoNome: r.amigoNome,
+        amigoTelefone: r.amigoTelefone,
+        amigoCidade: r.amigoCidade,
+        amigoCpf: r.amigoCpf,
+        status: r.status,
+        note: r.note,
+        whatsappNotifiedAt: r.whatsappNotifiedAt,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, "admin/referrals list: error");
+    res.status(500).json({ ok: false, error: "Erro ao listar indicações." });
+  }
+});
+
+router.patch("/admin/referrals/:id", requireAdmin, async (req, res) => {
+  try {
+    const id = parseInt(String(req.params["id"]), 10);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "ID inválido." });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const patch: Partial<{ status: ReferralStatus; note: string | null }> = {};
+    if ("status" in body) {
+      if (!isReferralStatus(body["status"])) {
+        res.status(400).json({ ok: false, error: "Status inválido." });
+        return;
+      }
+      patch.status = body["status"];
+    }
+    if ("note" in body) {
+      const n = body["note"];
+      if (n === null || n === "") patch.note = null;
+      else if (typeof n === "string") patch.note = n.slice(0, 1000);
+      else {
+        res.status(400).json({ ok: false, error: "Observação inválida." });
+        return;
+      }
+    }
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ ok: false, error: "Nada para atualizar." });
+      return;
+    }
+    const updated = await db
+      .update(referralsTable)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(referralsTable.id, id))
+      .returning();
+    if (updated.length === 0) {
+      res.status(404).json({ ok: false, error: "Indicação não encontrada." });
+      return;
+    }
+    res.json({ ok: true, row: updated[0] });
+  } catch (err) {
+    logger.error({ err }, "admin/referrals patch: error");
+    res.status(500).json({ ok: false, error: "Erro ao atualizar." });
+  }
+});
 
 export default router;
