@@ -17,8 +17,7 @@ import SEO from "@/components/SEO";
 import Header from "@/components/sections/Header";
 import Footer from "@/components/sections/Footer";
 import WhatsAppFloat from "@/components/sections/WhatsAppFloat";
-import friendsImage from "@assets/amigos_1778782009998.png";
-import heroBackgroundImage from "@assets/ChatGPT_Image_14_de_mai._de_2026,_11_40_54_1778782002221.png";
+import heroBannerImage from "@assets/bannerindique_-_um_amigo_1778785391656.png";
 import {
   maskWhatsappInput,
   sanitizeNameInput,
@@ -884,110 +883,22 @@ function ReferralHero() {
       data-testid="referral-hero"
       style={{
         background: COLOR_PRIMARY,
-        paddingTop: 80,
-        paddingBottom: 200,
-        color: "#FFFFFF",
         position: "relative",
         overflow: "hidden",
+        lineHeight: 0,
       }}
     >
-      <div
-        aria-hidden
+      <img
+        src={heroBannerImage}
+        alt="Indique um amigo e ganhe 50% de desconto na sua mensalidade"
+        loading="eager"
+        decoding="async"
         style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: `url(${heroBackgroundImage})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.45,
-          pointerEvents: "none",
+          display: "block",
+          width: "100%",
+          height: "auto",
         }}
       />
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: `linear-gradient(180deg, rgba(18,42,213,0.55) 0%, rgba(18,42,213,0.85) 75%, ${COLOR_PRIMARY} 100%)`,
-          pointerEvents: "none",
-        }}
-      />
-      <div
-        className="mx-auto px-6 lg:px-0 referral-hero-grid"
-        style={{
-          maxWidth: 1100,
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "1.1fr 1fr",
-          gap: 40,
-          alignItems: "center",
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6 }}
-          style={{
-            position: "relative",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <img
-            src={friendsImage}
-            alt="Amigos celebrando juntos"
-            loading="eager"
-            decoding="async"
-            style={{
-              position: "relative",
-              width: "100%",
-              maxWidth: 520,
-              height: "auto",
-            }}
-          />
-        </motion.div>
-        <div style={{ textAlign: "center" }}>
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.05 }}
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 700,
-              fontSize: 36,
-              lineHeight: "44px",
-              margin: "0 0 16px",
-              letterSpacing: "-0.3px",
-            }}
-          >
-            Indique um amigo e{" "}
-            <span style={{ color: COLOR_GREEN, fontWeight: 800 }}>
-              ganhe 50%
-            </span>{" "}
-            de desconto na sua mensalidade
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.1 }}
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontWeight: 500,
-              fontSize: 14,
-              lineHeight: "22px",
-              color: "rgba(255,255,255,0.85)",
-              margin: "0 auto",
-              maxWidth: 360,
-            }}
-          >
-            Compartilhe seu link de indicação com um amigo. Quando ele assinar,
-            você recebe 50% de desconto na sua próxima mensalidade. Aproveite
-            para economizar e curtir ainda mais conteúdo.
-          </motion.p>
-        </div>
-      </div>
     </section>
   );
 }
@@ -1465,6 +1376,7 @@ export default function IndiqueUmAmigo() {
         style={{ background: COLOR_PRIMARY, color: "#FFFFFF" }}
       >
         <div style={{ position: "relative" }}>
+          <ReferralHero />
           <section
             data-testid="referral-form-section"
             style={{
