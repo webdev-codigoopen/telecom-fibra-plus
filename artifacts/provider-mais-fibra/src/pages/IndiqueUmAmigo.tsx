@@ -976,7 +976,7 @@ function ReferralHowItWorks() {
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 700,
+              fontWeight: 400,
               fontSize: 30,
               lineHeight: "38px",
               color: "#FFFFFF",
@@ -1110,7 +1110,7 @@ function ReferralIfYouWereInvited() {
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 700,
+              fontWeight: 400,
               fontSize: 28,
               lineHeight: "36px",
               margin: 0,
