@@ -154,19 +154,21 @@ const FieldLabel = ({
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: "100%",
-  height: 48,
+  height: 56,
   paddingLeft: 18,
   paddingRight: 18,
-  borderRadius: 9999,
-  border: `1px solid ${hasError ? COLOR_ERROR : "rgba(255,255,255,0.35)"}`,
-  background: "#FFFFFF",
+  paddingTop: 22,
+  paddingBottom: 6,
+  borderRadius: 12,
+  border: `1px solid ${hasError ? COLOR_ERROR : "#E1E5EE"}`,
+  background: "#F7F8FB",
   fontFamily: FONT_NUNITO,
-  fontWeight: 500,
-  fontSize: 14,
+  fontWeight: 600,
+  fontSize: 15,
   lineHeight: "20px",
   color: COLOR_TEXT,
   outline: "none",
-  transition: "border-color 0.15s ease",
+  transition: "border-color 0.15s ease, background-color 0.15s ease",
   boxSizing: "border-box",
 });
 
@@ -200,70 +202,107 @@ type PersonFieldsProps = {
   onBlur: (field: keyof Person) => void;
 };
 
+function FloatingField({
+  id,
+  label,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  error?: string | null;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="referral-field">
+      <label
+        htmlFor={id}
+        className="referral-field__label"
+        style={{
+          fontFamily: FONT_NUNITO,
+          color: error ? COLOR_ERROR : "#5A6273",
+        }}
+      >
+        {label}
+      </label>
+      {children}
+      {error && (
+        <div
+          role="alert"
+          style={{
+            marginTop: 6,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            color: COLOR_ERROR,
+            fontFamily: FONT_NUNITO,
+            fontSize: 12,
+            lineHeight: "16px",
+            fontWeight: 600,
+          }}
+        >
+          <AlertCircle size={14} aria-hidden />
+          <span>{error}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsProps) {
   const idNome = `${prefix}-nome`;
   const idTel = `${prefix}-telefone`;
   const idCidade = `${prefix}-cidade`;
   const idCpf = `${prefix}-cpf`;
   const isAmigo = prefix === "amigo";
+  const errNome = errors[`${prefix}Nome` as keyof FormErrors];
+  const errTel = errors[`${prefix}Telefone` as keyof FormErrors];
+  const errCidade = errors[`${prefix}Cidade` as keyof FormErrors];
+  const errCpf = errors[`${prefix}Cpf` as keyof FormErrors];
 
   return (
     <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 14,
-      }}
       className="referral-grid"
+      style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
     >
-      <div>
-        <FieldLabel htmlFor={idNome}>{isAmigo ? "Nome do amigo" : "Seu nome"}</FieldLabel>
+      <FloatingField id={idNome} label={isAmigo ? "Nome do amigo" : "Seu nome"} error={errNome}>
         <input
           id={idNome}
           name={idNome}
           type="text"
           autoComplete="name"
-          placeholder={isAmigo ? "Nome do amigo" : "Seu nome"}
+          placeholder=" "
           data-testid={`input-${idNome}`}
           value={value.nome}
-          onChange={(e) =>
-            onChange({ ...value, nome: sanitizeNameInput(e.target.value) })
-          }
+          onChange={(e) => onChange({ ...value, nome: sanitizeNameInput(e.target.value) })}
           onBlur={() => onBlur("nome")}
-          aria-invalid={!!errors[`${prefix}Nome` as keyof FormErrors]}
-          aria-describedby={errors[`${prefix}Nome` as keyof FormErrors] ? `${idNome}-err` : undefined}
-          style={inputStyle(!!errors[`${prefix}Nome` as keyof FormErrors])}
+          aria-invalid={!!errNome}
+          className="referral-field__input"
+          style={inputStyle(!!errNome)}
         />
-        <FieldError id={`${idNome}-err`} msg={errors[`${prefix}Nome` as keyof FormErrors]} />
-      </div>
+      </FloatingField>
 
-      <div>
-        <FieldLabel htmlFor={idTel}>{isAmigo ? "Telefone do amigo" : "Seu telefone"}</FieldLabel>
+      <FloatingField id={idTel} label={isAmigo ? "Telefone do amigo" : "Seu telefone"} error={errTel}>
         <input
           id={idTel}
           name={idTel}
           type="tel"
           inputMode="tel"
           autoComplete="tel-national"
-          placeholder={isAmigo ? "Telefone do amigo" : "Seu telefone"}
+          placeholder=" "
           data-testid={`input-${idTel}`}
           value={value.telefone}
           onChange={(e) =>
-            onChange({
-              ...value,
-              telefone: maskWhatsappInput(e.target.value, value.telefone),
-            })
+            onChange({ ...value, telefone: maskWhatsappInput(e.target.value, value.telefone) })
           }
           onBlur={() => onBlur("telefone")}
-          aria-invalid={!!errors[`${prefix}Telefone` as keyof FormErrors]}
-          aria-describedby={errors[`${prefix}Telefone` as keyof FormErrors] ? `${idTel}-err` : undefined}
-          style={inputStyle(!!errors[`${prefix}Telefone` as keyof FormErrors])}
+          aria-invalid={!!errTel}
+          className="referral-field__input"
+          style={inputStyle(!!errTel)}
         />
-        <FieldError id={`${idTel}-err`} msg={errors[`${prefix}Telefone` as keyof FormErrors]} />
-      </div>
+      </FloatingField>
 
-      <div>
-        <FieldLabel htmlFor={idCidade}>Cidade</FieldLabel>
+      <FloatingField id={idCidade} label="Cidade" error={errCidade}>
         <select
           id={idCidade}
           name={idCidade}
@@ -271,46 +310,45 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
           value={value.cidade}
           onChange={(e) => onChange({ ...value, cidade: e.target.value })}
           onBlur={() => onBlur("cidade")}
-          aria-invalid={!!errors[`${prefix}Cidade` as keyof FormErrors]}
-          aria-describedby={errors[`${prefix}Cidade` as keyof FormErrors] ? `${idCidade}-err` : undefined}
+          aria-invalid={!!errCidade}
+          className="referral-field__input referral-field__input--select"
           style={{
-            ...inputStyle(!!errors[`${prefix}Cidade` as keyof FormErrors]),
+            ...inputStyle(!!errCidade),
             appearance: "none",
-            background:
-              `#FFFFFF url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234A4F61' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 18px center/16px 16px`,
-            paddingRight: 42,
-            color: value.cidade ? COLOR_TEXT : "#9097A8",
+            backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23${COLOR_PRIMARY.slice(1)}' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 16px center",
+            backgroundSize: "14px 14px",
+            paddingRight: 40,
+            color: value.cidade ? COLOR_TEXT : "transparent",
           }}
         >
-          <option value="">Cidade</option>
+          <option value=""></option>
           {cityOptions.map((c) => (
-            <option key={c} value={c}>
+            <option key={c} value={c} style={{ color: COLOR_TEXT }}>
               {c}
             </option>
           ))}
         </select>
-        <FieldError id={`${idCidade}-err`} msg={errors[`${prefix}Cidade` as keyof FormErrors]} />
-      </div>
+      </FloatingField>
 
-      <div>
-        <FieldLabel htmlFor={idCpf}>CPF</FieldLabel>
+      <FloatingField id={idCpf} label="CPF" error={errCpf}>
         <input
           id={idCpf}
           name={idCpf}
           type="text"
           inputMode="numeric"
           autoComplete="off"
-          placeholder="CPF"
+          placeholder=" "
           data-testid={`input-${idCpf}`}
           value={value.cpf}
           onChange={(e) => onChange({ ...value, cpf: maskCpfInput(e.target.value) })}
           onBlur={() => onBlur("cpf")}
-          aria-invalid={!!errors[`${prefix}Cpf` as keyof FormErrors]}
-          aria-describedby={errors[`${prefix}Cpf` as keyof FormErrors] ? `${idCpf}-err` : undefined}
-          style={inputStyle(!!errors[`${prefix}Cpf` as keyof FormErrors])}
+          aria-invalid={!!errCpf}
+          className="referral-field__input"
+          style={inputStyle(!!errCpf)}
         />
-        <FieldError id={`${idCpf}-err`} msg={errors[`${prefix}Cpf` as keyof FormErrors]} />
-      </div>
+      </FloatingField>
     </div>
   );
 }
@@ -472,65 +510,70 @@ function ReferralForm() {
   };
 
   const cardStyle: React.CSSProperties = {
-    background: "rgba(58, 91, 230, 0.55)",
-    backdropFilter: "blur(8px)",
-    WebkitBackdropFilter: "blur(8px)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    borderRadius: 24,
-    padding: "36px 40px",
-    boxShadow: "0 28px 60px -28px rgba(0,0,0,0.45)",
+    background: "#FFFFFF",
+    border: "1px solid #E8EBF2",
+    borderRadius: 20,
+    padding: "40px 44px",
+    boxShadow: "0 30px 70px -30px rgba(8, 17, 86, 0.45)",
     display: "flex",
     flexDirection: "column",
-    gap: 22,
-    color: "#FFFFFF",
+    gap: 28,
+    color: COLOR_TEXT,
+    position: "relative",
   };
+
+  const stepLabel = step === 1 ? "Seus dados de assinante" : "Dados do seu amigo";
+  const stepCaption =
+    step === 1
+      ? "Primeiro, confirmamos que você é cliente Provider + Fibra."
+      : "Agora, nos diga quem você quer indicar — vamos falar com cuidado.";
 
   if (success) {
     return (
       <div
         id="referral-form-card"
         data-testid="referral-form-success"
-        style={{ ...cardStyle, alignItems: "center", textAlign: "center" }}
+        style={{ ...cardStyle, alignItems: "center", textAlign: "center", gap: 18 }}
       >
         <div
           style={{
-            width: 64,
-            height: 64,
+            width: 68,
+            height: 68,
             borderRadius: 9999,
-            background: "rgba(149, 235, 29, 0.20)",
-            border: "1px solid rgba(149, 235, 29, 0.45)",
+            background: "rgba(149, 235, 29, 0.18)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <CheckCircle2 size={32} color={COLOR_GREEN} aria-hidden />
+          <CheckCircle2 size={34} color={COLOR_PRIMARY} aria-hidden />
         </div>
         <h3
           style={{
             fontFamily: FONT_MONTSERRAT,
             fontWeight: 800,
-            fontSize: 22,
-            lineHeight: "28px",
-            color: "#FFFFFF",
+            fontSize: 26,
+            lineHeight: "32px",
+            color: COLOR_PRIMARY,
             margin: 0,
+            letterSpacing: "-0.4px",
           }}
         >
-          Indicação enviada com sucesso!
+          Indicação enviada
         </h3>
         <p
           style={{
             fontFamily: FONT_NUNITO,
-            fontSize: 14,
-            lineHeight: "22px",
-            color: "rgba(255,255,255,0.85)",
+            fontSize: 15,
+            lineHeight: "24px",
+            color: "#4A4F61",
             margin: 0,
-            maxWidth: 420,
+            maxWidth: 440,
           }}
         >
-          Nosso time comercial vai entrar em contato com seu amigo em breve.
-          Quando ele assinar e instalar, você ganha 50% de desconto na sua
-          próxima mensalidade.
+          Nosso time vai falar com seu amigo em breve. Quando ele assinar e a
+          instalação for concluída, o desconto de 50% entra na sua próxima
+          mensalidade.
         </p>
         <button
           type="button"
@@ -546,20 +589,8 @@ function ReferralForm() {
             setStep(1);
             setSuccess(false);
           }}
-          style={{
-            marginTop: 4,
-            height: 48,
-            paddingLeft: 28,
-            paddingRight: 28,
-            borderRadius: 9999,
-            background: COLOR_GREEN,
-            color: COLOR_GREEN_TEXT,
-            border: "none",
-            cursor: "pointer",
-            fontFamily: FONT_NUNITO,
-            fontWeight: 800,
-            fontSize: 14,
-          }}
+          className="referral-btn referral-btn--primary"
+          style={{ marginTop: 6, paddingLeft: 32, paddingRight: 32 }}
         >
           Indicar outro amigo
         </button>
@@ -599,120 +630,95 @@ function ReferralForm() {
         </label>
       </div>
 
-      <div style={{ textAlign: "center" }}>
-        <h3
+      {/* Header — editorial, no chips/badges */}
+      <header style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: COLOR_PRIMARY,
+            }}
+          >
+            Etapa {step} de 2
+          </span>
+          <span
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#7A8195",
+            }}
+          >
+            {stepLabel}
+          </span>
+        </div>
+
+        {/* Slim progress bar — no circles, no labels */}
+        <div
+          aria-hidden
+          style={{
+            position: "relative",
+            height: 3,
+            borderRadius: 999,
+            background: "#EDEFF6",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: step === 1 ? "50%" : "100%",
+              background: `linear-gradient(90deg, ${COLOR_PRIMARY} 0%, ${COLOR_GREEN} 100%)`,
+              borderRadius: 999,
+              transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+            }}
+          />
+        </div>
+
+        <h2
           style={{
             fontFamily: FONT_MONTSERRAT,
             fontWeight: 800,
-            fontSize: 26,
-            lineHeight: "32px",
-            color: "#FFFFFF",
-            margin: 0,
+            fontSize: 28,
+            lineHeight: "34px",
+            color: COLOR_PRIMARY,
+            margin: "10px 0 0",
+            letterSpacing: "-0.5px",
           }}
         >
-          Para conseguir o desconto é simples
-        </h3>
+          {step === 1 ? "Vamos começar pelos seus dados." : "Quem você quer indicar?"}
+        </h2>
         <p
           style={{
             fontFamily: FONT_NUNITO,
             fontWeight: 500,
-            fontSize: 14,
-            lineHeight: "20px",
-            color: "rgba(255,255,255,0.85)",
-            margin: "8px 0 0",
+            fontSize: 15,
+            lineHeight: "22px",
+            color: "#4A4F61",
+            margin: 0,
+            maxWidth: 460,
           }}
         >
-          {step === 1
-            ? "Primeiro precisamos dos seus dados de assinante, por favor :)"
-            : "Agora nos diga os dados do seu amigo. Vamos falar com ele com todo cuidado."}
+          {stepCaption}
         </p>
-      </div>
-
-      {/* Step indicator */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "center",
-          gap: 0,
-          marginTop: 4,
-        }}
-      >
-        {[1, 2].map((n) => {
-          const active = step === n;
-          const done = step > n;
-          const isOn = active || done;
-          return (
-            <div
-              key={n}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 6,
-                  minWidth: 140,
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 9999,
-                    background: isOn ? COLOR_GREEN : "rgba(255,255,255,0.18)",
-                    color: isOn ? COLOR_GREEN_TEXT : "#FFFFFF",
-                    border: isOn
-                      ? "none"
-                      : "1px solid rgba(255,255,255,0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: FONT_NUNITO,
-                    fontWeight: 800,
-                    fontSize: 14,
-                  }}
-                >
-                  {done ? <CheckCircle2 size={18} /> : n}
-                </div>
-                <span
-                  style={{
-                    fontFamily: FONT_NUNITO,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: isOn ? "#FFFFFF" : "rgba(255,255,255,0.7)",
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {n === 1 ? "Informe seus dados" : "Dados do seu amigo"}
-                </span>
-              </div>
-              {n === 1 && (
-                <span
-                  aria-hidden
-                  style={{
-                    width: 40,
-                    height: 1,
-                    background: "rgba(255,255,255,0.35)",
-                    marginTop: 16,
-                    marginLeft: 8,
-                    marginRight: 8,
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      </header>
 
       {step === 1 && (
-        <div data-testid="step-1" style={{ marginTop: 4 }}>
+        <div data-testid="step-1" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <PersonFields
             prefix="indicador"
             value={form.indicador}
@@ -724,31 +730,16 @@ function ReferralForm() {
             type="button"
             data-testid="button-step-next"
             onClick={goToStep2}
-            style={{
-              marginTop: 22,
-              width: "100%",
-              height: 52,
-              borderRadius: 9999,
-              border: "none",
-              background: COLOR_GREEN,
-              color: COLOR_GREEN_TEXT,
-              fontFamily: FONT_NUNITO,
-              fontWeight: 800,
-              fontSize: 15,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
+            className="referral-btn referral-btn--primary"
+            style={{ width: "100%" }}
           >
-            Próxima etapa <ArrowRight size={18} />
+            Continuar <ArrowRight size={18} />
           </button>
         </div>
       )}
 
       {step === 2 && (
-        <div data-testid="step-2" style={{ marginTop: 4 }}>
+        <div data-testid="step-2" style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           <PersonFields
             prefix="amigo"
             value={form.amigo}
@@ -761,47 +752,64 @@ function ReferralForm() {
             style={{
               display: "flex",
               alignItems: "flex-start",
-              gap: 10,
-              marginTop: 18,
+              gap: 12,
               fontFamily: FONT_NUNITO,
-              fontSize: 12,
-              lineHeight: "18px",
-              color: "rgba(255,255,255,0.85)",
+              fontSize: 13,
+              lineHeight: "20px",
+              color: "#4A4F61",
               cursor: "pointer",
+              padding: 14,
+              background: "#F7F8FB",
+              borderRadius: 12,
+              border: "1px solid #E8EBF2",
             }}
           >
             <input
               type="checkbox"
               data-testid="input-accept"
               checked={form.accept}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, accept: e.target.checked }))
-              }
+              onChange={(e) => setForm((s) => ({ ...s, accept: e.target.checked }))}
               style={{
                 width: 18,
                 height: 18,
                 marginTop: 1,
-                accentColor: COLOR_GREEN,
+                accentColor: COLOR_PRIMARY,
                 flexShrink: 0,
+                cursor: "pointer",
               }}
             />
             <span>
-              Confirmo que conversei com meu amigo e ele autorizou o contato
-              da equipe Provider + Fibra. Concordo com o regulamento da
-              campanha.
+              Confirmo que conversei com meu amigo e ele autorizou o contato da
+              equipe Provider + Fibra. Concordo com o regulamento da campanha.
             </span>
           </label>
-          <FieldError msg={errors.accept} />
+          {errors.accept && (
+            <div
+              role="alert"
+              style={{
+                marginTop: -10,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                color: COLOR_ERROR,
+                fontFamily: FONT_NUNITO,
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              <AlertCircle size={14} aria-hidden />
+              <span>{errors.accept}</span>
+            </div>
+          )}
 
           {errors.general && (
             <div
               role="alert"
               style={{
-                marginTop: 14,
-                padding: 12,
-                borderRadius: 10,
-                background: "rgba(208,41,41,0.18)",
-                color: "#FFFFFF",
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "#FEF2F2",
+                color: "#B91C1C",
                 fontFamily: FONT_NUNITO,
                 fontWeight: 600,
                 fontSize: 13,
@@ -809,6 +817,7 @@ function ReferralForm() {
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
+                border: "1px solid #FECACA",
               }}
             >
               <AlertCircle size={16} aria-hidden />
@@ -816,27 +825,12 @@ function ReferralForm() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+          <div className="referral-actions" style={{ display: "flex", gap: 12 }}>
             <button
               type="button"
               data-testid="button-step-back"
               onClick={() => setStep(1)}
-              style={{
-                height: 52,
-                paddingLeft: 22,
-                paddingRight: 22,
-                borderRadius: 9999,
-                border: "1px solid rgba(255,255,255,0.4)",
-                background: "transparent",
-                color: "#FFFFFF",
-                fontFamily: FONT_NUNITO,
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="referral-btn referral-btn--ghost"
             >
               <ArrowLeft size={16} /> Voltar
             </button>
@@ -844,23 +838,8 @@ function ReferralForm() {
               type="submit"
               data-testid="button-submit"
               disabled={submitting}
-              style={{
-                flex: 1,
-                height: 52,
-                borderRadius: 9999,
-                border: "none",
-                background: COLOR_GREEN,
-                color: COLOR_GREEN_TEXT,
-                fontFamily: FONT_NUNITO,
-                fontWeight: 800,
-                fontSize: 15,
-                cursor: submitting ? "wait" : "pointer",
-                opacity: submitting ? 0.7 : 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
+              className="referral-btn referral-btn--primary"
+              style={{ flex: 1, opacity: submitting ? 0.7 : 1, cursor: submitting ? "wait" : "pointer" }}
             >
               {submitting ? (
                 "Enviando…"
@@ -1424,15 +1403,6 @@ export default function IndiqueUmAmigo() {
 
       <style>{`
         @media (max-width: 899px) {
-          [data-testid="referral-hero"] > div {
-            grid-template-columns: 1fr !important;
-            gap: 28px !important;
-            padding-top: 0 !important;
-          }
-          [data-testid="referral-hero"] h1 {
-            font-size: 32px !important;
-            line-height: 38px !important;
-          }
           .referral-steps {
             grid-template-columns: 1fr !important;
           }
@@ -1441,6 +1411,101 @@ export default function IndiqueUmAmigo() {
           .referral-grid {
             grid-template-columns: 1fr !important;
           }
+          [data-testid="referral-form"],
+          [data-testid="referral-form-success"] {
+            padding: 28px 22px !important;
+            border-radius: 18px !important;
+          }
+          .referral-actions {
+            flex-direction: column-reverse !important;
+          }
+          .referral-actions .referral-btn--ghost {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+        }
+
+        /* Floating-label fields */
+        .referral-field {
+          position: relative;
+        }
+        .referral-field__label {
+          position: absolute;
+          left: 18px;
+          top: 18px;
+          font-size: 14px;
+          font-weight: 600;
+          pointer-events: none;
+          transition: transform 0.18s ease, color 0.18s ease, font-size 0.18s ease;
+          transform-origin: left top;
+          background: transparent;
+          padding: 0;
+          z-index: 1;
+        }
+        .referral-field__input:focus {
+          border-color: ${COLOR_PRIMARY} !important;
+          background: #FFFFFF !important;
+          box-shadow: 0 0 0 4px rgba(18, 42, 213, 0.10);
+        }
+        .referral-field__input:focus + ,
+        .referral-field:focus-within .referral-field__label,
+        .referral-field__input:not(:placeholder-shown) ~ .referral-field__label {
+          /* fallback */
+        }
+        .referral-field:focus-within .referral-field__label,
+        .referral-field__input:not(:placeholder-shown) + .referral-field__label,
+        .referral-field__input--select + .referral-field__label {
+          transform: translateY(-10px) scale(0.78);
+          color: ${COLOR_PRIMARY};
+        }
+        /* Select label always floats since it has no placeholder concept */
+        .referral-field:has(.referral-field__input--select) .referral-field__label {
+          transform: translateY(-10px) scale(0.78);
+          color: ${COLOR_PRIMARY};
+        }
+        .referral-field:focus-within:has(.referral-field__input--select) .referral-field__label {
+          color: ${COLOR_PRIMARY};
+        }
+
+        /* Buttons */
+        .referral-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          height: 54px;
+          padding: 0 26px;
+          border-radius: 14px;
+          border: none;
+          font-family: ${FONT_NUNITO};
+          font-weight: 800;
+          font-size: 15px;
+          letter-spacing: 0.01em;
+          cursor: pointer;
+          transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        }
+        .referral-btn--primary {
+          background: ${COLOR_PRIMARY};
+          color: #FFFFFF;
+          box-shadow: 0 14px 28px -14px rgba(18, 42, 213, 0.55);
+        }
+        .referral-btn--primary:hover:not(:disabled) {
+          background: #0E22B5;
+          transform: translateY(-1px);
+          box-shadow: 0 18px 32px -14px rgba(18, 42, 213, 0.65);
+        }
+        .referral-btn--primary:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        .referral-btn--ghost {
+          background: transparent;
+          color: ${COLOR_PRIMARY};
+          border: 1px solid #D8DCE8;
+          font-weight: 700;
+        }
+        .referral-btn--ghost:hover {
+          background: #F2F4FB;
+          border-color: #C2C7D7;
         }
       `}</style>
     </>
