@@ -11,8 +11,90 @@ import type { BotCleanupStatus } from "./botClickBackfillScheduler";
 import { fetchSystemAlertRecipients } from "./systemAlertSubscriptions";
 
 export const BOT_CLEANUP_ALERT_STATE_KEY = "bot_cleanup_alert_state";
+export const BOT_CLEANUP_ALERT_HISTORY_KEY = "bot_cleanup_alert_history";
 
 const STALE_THRESHOLD_MS = 36 * 60 * 60 * 1000;
+const ALERT_HISTORY_LIMIT = 20;
+
+export type BotCleanupAlertKind = "failure" | "stale" | "test";
+
+export type BotCleanupAlertHistoryEntry = {
+  kind: BotCleanupAlertKind;
+  sentAt: string;
+  recipients: string[];
+  subject: string;
+  detail?: string | null;
+};
+
+async function readAlertHistory(): Promise<BotCleanupAlertHistoryEntry[]> {
+  try {
+    const rows = await db
+      .select()
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, BOT_CLEANUP_ALERT_HISTORY_KEY))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return [];
+    const parsed = JSON.parse(row.value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const out: BotCleanupAlertHistoryEntry[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const r = item as Record<string, unknown>;
+      const kind = r["kind"];
+      const sentAt = r["sentAt"];
+      const recipients = r["recipients"];
+      const subject = r["subject"];
+      if (
+        (kind === "failure" || kind === "stale" || kind === "test") &&
+        typeof sentAt === "string" &&
+        Array.isArray(recipients) &&
+        typeof subject === "string"
+      ) {
+        out.push({
+          kind,
+          sentAt,
+          recipients: recipients.filter((x): x is string => typeof x === "string"),
+          subject,
+          detail:
+            typeof r["detail"] === "string" ? (r["detail"] as string) : null,
+        });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+async function appendAlertHistory(
+  entry: BotCleanupAlertHistoryEntry,
+): Promise<void> {
+  try {
+    const current = await readAlertHistory();
+    const next = [entry, ...current].slice(0, ALERT_HISTORY_LIMIT);
+    const value = JSON.stringify(next);
+    const now = new Date();
+    await db
+      .insert(appSettingsTable)
+      .values({ key: BOT_CLEANUP_ALERT_HISTORY_KEY, value, updatedAt: now })
+      .onConflictDoUpdate({
+        target: appSettingsTable.key,
+        set: { value, updatedAt: now },
+      });
+  } catch (err) {
+    logger.warn(
+      { err },
+      "[bot-cleanup-alert] failed to append to alert history",
+    );
+  }
+}
+
+export async function getBotCleanupAlertHistory(): Promise<
+  BotCleanupAlertHistoryEntry[]
+> {
+  return readAlertHistory();
+}
 
 type AlertState = {
   lastFailureAlertedAt: string | null;
@@ -259,10 +341,18 @@ export async function notifyOnBotCleanupFailure(
     return { sent: false, reason: "send-failed" };
   }
 
+  const sentAt = new Date().toISOString();
   await writeState({
     ...state,
-    lastFailureAlertedAt: new Date().toISOString(),
+    lastFailureAlertedAt: sentAt,
     lastFailureStartedAt: status.startedAt,
+  });
+  await appendAlertHistory({
+    kind: "failure",
+    sentAt,
+    recipients,
+    subject,
+    detail: status.error ?? null,
   });
   logger.info(
     { recipients, startedAt: status.startedAt },
@@ -336,14 +426,76 @@ export async function checkAndAlertIfStale(
     return { sent: false, reason: "send-failed" };
   }
 
+  const sentAt = now.toISOString();
   await writeState({
     ...state,
-    lastStaleAlertedAt: now.toISOString(),
+    lastStaleAlertedAt: sentAt,
     lastStaleSuccessAt: lastSuccessIso,
+  });
+  await appendAlertHistory({
+    kind: "stale",
+    sentAt,
+    recipients,
+    subject,
+    detail: `Última execução bem-sucedida: ${fmtDateTimeBR(lastSuccessIso)} (${hoursSince.toFixed(1)}h atrás)`,
   });
   logger.info(
     { recipients, lastSuccessAt: lastSuccessIso, hoursSince },
     "[bot-cleanup-alert] stale alert sent",
   );
   return { sent: true, recipients };
+}
+
+function buildTestHtml(dashboardUrl: string): string {
+  const link = escapeHtml(dashboardUrl);
+  const when = escapeHtml(fmtDateTimeBR(new Date().toISOString()));
+  return `<!doctype html>
+<html lang="pt-BR">
+<body style="font-family: Arial, sans-serif; color:#0D0D0D; max-width:640px; margin:0 auto; padding:24px;">
+  <h2 style="margin:0 0 8px; color:#0A6B41;">✅ Alerta de teste — Limpeza noturna</h2>
+  <p style="margin:0 0 12px;">
+    Este é um e-mail de teste enviado a partir do painel admin para verificar
+    a configuração de SMTP e a lista de destinatários de alertas do sistema.
+  </p>
+  <ul style="margin:0 0 16px; padding-left:20px;">
+    <li>Disparado em: <strong>${when}</strong></li>
+  </ul>
+  <p style="margin:16px 0 0;">
+    Painel: <a href="${link}" style="color:#0A55C2;">${link}</a>
+  </p>
+</body>
+</html>`;
+}
+
+export type BotCleanupTestAlertResult =
+  | { sent: false; reason: string }
+  | { sent: true; recipients: string[]; sentAt: string; subject: string };
+
+export async function sendBotCleanupTestAlert(): Promise<BotCleanupTestAlertResult> {
+  if (!(await isEmailConfigured())) {
+    return { sent: false, reason: "email-not-configured" };
+  }
+  const recipients = await fetchRecipients();
+  if (recipients.length === 0) {
+    return { sent: false, reason: "no-recipients" };
+  }
+  const dashboardUrl = adminDashboardUrl();
+  const html = buildTestHtml(dashboardUrl);
+  const subject = `✅ Teste de alerta — Limpeza noturna (${fmtDateTimeBR(new Date().toISOString())})`;
+  try {
+    await sendEmail({ to: recipients, subject, html });
+  } catch (err) {
+    logger.error({ err }, "[bot-cleanup-alert] failed to send test alert email");
+    return { sent: false, reason: "send-failed" };
+  }
+  const sentAt = new Date().toISOString();
+  await appendAlertHistory({
+    kind: "test",
+    sentAt,
+    recipients,
+    subject,
+    detail: "Disparado manualmente do painel admin.",
+  });
+  logger.info({ recipients }, "[bot-cleanup-alert] test alert sent");
+  return { sent: true, recipients, sentAt, subject };
 }

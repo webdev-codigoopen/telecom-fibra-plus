@@ -85,6 +85,14 @@ type CleanupStatusResponse = {
   recordedAt?: string;
 };
 
+type CleanupAlertHistoryEntry = {
+  kind: "failure" | "stale" | "test";
+  sentAt: string;
+  recipients: string[];
+  subject: string;
+  detail?: string | null;
+};
+
 type ClickStat = {
   planSpeed: string;
   planPrice: string;
@@ -282,6 +290,9 @@ export default function Admin() {
   const [cleanupStatus, setCleanupStatus] = useState<CleanupStatusResponse | null>(null);
   const [cleanupRunning, setCleanupRunning] = useState(false);
   const [cleanupRunMsg, setCleanupRunMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [cleanupAlertHistory, setCleanupAlertHistory] = useState<CleanupAlertHistoryEntry[] | null>(null);
+  const [cleanupTestSending, setCleanupTestSending] = useState(false);
+  const [cleanupTestMsg, setCleanupTestMsg] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 
@@ -609,7 +620,7 @@ export default function Admin() {
       tsParams.set("bucket", range === "today" ? "hour" : "day");
       const tsUrl = `${baseUrl}/api/clicks/timeseries?${tsParams.toString()}`;
 
-      const [statsRes, sourcesRes, prevRes, tsRes, healthRes, cleanupRes] = await Promise.all([
+      const [statsRes, sourcesRes, prevRes, tsRes, healthRes, cleanupRes, alertsRes] = await Promise.all([
         adminFetch(url, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/sources`, { headers: { Authorization: `Bearer ${key}` } }),
         hasPrevious
@@ -618,6 +629,7 @@ export default function Admin() {
         adminFetch(tsUrl, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/cleanup-status`, { headers: { Authorization: `Bearer ${key}` } }),
+        adminFetch(`${baseUrl}/api/clicks/cleanup-alerts`, { headers: { Authorization: `Bearer ${key}` } }),
       ]);
       if (statsRes.ok) {
         const data: ClickStat[] = await statsRes.json();
@@ -657,6 +669,12 @@ export default function Admin() {
       if (cleanupRes.ok) {
         const data = (await cleanupRes.json()) as typeof cleanupStatus;
         setCleanupStatus(data);
+      }
+      if (alertsRes.ok) {
+        const data = (await alertsRes.json()) as { history: CleanupAlertHistoryEntry[] };
+        setCleanupAlertHistory(data.history ?? []);
+      } else {
+        setCleanupAlertHistory((prev) => prev ?? []);
       }
     } catch {
     } finally {
@@ -753,6 +771,57 @@ export default function Admin() {
       setCleanupRunning(false);
     }
   }, [adminKey, baseUrl, cleanupRunning]);
+
+  const sendCleanupTestAlert = useCallback(async () => {
+    if (cleanupTestSending) return;
+    setCleanupTestSending(true);
+    setCleanupTestMsg(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/clicks/cleanup-alerts/test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      if (!res.ok) {
+        let msg = "Não foi possível enviar o e-mail de teste.";
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (data?.error) msg = data.error;
+        } catch {
+          // ignore
+        }
+        setCleanupTestMsg({ kind: "error", text: msg });
+        return;
+      }
+      const data = (await res.json()) as {
+        sent: boolean;
+        recipients: string[];
+        sentAt: string;
+        subject: string;
+      };
+      const count = data.recipients.length;
+      setCleanupTestMsg({
+        kind: "success",
+        text: `E-mail de teste enviado para ${count} ${count === 1 ? "destinatário" : "destinatários"}.`,
+      });
+      setCleanupAlertHistory((prev) => {
+        const entry: CleanupAlertHistoryEntry = {
+          kind: "test",
+          sentAt: data.sentAt,
+          recipients: data.recipients,
+          subject: data.subject,
+          detail: "Disparado manualmente do painel admin.",
+        };
+        return [entry, ...(prev ?? [])].slice(0, 20);
+      });
+    } catch {
+      setCleanupTestMsg({
+        kind: "error",
+        text: "Falha de conexão ao enviar o e-mail de teste.",
+      });
+    } finally {
+      setCleanupTestSending(false);
+    }
+  }, [adminKey, baseUrl, cleanupTestSending]);
 
   const fetchPlans = useCallback(async (key: string) => {
     setLoading(true);
@@ -2457,6 +2526,106 @@ export default function Admin() {
                           })()}
                         </div>
                       )}
+                      <div className="mt-3 pt-3 border-t border-[#E0E3EB]">
+                        <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-semibold text-[#2A2D38]">
+                              Alertas por e-mail
+                            </span>
+                            <span className="text-[10px] text-[#7A7F8C]">
+                              Últimos disparos para os destinatários de alertas do sistema.
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void sendCleanupTestAlert()}
+                            disabled={cleanupTestSending}
+                            className="text-[11px] font-semibold px-3 py-1 rounded-md border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={{
+                              background: cleanupTestSending ? "#EEF0F5" : "#FFFFFF",
+                              color: cleanupTestSending ? "#7A7F8C" : "#2A2D38",
+                              borderColor: "#C7CAD1",
+                            }}
+                          >
+                            {cleanupTestSending ? "Enviando..." : "Enviar alerta de teste"}
+                          </button>
+                        </div>
+                        {cleanupTestMsg && (
+                          <p
+                            className="text-[12px] mt-1 mb-2 leading-relaxed"
+                            style={{
+                              color: cleanupTestMsg.kind === "success" ? "#0A6B41" : "#7A1A1A",
+                            }}
+                            role="status"
+                            aria-live="polite"
+                          >
+                            {cleanupTestMsg.text}
+                          </p>
+                        )}
+                        {cleanupAlertHistory == null ? (
+                          <p className="text-[11px] text-[#7A7F8C] italic">
+                            Carregando histórico de alertas…
+                          </p>
+                        ) : cleanupAlertHistory.length === 0 ? (
+                          <p className="text-[11px] text-[#7A7F8C] italic">
+                            Nenhum alerta enviado ainda.
+                          </p>
+                        ) : (
+                          <ul className="text-[11px] text-[#2A2D38] space-y-1">
+                            {cleanupAlertHistory.slice(0, 5).map((a, idx) => {
+                              const tone =
+                                a.kind === "failure"
+                                  ? { background: "#F8D7D7", color: "#7A1A1A", label: "Falha" }
+                                  : a.kind === "stale"
+                                    ? { background: "#FFE9C2", color: "#7A4A00", label: "Atraso" }
+                                    : { background: "#D4F4E2", color: "#0A6B41", label: "Teste" };
+                              const when = new Date(a.sentAt);
+                              const whenFmt = new Intl.DateTimeFormat("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "America/Sao_Paulo",
+                              }).format(when);
+                              const recipientsLabel =
+                                a.recipients.length === 0
+                                  ? "(sem destinatários)"
+                                  : a.recipients.length <= 2
+                                    ? a.recipients.join(", ")
+                                    : `${a.recipients[0]} +${a.recipients.length - 1}`;
+                              return (
+                                <li
+                                  key={`${a.sentAt}-${idx}`}
+                                  className="flex items-baseline gap-2 flex-wrap"
+                                >
+                                  <span
+                                    className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide font-semibold flex-shrink-0"
+                                    style={{ background: tone.background, color: tone.color }}
+                                  >
+                                    {tone.label}
+                                  </span>
+                                  <span className="text-[#7A7F8C]">{whenFmt}</span>
+                                  <span
+                                    className="text-[#2A2D38] truncate max-w-full"
+                                    title={a.recipients.join(", ")}
+                                  >
+                                    → {recipientsLabel}
+                                  </span>
+                                  {a.detail && (
+                                    <span
+                                      className="text-[10px] text-[#7A7F8C] italic truncate max-w-full"
+                                      title={a.detail}
+                                    >
+                                      {a.detail}
+                                    </span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

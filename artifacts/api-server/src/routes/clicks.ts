@@ -7,6 +7,10 @@ import {
   type BotCleanupStatus,
   runBotClickBackfillTick,
 } from "../lib/botClickBackfillScheduler";
+import {
+  getBotCleanupAlertHistory,
+  sendBotCleanupTestAlert,
+} from "../lib/botCleanupAlert";
 import { extractClientIp, hashIp, lookupGeo, countryNameFor } from "../lib/geoip";
 import { getCombinedUaPattern } from "../lib/botUaPatterns";
 
@@ -628,6 +632,41 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
     res.json({ status, recordedAt: row.updatedAt, history: [] });
   } catch {
     res.status(500).json({ error: "Failed to fetch cleanup status" });
+  }
+});
+
+router.get("/clicks/cleanup-alerts", requireAdminKey, async (_req, res) => {
+  try {
+    const history = await getBotCleanupAlertHistory();
+    res.json({ history });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch cleanup alert history" });
+  }
+});
+
+router.post("/clicks/cleanup-alerts/test", requireAdminKey, async (_req, res) => {
+  try {
+    const result = await sendBotCleanupTestAlert();
+    if (!result.sent) {
+      const messages: Record<string, string> = {
+        "email-not-configured":
+          "SMTP não está configurado. Preencha as credenciais em Relatórios por e-mail.",
+        "no-recipients":
+          "Nenhum destinatário configurado para alertas do sistema.",
+        "send-failed": "Falha ao enviar o e-mail de teste. Verifique o SMTP.",
+      };
+      const message = messages[result.reason] ?? `Não foi possível enviar (${result.reason}).`;
+      res.status(400).json({ sent: false, reason: result.reason, error: message });
+      return;
+    }
+    res.json({
+      sent: true,
+      recipients: result.recipients,
+      sentAt: result.sentAt,
+      subject: result.subject,
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to send test cleanup alert" });
   }
 });
 
