@@ -13,7 +13,6 @@ import ComboPowerTop from "@/components/sections/ComboPowerTop";
 import WatchBanner from "@/components/sections/WatchBanner";
 import AppSection from "@/components/sections/AppSection";
 import WhatsAppSection from "@/components/sections/WhatsAppSection";
-import WatchSection from "@/components/sections/WatchSection";
 import Testimonials from "@/components/sections/Testimonials";
 import FAQ from "@/components/sections/FAQ";
 import Footer from "@/components/sections/Footer";
@@ -50,7 +49,6 @@ export default function Home() {
         <WatchBanner />
         <AppSection />
         <WhatsAppSection />
-        <WatchSection />
         <Testimonials />
         <FAQ />
       </main>
