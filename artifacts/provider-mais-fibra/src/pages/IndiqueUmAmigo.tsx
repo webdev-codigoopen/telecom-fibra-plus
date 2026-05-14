@@ -1373,6 +1373,7 @@ export default function IndiqueUmAmigo() {
       <Header />
       <main
         id="main-content"
+        className="pt-16 md:pt-[88px]"
         style={{ background: COLOR_PRIMARY, color: "#FFFFFF" }}
       >
         <div style={{ position: "relative" }}>
