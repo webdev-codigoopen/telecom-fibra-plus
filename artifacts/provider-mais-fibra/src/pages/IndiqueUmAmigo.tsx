@@ -162,8 +162,8 @@ const inputStyle = (hasError: boolean): React.CSSProperties => ({
   borderRadius: 12,
   border: `1px solid ${hasError ? COLOR_ERROR : "#E1E5EE"}`,
   background: "#F7F8FB",
-  fontFamily: FONT_NUNITO,
-  fontWeight: 600,
+  fontFamily: FONT_MONTSERRAT,
+  fontWeight: 400,
   fontSize: 15,
   lineHeight: "20px",
   color: COLOR_TEXT,
@@ -219,7 +219,8 @@ function FloatingField({
         htmlFor={id}
         className="referral-field__label"
         style={{
-          fontFamily: FONT_NUNITO,
+          fontFamily: FONT_MONTSERRAT,
+          fontWeight: 400,
           color: error ? COLOR_ERROR : "#5A6273",
         }}
       >
@@ -1470,7 +1471,7 @@ export default function IndiqueUmAmigo() {
           left: 18px;
           top: 18px;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 400;
           pointer-events: none;
           transition: transform 0.18s ease, color 0.18s ease, font-size 0.18s ease;
           transform-origin: left top;
@@ -1483,23 +1484,10 @@ export default function IndiqueUmAmigo() {
           background: #FFFFFF !important;
           box-shadow: 0 0 0 4px rgba(18, 42, 213, 0.10);
         }
-        .referral-field__input:focus + ,
         .referral-field:focus-within .referral-field__label,
-        .referral-field__input:not(:placeholder-shown) ~ .referral-field__label {
-          /* fallback */
-        }
-        .referral-field:focus-within .referral-field__label,
-        .referral-field__input:not(:placeholder-shown) + .referral-field__label,
-        .referral-field__input--select + .referral-field__label {
-          transform: translateY(-10px) scale(0.78);
-          color: ${COLOR_PRIMARY};
-        }
-        /* Select label always floats since it has no placeholder concept */
+        .referral-field:has(.referral-field__input:not(:placeholder-shown)) .referral-field__label,
         .referral-field:has(.referral-field__input--select) .referral-field__label {
           transform: translateY(-10px) scale(0.78);
-          color: ${COLOR_PRIMARY};
-        }
-        .referral-field:focus-within:has(.referral-field__input--select) .referral-field__label {
           color: ${COLOR_PRIMARY};
         }
 
