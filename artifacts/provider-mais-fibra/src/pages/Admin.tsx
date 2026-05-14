@@ -10262,6 +10262,56 @@ type TopCountriesResponse = {
   totalUnknown: number;
 };
 
+type TopRegionRow = {
+  geoRegion: string | null;
+  humans: number;
+  bots: number;
+  total: number;
+};
+
+type TopRegionsResponse = {
+  rows: TopRegionRow[];
+  totalAll: number;
+  totalIdentified: number;
+  totalUnknown: number;
+};
+
+const BR_STATE_NAMES: Record<string, string> = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+};
+
+function brStateLabel(code: string | null): string {
+  if (!code) return "Desconhecido";
+  const upper = code.toUpperCase();
+  return BR_STATE_NAMES[upper] ?? upper;
+}
+
 // Convert ISO 3166-1 alpha-2 country code to its emoji flag (regional indicator
 // symbols). Returns an empty string for null / invalid codes so the UI can
 // gracefully show just the country name.
@@ -10292,6 +10342,7 @@ function BotVsHumanPanel({
   const [summary, setSummary] = useState<BotSummary | null>(null);
   const [rows, setRows] = useState<RecentClickRow[]>([]);
   const [topCountries, setTopCountries] = useState<TopCountriesResponse | null>(null);
+  const [topRegions, setTopRegions] = useState<TopRegionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [kind, setKind] = useState<"all" | "humans" | "bots">("all");
@@ -10337,10 +10388,12 @@ function BotVsHumanPanel({
       if (debouncedSearch) recentParams.set("q", debouncedSearch);
       const recentUrl = `${baseUrl}/api/clicks/recent?${recentParams.toString()}`;
       const countriesUrl = `${baseUrl}/api/clicks/top-countries${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
-      const [sRes, rRes, cRes] = await Promise.all([
+      const regionsUrl = `${baseUrl}/api/clicks/top-regions${rangeParams.toString() ? `?${rangeParams.toString()}` : ""}`;
+      const [sRes, rRes, cRes, gRes] = await Promise.all([
         adminFetch(summaryUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
         adminFetch(recentUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
         adminFetch(countriesUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
+        adminFetch(regionsUrl, { headers: { Authorization: `Bearer ${adminKey}` } }),
       ]);
       if (!sRes.ok) throw new Error(`HTTP ${sRes.status}`);
       if (!rRes.ok) throw new Error(`HTTP ${rRes.status}`);
@@ -10353,6 +10406,12 @@ function BotVsHumanPanel({
         setTopCountries(cData);
       } else {
         setTopCountries(null);
+      }
+      if (gRes.ok) {
+        const gData = (await gRes.json()) as TopRegionsResponse;
+        setTopRegions(gData);
+      } else {
+        setTopRegions(null);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha ao carregar.");
@@ -10449,6 +10508,63 @@ function BotVsHumanPanel({
           )}
         </div>
       </div>
+
+      {topRegions && topRegions.rows.length > 0 && (
+        <div className="rounded-xl border border-[#E0E3EB] px-4 py-3 mb-4" data-testid="top-regions-panel">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap mb-2">
+            <div className="text-xs font-semibold text-[#7A7F8C] uppercase tracking-wide">
+              Estados (Brasil)
+            </div>
+            <div className="text-[11px] text-[#7A7F8C]">
+              {topRegions.totalIdentified.toLocaleString("pt-BR")} de {topRegions.totalAll.toLocaleString("pt-BR")} cliques BR identificados
+              {topRegions.totalUnknown > 0 && (
+                <> · {topRegions.totalUnknown.toLocaleString("pt-BR")} sem UF</>
+              )}
+            </div>
+          </div>
+          <ul className="space-y-1.5">
+            {topRegions.rows.map((r) => {
+              const pct = topRegions.totalIdentified > 0
+                ? Math.round((r.total / topRegions.totalIdentified) * 100)
+                : 0;
+              const code = r.geoRegion ? r.geoRegion.toUpperCase() : null;
+              const label = brStateLabel(r.geoRegion);
+              return (
+                <li
+                  key={code ?? "unknown"}
+                  className="flex items-center gap-3"
+                  data-testid={`top-region-${code ?? "unknown"}`}
+                >
+                  <span className="text-[10px] font-bold text-[#0040FF] bg-[#EEF2FF] rounded px-1.5 py-0.5 w-9 text-center tabular-nums">
+                    {code ?? "—"}
+                  </span>
+                  <span className="text-xs font-semibold text-[#2A2D38] w-36 truncate" title={label}>
+                    {label}
+                  </span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[#EEF0F5] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[#0040FF]"
+                      style={{ width: `${Math.max(pct, r.total > 0 ? 2 : 0)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs tabular-nums text-[#2A2D38] w-16 text-right">
+                    {r.total.toLocaleString("pt-BR")}
+                  </span>
+                  <span
+                    className="text-[10px] tabular-nums text-[#7A7F8C] w-24 text-right"
+                    title={`${r.humans.toLocaleString("pt-BR")} humanos · ${r.bots.toLocaleString("pt-BR")} robôs`}
+                  >
+                    <span className="text-[#2A2D38] font-semibold">{r.humans.toLocaleString("pt-BR")}</span>
+                    <span aria-hidden="true"> · </span>
+                    <span>{r.bots.toLocaleString("pt-BR")} bots</span>
+                  </span>
+                  <span className="text-[10px] text-[#7A7F8C] w-10 text-right tabular-nums">{pct}%</span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {topCountries && topCountries.rows.length > 0 && (
         <div className="rounded-xl border border-[#E0E3EB] px-4 py-3 mb-4" data-testid="top-countries-panel">

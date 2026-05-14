@@ -859,6 +859,91 @@ router.get("/clicks/top-countries", requireAdminKey, async (req, res) => {
   }
 });
 
+router.get("/clicks/top-regions", requireAdminKey, async (req, res) => {
+  try {
+    const isBotSqlExpr = buildIsBotSqlExpr();
+    const sinceParam = typeof req.query["since"] === "string" ? req.query["since"] : undefined;
+    const untilParam = typeof req.query["until"] === "string" ? req.query["until"] : undefined;
+    const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
+      ? req.query["city"].slice(0, 120)
+      : undefined;
+    const limitRaw = typeof req.query["limit"] === "string" ? Number(req.query["limit"]) : 10;
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, Math.floor(limitRaw))) : 10;
+
+    let sinceDate: Date | undefined;
+    if (sinceParam) {
+      const parsed = new Date(sinceParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'since' parameter; expected ISO 8601 date" });
+        return;
+      }
+      sinceDate = parsed;
+    }
+    let untilDate: Date | undefined;
+    if (untilParam) {
+      const parsed = new Date(untilParam);
+      if (Number.isNaN(parsed.getTime())) {
+        res.status(400).json({ error: "Invalid 'until' parameter; expected ISO 8601 date" });
+        return;
+      }
+      untilDate = parsed;
+    }
+
+    const conditions: SQL[] = [];
+    if (sinceDate) conditions.push(gte(planClicksTable.clickedAt, sinceDate));
+    if (untilDate) conditions.push(lt(planClicksTable.clickedAt, untilDate));
+    if (cityParam) conditions.push(eq(planClicksTable.city, cityParam));
+
+    // Restrict the totals (and thus the "X de Y" coverage line) to Brazilian
+    // clicks so the percentages on the bars are meaningful relative to the BR
+    // pie, not to global traffic.
+    const brConditions = [...conditions, eq(planClicksTable.countryCode, "BR")];
+    const totalsSelect = db
+      .select({
+        totalAll: sql<number>`cast(count(*) as int)`,
+        totalIdentified: sql<number>`cast(count(*) filter (where ${planClicksTable.geoRegion} is not null) as int)`,
+      })
+      .from(planClicksTable)
+      .where(brConditions.length === 1 ? brConditions[0]! : and(...brConditions));
+    const [totalsRow] = await totalsSelect;
+    const totalAll = totalsRow?.totalAll ?? 0;
+    const totalIdentified = totalsRow?.totalIdentified ?? 0;
+
+    const groupConditions = [...brConditions, isNotNull(planClicksTable.geoRegion)];
+    // Normalize UF casing server-side so "sp" and "SP" don't fragment into
+    // separate buckets if data quality varies across geoip lookups / backfills.
+    const regionExpr = sql<string>`upper(${planClicksTable.geoRegion})`;
+    const grouped = db
+      .select({
+        geoRegion: regionExpr,
+        humans: sql<number>`cast(count(*) filter (where not ${isBotSqlExpr}) as int)`,
+        bots: sql<number>`cast(count(*) filter (where ${isBotSqlExpr}) as int)`,
+        total: sql<number>`cast(count(*) as int)`,
+      })
+      .from(planClicksTable)
+      .where(groupConditions.length === 1 ? groupConditions[0]! : and(...groupConditions))
+      .groupBy(regionExpr)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+
+    const rows = await grouped;
+    const cleaned = rows.map((r) => ({
+      geoRegion: r.geoRegion,
+      humans: r.humans,
+      bots: r.bots,
+      total: r.total,
+    }));
+    res.json({
+      rows: cleaned,
+      totalAll,
+      totalIdentified,
+      totalUnknown: Math.max(0, totalAll - totalIdentified),
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch top regions" });
+  }
+});
+
 router.get("/clicks/recent", requireAdminKey, async (req, res) => {
   try {
     const isBotSqlExpr = buildIsBotSqlExpr();
