@@ -21,7 +21,6 @@ const navLinks: NavLink[] = [
   { label: "IPTV", href: "#combo" },
   { label: "Sobre Nós", href: "/quem-somos", page: "/quem-somos" },
   { label: "Onde Estamos", href: "/onde-estamos", page: "/onde-estamos" },
-  { label: "Indique um Amigo", href: "/indique-um-amigo", page: "/indique-um-amigo" },
   { label: "Contato", href: "/contato", page: "/contato" },
 ];
 
