@@ -2,17 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
-  Gift,
   Users,
   Wifi,
   ArrowRight,
   ArrowLeft,
   AlertCircle,
   Send,
-  Sparkles,
   Phone,
   MessageCircle,
-  Clock,
   UserPlus,
   ChevronDown,
 } from "lucide-react";
@@ -36,14 +33,9 @@ const FONT_NUNITO = "'Nunito', system-ui, sans-serif";
 const FONT_MONTSERRAT = "'Montserrat', system-ui, sans-serif";
 
 const COLOR_PRIMARY = "#122AD5";
-const COLOR_PRIMARY_DARK = "#0A1FA8";
-const COLOR_PRIMARY_LIGHT = "#1A38D5";
 const COLOR_GREEN = "#95EB1D";
 const COLOR_GREEN_TEXT = "#2A40DA";
-const COLOR_HEADING = "#003F99";
 const COLOR_TEXT = "#0D0E14";
-const COLOR_SUBTLE = "#4A4F61";
-const COLOR_BORDER = "#E2E5EF";
 const COLOR_ERROR = "#D02929";
 
 const cityOptions = [
@@ -137,6 +129,18 @@ function nonNull(errs: FormErrors): boolean {
   return Object.values(errs).some((v) => v != null && v !== "");
 }
 
+const SR_ONLY: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0,0,0,0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
 const FieldLabel = ({
   htmlFor,
   children,
@@ -144,29 +148,18 @@ const FieldLabel = ({
   htmlFor: string;
   children: React.ReactNode;
 }) => (
-  <label
-    htmlFor={htmlFor}
-    style={{
-      fontFamily: FONT_NUNITO,
-      fontWeight: 700,
-      fontSize: 13,
-      lineHeight: "18px",
-      color: COLOR_TEXT,
-      marginBottom: 6,
-      display: "block",
-    }}
-  >
+  <label htmlFor={htmlFor} style={SR_ONLY}>
     {children}
   </label>
 );
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: "100%",
-  height: 44,
-  paddingLeft: 14,
-  paddingRight: 14,
-  borderRadius: 10,
-  border: `1px solid ${hasError ? COLOR_ERROR : COLOR_BORDER}`,
+  height: 48,
+  paddingLeft: 18,
+  paddingRight: 18,
+  borderRadius: 9999,
+  border: `1px solid ${hasError ? COLOR_ERROR : "rgba(255,255,255,0.35)"}`,
   background: "#FFFFFF",
   fontFamily: FONT_NUNITO,
   fontWeight: 500,
@@ -213,6 +206,7 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
   const idTel = `${prefix}-telefone`;
   const idCidade = `${prefix}-cidade`;
   const idCpf = `${prefix}-cpf`;
+  const isAmigo = prefix === "amigo";
 
   return (
     <div
@@ -223,14 +217,14 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
       }}
       className="referral-grid"
     >
-      <div style={{ gridColumn: "1 / -1" }}>
-        <FieldLabel htmlFor={idNome}>Nome completo</FieldLabel>
+      <div>
+        <FieldLabel htmlFor={idNome}>{isAmigo ? "Nome do amigo" : "Seu nome"}</FieldLabel>
         <input
           id={idNome}
           name={idNome}
           type="text"
           autoComplete="name"
-          placeholder="Ex.: Maria da Silva"
+          placeholder={isAmigo ? "Nome do amigo" : "Seu nome"}
           data-testid={`input-${idNome}`}
           value={value.nome}
           onChange={(e) =>
@@ -245,14 +239,14 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
       </div>
 
       <div>
-        <FieldLabel htmlFor={idTel}>WhatsApp</FieldLabel>
+        <FieldLabel htmlFor={idTel}>{isAmigo ? "Telefone do amigo" : "Seu telefone"}</FieldLabel>
         <input
           id={idTel}
           name={idTel}
           type="tel"
           inputMode="tel"
           autoComplete="tel-national"
-          placeholder="(77) 99999-9999"
+          placeholder={isAmigo ? "Telefone do amigo" : "Seu telefone"}
           data-testid={`input-${idTel}`}
           value={value.telefone}
           onChange={(e) =>
@@ -270,26 +264,6 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
       </div>
 
       <div>
-        <FieldLabel htmlFor={idCpf}>CPF</FieldLabel>
-        <input
-          id={idCpf}
-          name={idCpf}
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="000.000.000-00"
-          data-testid={`input-${idCpf}`}
-          value={value.cpf}
-          onChange={(e) => onChange({ ...value, cpf: maskCpfInput(e.target.value) })}
-          onBlur={() => onBlur("cpf")}
-          aria-invalid={!!errors[`${prefix}Cpf` as keyof FormErrors]}
-          aria-describedby={errors[`${prefix}Cpf` as keyof FormErrors] ? `${idCpf}-err` : undefined}
-          style={inputStyle(!!errors[`${prefix}Cpf` as keyof FormErrors])}
-        />
-        <FieldError id={`${idCpf}-err`} msg={errors[`${prefix}Cpf` as keyof FormErrors]} />
-      </div>
-
-      <div style={{ gridColumn: "1 / -1" }}>
         <FieldLabel htmlFor={idCidade}>Cidade</FieldLabel>
         <select
           id={idCidade}
@@ -304,11 +278,12 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
             ...inputStyle(!!errors[`${prefix}Cidade` as keyof FormErrors]),
             appearance: "none",
             background:
-              `#FFFFFF url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234A4F61' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 14px center/16px 16px`,
-            paddingRight: 38,
+              `#FFFFFF url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234A4F61' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 18px center/16px 16px`,
+            paddingRight: 42,
+            color: value.cidade ? COLOR_TEXT : "#9097A8",
           }}
         >
-          <option value="">Selecione a cidade</option>
+          <option value="">Cidade</option>
           {cityOptions.map((c) => (
             <option key={c} value={c}>
               {c}
@@ -316,6 +291,26 @@ function PersonFields({ prefix, value, errors, onChange, onBlur }: PersonFieldsP
           ))}
         </select>
         <FieldError id={`${idCidade}-err`} msg={errors[`${prefix}Cidade` as keyof FormErrors]} />
+      </div>
+
+      <div>
+        <FieldLabel htmlFor={idCpf}>CPF</FieldLabel>
+        <input
+          id={idCpf}
+          name={idCpf}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="CPF"
+          data-testid={`input-${idCpf}`}
+          value={value.cpf}
+          onChange={(e) => onChange({ ...value, cpf: maskCpfInput(e.target.value) })}
+          onBlur={() => onBlur("cpf")}
+          aria-invalid={!!errors[`${prefix}Cpf` as keyof FormErrors]}
+          aria-describedby={errors[`${prefix}Cpf` as keyof FormErrors] ? `${idCpf}-err` : undefined}
+          style={inputStyle(!!errors[`${prefix}Cpf` as keyof FormErrors])}
+        />
+        <FieldError id={`${idCpf}-err`} msg={errors[`${prefix}Cpf` as keyof FormErrors]} />
       </div>
     </div>
   );
@@ -477,99 +472,98 @@ function ReferralForm() {
     }
   };
 
+  const cardStyle: React.CSSProperties = {
+    background: "rgba(58, 91, 230, 0.55)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: 24,
+    padding: "36px 40px",
+    boxShadow: "0 28px 60px -28px rgba(0,0,0,0.45)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 22,
+    color: "#FFFFFF",
+  };
+
   if (success) {
     return (
       <div
         id="referral-form-card"
         data-testid="referral-form-success"
-        style={{
-          background: "#FFFFFF",
-          borderRadius: 20,
-          padding: 32,
-          boxShadow: "0 18px 40px -20px rgba(18, 42, 213, 0.35)",
-          border: `1px solid ${COLOR_BORDER}`,
-        }}
+        style={{ ...cardStyle, alignItems: "center", textAlign: "center" }}
       >
         <div
           style={{
+            width: 64,
+            height: 64,
+            borderRadius: 9999,
+            background: "rgba(149, 235, 29, 0.20)",
+            border: "1px solid rgba(149, 235, 29, 0.45)",
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
-            textAlign: "center",
-            gap: 16,
+            justifyContent: "center",
           }}
         >
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 9999,
-              background: "rgba(149, 235, 29, 0.18)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CheckCircle2 size={36} color={COLOR_PRIMARY} aria-hidden />
-          </div>
-          <h3
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 800,
-              fontSize: 22,
-              lineHeight: "28px",
-              color: COLOR_HEADING,
-              margin: 0,
-            }}
-          >
-            Indicação enviada com sucesso!
-          </h3>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontSize: 15,
-              lineHeight: "22px",
-              color: COLOR_SUBTLE,
-              margin: 0,
-              maxWidth: 420,
-            }}
-          >
-            Nosso time comercial vai entrar em contato com seu amigo em breve.
-            Quando ele assinar e instalar, você ganha 50% de desconto na sua
-            próxima mensalidade. 🎉
-          </p>
-          <button
-            type="button"
-            data-testid="button-new-referral"
-            onClick={() => {
-              setForm({
-                indicador: { ...EMPTY_PERSON },
-                amigo: { ...EMPTY_PERSON },
-                accept: false,
-                website: "",
-              });
-              setErrors({});
-              setStep(1);
-              setSuccess(false);
-            }}
-            style={{
-              marginTop: 8,
-              height: 44,
-              paddingLeft: 24,
-              paddingRight: 24,
-              borderRadius: 10,
-              background: COLOR_GREEN,
-              color: COLOR_GREEN_TEXT,
-              border: "none",
-              cursor: "pointer",
-              fontFamily: FONT_NUNITO,
-              fontWeight: 800,
-              fontSize: 14,
-            }}
-          >
-            Indicar outro amigo
-          </button>
+          <CheckCircle2 size={32} color={COLOR_GREEN} aria-hidden />
         </div>
+        <h3
+          style={{
+            fontFamily: FONT_MONTSERRAT,
+            fontWeight: 800,
+            fontSize: 22,
+            lineHeight: "28px",
+            color: "#FFFFFF",
+            margin: 0,
+          }}
+        >
+          Indicação enviada com sucesso!
+        </h3>
+        <p
+          style={{
+            fontFamily: FONT_NUNITO,
+            fontSize: 14,
+            lineHeight: "22px",
+            color: "rgba(255,255,255,0.85)",
+            margin: 0,
+            maxWidth: 420,
+          }}
+        >
+          Nosso time comercial vai entrar em contato com seu amigo em breve.
+          Quando ele assinar e instalar, você ganha 50% de desconto na sua
+          próxima mensalidade.
+        </p>
+        <button
+          type="button"
+          data-testid="button-new-referral"
+          onClick={() => {
+            setForm({
+              indicador: { ...EMPTY_PERSON },
+              amigo: { ...EMPTY_PERSON },
+              accept: false,
+              website: "",
+            });
+            setErrors({});
+            setStep(1);
+            setSuccess(false);
+          }}
+          style={{
+            marginTop: 4,
+            height: 48,
+            paddingLeft: 28,
+            paddingRight: 28,
+            borderRadius: 9999,
+            background: COLOR_GREEN,
+            color: COLOR_GREEN_TEXT,
+            border: "none",
+            cursor: "pointer",
+            fontFamily: FONT_NUNITO,
+            fontWeight: 800,
+            fontSize: 14,
+          }}
+        >
+          Indicar outro amigo
+        </button>
       </div>
     );
   }
@@ -580,16 +574,7 @@ function ReferralForm() {
       onSubmit={handleSubmit}
       noValidate
       data-testid="referral-form"
-      style={{
-        background: "#FFFFFF",
-        borderRadius: 20,
-        padding: 28,
-        boxShadow: "0 18px 40px -20px rgba(18, 42, 213, 0.35)",
-        border: `1px solid ${COLOR_BORDER}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: 22,
-      }}
+      style={cardStyle}
     >
       {/* Honeypot — invisible to humans */}
       <div
@@ -615,62 +600,110 @@ function ReferralForm() {
         </label>
       </div>
 
+      <div style={{ textAlign: "center" }}>
+        <h3
+          style={{
+            fontFamily: FONT_MONTSERRAT,
+            fontWeight: 800,
+            fontSize: 26,
+            lineHeight: "32px",
+            color: "#FFFFFF",
+            margin: 0,
+          }}
+        >
+          Para conseguir o desconto é simples
+        </h3>
+        <p
+          style={{
+            fontFamily: FONT_NUNITO,
+            fontWeight: 500,
+            fontSize: 14,
+            lineHeight: "20px",
+            color: "rgba(255,255,255,0.85)",
+            margin: "8px 0 0",
+          }}
+        >
+          {step === 1
+            ? "Primeiro precisamos dos seus dados de assinante, por favor :)"
+            : "Agora nos diga os dados do seu amigo. Vamos falar com ele com todo cuidado."}
+        </p>
+      </div>
+
       {/* Step indicator */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 10,
+          alignItems: "flex-start",
+          justifyContent: "center",
+          gap: 0,
+          marginTop: 4,
         }}
       >
         {[1, 2].map((n) => {
           const active = step === n;
           const done = step > n;
+          const isOn = active || done;
           return (
             <div
               key={n}
               style={{
                 display: "flex",
-                alignItems: "center",
-                gap: 8,
-                opacity: active || done ? 1 : 0.55,
+                alignItems: "flex-start",
+                gap: 0,
               }}
             >
               <div
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 9999,
-                  background: active || done ? COLOR_PRIMARY : "#EEF0F7",
-                  color: active || done ? "#FFFFFF" : COLOR_SUBTLE,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: FONT_NUNITO,
-                  fontWeight: 800,
-                  fontSize: 13,
+                  gap: 6,
+                  minWidth: 140,
                 }}
               >
-                {done ? <CheckCircle2 size={16} /> : n}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9999,
+                    background: isOn ? COLOR_GREEN : "rgba(255,255,255,0.18)",
+                    color: isOn ? COLOR_GREEN_TEXT : "#FFFFFF",
+                    border: isOn
+                      ? "none"
+                      : "1px solid rgba(255,255,255,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: FONT_NUNITO,
+                    fontWeight: 800,
+                    fontSize: 14,
+                  }}
+                >
+                  {done ? <CheckCircle2 size={18} /> : n}
+                </div>
+                <span
+                  style={{
+                    fontFamily: FONT_NUNITO,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: isOn ? "#FFFFFF" : "rgba(255,255,255,0.7)",
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {n === 1 ? "Informe seus dados" : "Dados do seu amigo"}
+                </span>
               </div>
-              <span
-                style={{
-                  fontFamily: FONT_NUNITO,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: active || done ? COLOR_PRIMARY : COLOR_SUBTLE,
-                }}
-              >
-                {n === 1 ? "Seus dados" : "Dados do amigo"}
-              </span>
               {n === 1 && (
                 <span
                   aria-hidden
                   style={{
-                    width: 16,
+                    width: 40,
                     height: 1,
-                    background: COLOR_BORDER,
-                    marginLeft: 4,
+                    background: "rgba(255,255,255,0.35)",
+                    marginTop: 16,
+                    marginLeft: 8,
+                    marginRight: 8,
                   }}
                 />
               )}
@@ -680,31 +713,7 @@ function ReferralForm() {
       </div>
 
       {step === 1 && (
-        <div data-testid="step-1">
-          <h3
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 800,
-              fontSize: 18,
-              lineHeight: "24px",
-              color: COLOR_HEADING,
-              margin: "0 0 4px",
-            }}
-          >
-            Quem está indicando?
-          </h3>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontSize: 13,
-              lineHeight: "18px",
-              color: COLOR_SUBTLE,
-              margin: "0 0 18px",
-            }}
-          >
-            Confirme seus dados de assinante para receber 50% de desconto na
-            sua próxima mensalidade.
-          </p>
+        <div data-testid="step-1" style={{ marginTop: 4 }}>
           <PersonFields
             prefix="indicador"
             value={form.indicador}
@@ -719,8 +728,8 @@ function ReferralForm() {
             style={{
               marginTop: 22,
               width: "100%",
-              height: 48,
-              borderRadius: 12,
+              height: 52,
+              borderRadius: 9999,
               border: "none",
               background: COLOR_GREEN,
               color: COLOR_GREEN_TEXT,
@@ -734,37 +743,13 @@ function ReferralForm() {
               gap: 8,
             }}
           >
-            Continuar <ArrowRight size={18} />
+            Próxima etapa <ArrowRight size={18} />
           </button>
         </div>
       )}
 
       {step === 2 && (
-        <div data-testid="step-2">
-          <h3
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 800,
-              fontSize: 18,
-              lineHeight: "24px",
-              color: COLOR_HEADING,
-              margin: "0 0 4px",
-            }}
-          >
-            Quem você está indicando?
-          </h3>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontSize: 13,
-              lineHeight: "18px",
-              color: COLOR_SUBTLE,
-              margin: "0 0 18px",
-            }}
-          >
-            Conte para nós os dados do seu amigo. Vamos falar com ele com todo
-            cuidado.
-          </p>
+        <div data-testid="step-2" style={{ marginTop: 4 }}>
           <PersonFields
             prefix="amigo"
             value={form.amigo}
@@ -780,9 +765,9 @@ function ReferralForm() {
               gap: 10,
               marginTop: 18,
               fontFamily: FONT_NUNITO,
-              fontSize: 13,
+              fontSize: 12,
               lineHeight: "18px",
-              color: COLOR_SUBTLE,
+              color: "rgba(255,255,255,0.85)",
               cursor: "pointer",
             }}
           >
@@ -796,14 +781,15 @@ function ReferralForm() {
               style={{
                 width: 18,
                 height: 18,
-                marginTop: 2,
-                accentColor: COLOR_PRIMARY,
+                marginTop: 1,
+                accentColor: COLOR_GREEN,
                 flexShrink: 0,
               }}
             />
             <span>
-              Confirmo que conversei com meu amigo e ele autorizou o contato da
-              equipe Provider + Fibra. Concordo com o regulamento da campanha.
+              Confirmo que conversei com meu amigo e ele autorizou o contato
+              da equipe Provider + Fibra. Concordo com o regulamento da
+              campanha.
             </span>
           </label>
           <FieldError msg={errors.accept} />
@@ -815,8 +801,8 @@ function ReferralForm() {
                 marginTop: 14,
                 padding: 12,
                 borderRadius: 10,
-                background: "rgba(208,41,41,0.08)",
-                color: COLOR_ERROR,
+                background: "rgba(208,41,41,0.18)",
+                color: "#FFFFFF",
                 fontFamily: FONT_NUNITO,
                 fontWeight: 600,
                 fontSize: 13,
@@ -837,13 +823,13 @@ function ReferralForm() {
               data-testid="button-step-back"
               onClick={() => setStep(1)}
               style={{
-                height: 48,
-                paddingLeft: 18,
-                paddingRight: 18,
-                borderRadius: 12,
-                border: `1px solid ${COLOR_BORDER}`,
-                background: "#FFFFFF",
-                color: COLOR_PRIMARY,
+                height: 52,
+                paddingLeft: 22,
+                paddingRight: 22,
+                borderRadius: 9999,
+                border: "1px solid rgba(255,255,255,0.4)",
+                background: "transparent",
+                color: "#FFFFFF",
                 fontFamily: FONT_NUNITO,
                 fontWeight: 700,
                 fontSize: 14,
@@ -861,8 +847,8 @@ function ReferralForm() {
               disabled={submitting}
               style={{
                 flex: 1,
-                height: 48,
-                borderRadius: 12,
+                height: 52,
+                borderRadius: 9999,
                 border: "none",
                 background: COLOR_GREEN,
                 color: COLOR_GREEN_TEXT,
@@ -897,9 +883,9 @@ function ReferralHero() {
     <section
       data-testid="referral-hero"
       style={{
-        background: `${COLOR_PRIMARY}`,
-        paddingTop: 140,
-        paddingBottom: 180,
+        background: COLOR_PRIMARY,
+        paddingTop: 80,
+        paddingBottom: 200,
         color: "#FFFFFF",
         position: "relative",
         overflow: "hidden",
@@ -914,7 +900,7 @@ function ReferralHero() {
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          opacity: 0.55,
+          opacity: 0.45,
           pointerEvents: "none",
         }}
       />
@@ -923,124 +909,25 @@ function ReferralHero() {
         style={{
           position: "absolute",
           inset: 0,
-          background: `linear-gradient(135deg, rgba(32,55,206,0.85) 0%, rgba(18,42,213,0.65) 60%, rgba(37,70,224,0.85) 100%)`,
+          background: `linear-gradient(180deg, rgba(18,42,213,0.55) 0%, rgba(18,42,213,0.85) 75%, ${COLOR_PRIMARY} 100%)`,
           pointerEvents: "none",
         }}
       />
       <div
-        className="mx-auto px-6 lg:px-0"
+        className="mx-auto px-6 lg:px-0 referral-hero-grid"
         style={{
           maxWidth: 1100,
           position: "relative",
           display: "grid",
-          gridTemplateColumns: "1.05fr 1fr",
-          gap: 48,
+          gridTemplateColumns: "1.1fr 1fr",
+          gap: 40,
           alignItems: "center",
         }}
       >
-        <div>
-          <motion.span
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45 }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(149,235,29,0.18)",
-              color: COLOR_GREEN,
-              fontFamily: FONT_NUNITO,
-              fontWeight: 800,
-              fontSize: 12,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "8px 14px",
-              borderRadius: 9999,
-              marginBottom: 18,
-            }}
-          >
-            <Sparkles size={14} aria-hidden /> Programa de indicação
-          </motion.span>
-          <motion.h1
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.05 }}
-            style={{
-              fontFamily: FONT_MONTSERRAT,
-              fontWeight: 800,
-              fontSize: 44,
-              lineHeight: "52px",
-              margin: "0 0 16px",
-              letterSpacing: "-0.5px",
-            }}
-          >
-            Indique um amigo e{" "}
-            <span style={{ color: COLOR_GREEN }}>
-              ganhe 50% de desconto
-            </span>{" "}
-            na sua mensalidade
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.1 }}
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontWeight: 500,
-              fontSize: 17,
-              lineHeight: "26px",
-              color: "rgba(255,255,255,0.9)",
-              margin: 0,
-              maxWidth: 520,
-            }}
-          >
-            Compartilhe a melhor fibra do Oeste da Bahia com quem você gosta. A
-            cada amigo que assinar e instalar pela sua indicação, você ganha
-            50% de desconto na sua próxima mensalidade. Sem limite de
-            indicações.
-          </motion.p>
-
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: "26px 0 0",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              maxWidth: 520,
-            }}
-          >
-            {[
-              "50% off por indicação",
-              "Sem limite de amigos",
-              "Crédito direto na fatura",
-              "Atendimento humano",
-            ].map((b) => (
-              <li
-                key={b}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontFamily: FONT_NUNITO,
-                  fontWeight: 600,
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.95)",
-                }}
-              >
-                <CheckCircle2 size={18} color={COLOR_GREEN} aria-hidden />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="referral-hero-art"
+          transition={{ duration: 0.6 }}
           style={{
             position: "relative",
             display: "flex",
@@ -1048,18 +935,6 @@ function ReferralHero() {
             alignItems: "center",
           }}
         >
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              width: 360,
-              height: 360,
-              borderRadius: 9999,
-              background:
-                "radial-gradient(circle, rgba(149,235,29,0.28) 0%, transparent 70%)",
-              filter: "blur(8px)",
-            }}
-          />
           <img
             src={friendsImage}
             alt="Amigos celebrando juntos"
@@ -1068,13 +943,50 @@ function ReferralHero() {
             style={{
               position: "relative",
               width: "100%",
-              maxWidth: 440,
+              maxWidth: 520,
               height: "auto",
-              borderRadius: 20,
-              objectFit: "cover",
             }}
           />
         </motion.div>
+        <div style={{ textAlign: "center" }}>
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.05 }}
+            style={{
+              fontFamily: FONT_MONTSERRAT,
+              fontWeight: 700,
+              fontSize: 36,
+              lineHeight: "44px",
+              margin: "0 0 16px",
+              letterSpacing: "-0.3px",
+            }}
+          >
+            Indique um amigo e{" "}
+            <span style={{ color: COLOR_GREEN, fontWeight: 800 }}>
+              ganhe 50%
+            </span>{" "}
+            de desconto na sua mensalidade
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.1 }}
+            style={{
+              fontFamily: FONT_NUNITO,
+              fontWeight: 500,
+              fontSize: 14,
+              lineHeight: "22px",
+              color: "rgba(255,255,255,0.85)",
+              margin: "0 auto",
+              maxWidth: 360,
+            }}
+          >
+            Compartilhe seu link de indicação com um amigo. Quando ele assinar,
+            você recebe 50% de desconto na sua próxima mensalidade. Aproveite
+            para economizar e curtir ainda mais conteúdo.
+          </motion.p>
+        </div>
       </div>
     </section>
   );
@@ -1085,56 +997,33 @@ function ReferralRulesBanner() {
     <section
       data-testid="referral-rules"
       style={{
-        background: "#FFFFFF",
-        paddingTop: 36,
-        paddingBottom: 36,
+        background: COLOR_GREEN,
+        paddingTop: 18,
+        paddingBottom: 18,
       }}
     >
       <div
         className="mx-auto px-6 lg:px-0"
         style={{
           maxWidth: 1100,
-          display: "flex",
-          gap: 18,
-          alignItems: "center",
-          background: COLOR_GREEN,
-          borderRadius: 16,
-          padding: "20px 24px",
-          flexWrap: "wrap",
+          textAlign: "center",
         }}
       >
-        <div
+        <p
           style={{
-            width: 48,
-            height: 48,
-            borderRadius: 12,
-            background: "rgba(0,0,0,0.08)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            fontFamily: FONT_NUNITO,
+            fontWeight: 700,
+            fontSize: 13,
+            lineHeight: "20px",
             color: COLOR_GREEN_TEXT,
-            flexShrink: 0,
+            margin: 0,
           }}
         >
-          <Gift size={24} aria-hidden />
-        </div>
-        <div style={{ flex: 1, minWidth: 220 }}>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontWeight: 700,
-              fontSize: 15,
-              lineHeight: "22px",
-              color: COLOR_GREEN_TEXT,
-              margin: 0,
-            }}
-          >
-            Indicações são válidas somente para clientes vigentes. O programa
-            de indicação é válido em todo o território de atuação do Provider
-            + Fibra. Consulte as condições e o regulamento no canal de
-            atendimento.
-          </p>
-        </div>
+          Indicações são válidas somente para clientes vigentes. O programa de
+          indicação é válido em todo o território de atuação do Provider +
+          Fibra. Consulte as condições e o regulamento no canal de
+          atendimento.
+        </p>
       </div>
     </section>
   );
@@ -1143,37 +1032,34 @@ function ReferralRulesBanner() {
 function ReferralHowItWorks() {
   const steps = [
     {
-      n: "1",
-      icon: <Users size={24} />,
-      title: "Você indica um amigo",
-      text: "Preencha o formulário com seus dados de assinante e os dados do amigo.",
+      icon: <Users size={26} />,
+      title: "Você indica um amigo.",
+      text: "Você pode trazer seus amigos para a melhor internet e ainda ganhar desconto.",
     },
     {
-      n: "2",
-      icon: <Phone size={24} />,
-      title: "Nós entramos em contato",
-      text: "Nosso time comercial fala com o seu amigo pelo WhatsApp para apresentar o melhor plano.",
+      icon: <Phone size={26} />,
+      title: "Nós entramos em contato.",
+      text: "Nessa parte nós ligamos para os seus indicados para confirmar a sua indicação.",
     },
     {
-      n: "3",
-      icon: <CheckCircle2 size={24} />,
-      title: "Se seu amigo assinar",
-      text: "Confirmamos o plano escolhido e agendamos a instalação grátis no melhor horário.",
+      icon: <CheckCircle2 size={26} />,
+      title: "Se seu amigo assinar.",
+      text: "Caso o seu amigo contratar um plano da Provider + Fibra.",
     },
     {
-      n: "4",
-      icon: <Wifi size={24} />,
-      title: "Se seu amigo instalar",
-      text: "Quando a instalação for concluída, você ganha 50% de desconto na sua próxima mensalidade.",
+      icon: <Wifi size={26} />,
+      title: "Se seu amigo instalar.",
+      text: "Você ganha um super desconto de 50% na sua próxima mensalidade.",
     },
   ];
   return (
     <section
       data-testid="referral-how-it-works"
       style={{
-        background: "#FBFBFD",
-        paddingTop: 60,
+        background: COLOR_PRIMARY,
+        paddingTop: 70,
         paddingBottom: 60,
+        color: "#FFFFFF",
       }}
     >
       <div
@@ -1184,35 +1070,25 @@ function ReferralHowItWorks() {
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 400,
-              fontSize: 32,
-              lineHeight: "40px",
-              color: COLOR_HEADING,
+              fontWeight: 700,
+              fontSize: 30,
+              lineHeight: "38px",
+              color: "#FFFFFF",
               margin: 0,
             }}
           >
             Veja como é fácil{" "}
-            <span style={{ fontWeight: 800 }}>participar</span>
+            <span style={{ fontWeight: 800, color: COLOR_GREEN }}>
+              participar
+            </span>
           </h2>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontWeight: 400,
-              fontSize: 16,
-              lineHeight: "24px",
-              color: COLOR_SUBTLE,
-              margin: "8px 0 0",
-            }}
-          >
-            Simples, rápido e sem complicação
-          </p>
         </div>
         <div
           className="referral-steps"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 18,
+            gap: 16,
           }}
         >
           {steps.map((s, i) => (
@@ -1223,58 +1099,41 @@ function ReferralHowItWorks() {
               viewport={{ once: true }}
               transition={{ duration: 0.45, delay: i * 0.08 }}
               style={{
-                background: "#FFFFFF",
-                border: `1px solid ${COLOR_BORDER}`,
-                borderRadius: 18,
-                padding: 24,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 14,
+                padding: "22px 20px",
                 display: "flex",
                 flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
                 gap: 12,
               }}
             >
               <div
                 style={{
-                  position: "relative",
-                  width: 56,
-                  height: 56,
+                  width: 60,
+                  height: 60,
                   borderRadius: 9999,
-                  background: COLOR_PRIMARY,
+                  background: "rgba(255,255,255,0.12)",
+                  border: "1px solid rgba(255,255,255,0.22)",
                   color: "#FFFFFF",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  marginTop: -42,
+                  boxShadow: "0 6px 18px -8px rgba(0,0,0,0.35)",
                 }}
               >
                 {s.icon}
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -6,
-                    width: 24,
-                    height: 24,
-                    borderRadius: 9999,
-                    background: COLOR_GREEN,
-                    color: COLOR_GREEN_TEXT,
-                    fontFamily: FONT_MONTSERRAT,
-                    fontWeight: 800,
-                    fontSize: 12,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {s.n}
-                </span>
               </div>
               <h3
                 style={{
                   fontFamily: FONT_MONTSERRAT,
                   fontWeight: 800,
-                  fontSize: 17,
-                  lineHeight: "24px",
-                  color: COLOR_HEADING,
+                  fontSize: 16,
+                  lineHeight: "22px",
+                  color: "#FFFFFF",
                   margin: 0,
                 }}
               >
@@ -1284,9 +1143,9 @@ function ReferralHowItWorks() {
                 style={{
                   fontFamily: FONT_NUNITO,
                   fontWeight: 500,
-                  fontSize: 14,
-                  lineHeight: "20px",
-                  color: COLOR_SUBTLE,
+                  fontSize: 13,
+                  lineHeight: "19px",
+                  color: "rgba(255,255,255,0.78)",
                   margin: 0,
                 }}
               >
@@ -1305,26 +1164,21 @@ function ReferralIfYouWereInvited() {
     icon: React.ReactNode;
     title: string;
     text: string;
-    cta?: { label: string; href: string };
   }> = [
     {
       icon: <MessageCircle size={26} />,
-      title: "Fale com a gente no WhatsApp",
-      text: "Toque no botão abaixo, diga que foi indicado e informe o nome do amigo que te indicou.",
-      cta: {
-        label: "Falar no WhatsApp",
-        href: "https://wa.me/5577998444757?text=Ol%C3%A1!%20Fui%20indicado%20por%20um%20amigo%20e%20quero%20assinar%20o%20Provider%20%2B%20Fibra.",
-      },
+      title: "Você receberá um link no WhatsApp",
+      text: "Após receber o link confirme a sua participação na promoção.",
     },
     {
-      icon: <Clock size={26} />,
-      title: "Aguarde nosso contato",
-      text: "Nosso time comercial confirma a indicação, apresenta o melhor plano para você e agenda a instalação grátis.",
+      icon: <Phone size={26} />,
+      title: "Aguarde o nosso contato",
+      text: "Você precisará aguardar nosso contato para que a promoção seja válida.",
     },
     {
       icon: <UserPlus size={26} />,
       title: "Assine um plano e indique amigos",
-      text: "Depois que você assinar, também pode participar do programa: cada amigo que assinar pela sua indicação rende 50% off.",
+      text: "Após assinar um dos planos você poderá indicar outros amigos.",
     },
   ];
 
@@ -1332,8 +1186,8 @@ function ReferralIfYouWereInvited() {
     <section
       data-testid="referral-invited"
       style={{
-        background: COLOR_PRIMARY_DARK,
-        paddingTop: 60,
+        background: COLOR_PRIMARY,
+        paddingTop: 30,
         paddingBottom: 60,
         color: "#FFFFFF",
       }}
@@ -1347,31 +1201,21 @@ function ReferralIfYouWereInvited() {
           gap: 30,
         }}
       >
-        <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: "left" }}>
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 400,
-              fontSize: 32,
-              lineHeight: "40px",
+              fontWeight: 700,
+              fontSize: 28,
+              lineHeight: "36px",
               margin: 0,
             }}
           >
-            Se você foi <span style={{ fontWeight: 800 }}>indicado</span>
+            Se você foi{" "}
+            <span style={{ fontWeight: 800, color: COLOR_GREEN }}>
+              indicado
+            </span>
           </h2>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontSize: 16,
-              lineHeight: "24px",
-              color: "rgba(255,255,255,0.85)",
-              margin: "8px auto 0",
-              maxWidth: 620,
-            }}
-          >
-            É super simples começar a aproveitar a fibra mais rápida do Oeste
-            da Bahia.
-          </p>
         </div>
         <div
           className="referral-invited-cards"
@@ -1389,22 +1233,24 @@ function ReferralIfYouWereInvited() {
               viewport={{ once: true }}
               transition={{ duration: 0.45, delay: i * 0.08 }}
               style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                borderRadius: 18,
-                padding: 24,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                borderRadius: 14,
+                padding: "22px 22px",
                 display: "flex",
                 flexDirection: "column",
-                gap: 12,
+                alignItems: "flex-start",
+                gap: 14,
               }}
             >
               <div
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 14,
-                  background: COLOR_GREEN,
-                  color: COLOR_GREEN_TEXT,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 9999,
+                  background: "rgba(255,255,255,0.12)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                  color: "#FFFFFF",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -1416,8 +1262,8 @@ function ReferralIfYouWereInvited() {
                 style={{
                   fontFamily: FONT_MONTSERRAT,
                   fontWeight: 800,
-                  fontSize: 17,
-                  lineHeight: "24px",
+                  fontSize: 16,
+                  lineHeight: "22px",
                   margin: 0,
                 }}
               >
@@ -1427,40 +1273,15 @@ function ReferralIfYouWereInvited() {
                 style={{
                   fontFamily: FONT_NUNITO,
                   fontWeight: 500,
-                  fontSize: 14,
-                  lineHeight: "20px",
-                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 13,
+                  lineHeight: "19px",
+                  color: "rgba(255,255,255,0.78)",
                   margin: 0,
                   flex: 1,
                 }}
               >
                 {c.text}
               </p>
-              {c.cta && (
-                <a
-                  href={c.cta.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="invited-cta"
-                  style={{
-                    marginTop: 4,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    background: COLOR_GREEN,
-                    color: COLOR_GREEN_TEXT,
-                    padding: "12px 20px",
-                    borderRadius: 9999,
-                    fontFamily: FONT_NUNITO,
-                    fontWeight: 800,
-                    fontSize: 14,
-                    textDecoration: "none",
-                  }}
-                >
-                  {c.cta.label} <ArrowRight size={16} />
-                </a>
-              )}
             </motion.div>
           ))}
         </div>
@@ -1501,7 +1322,12 @@ function ReferralFAQ() {
   return (
     <section
       data-testid="referral-faq"
-      style={{ background: "#FFFFFF", paddingTop: 60, paddingBottom: 80 }}
+      style={{
+        background: COLOR_PRIMARY,
+        paddingTop: 50,
+        paddingBottom: 80,
+        color: "#FFFFFF",
+      }}
     >
       <div
         className="mx-auto px-6 lg:px-0"
@@ -1516,38 +1342,29 @@ function ReferralFAQ() {
           <h2
             style={{
               fontFamily: FONT_MONTSERRAT,
-              fontWeight: 400,
-              fontSize: 32,
-              lineHeight: "40px",
-              color: COLOR_HEADING,
+              fontWeight: 700,
+              fontSize: 30,
+              lineHeight: "38px",
+              color: "#FFFFFF",
               margin: 0,
             }}
           >
             Ficou com alguma{" "}
-            <span style={{ fontWeight: 800 }}>dúvida?</span>
+            <span style={{ fontWeight: 800, color: COLOR_GREEN }}>
+              dúvida?
+            </span>
           </h2>
-          <p
-            style={{
-              fontFamily: FONT_NUNITO,
-              fontSize: 16,
-              lineHeight: "24px",
-              color: COLOR_SUBTLE,
-              margin: "8px 0 0",
-            }}
-          >
-            As respostas mais comuns sobre o programa de indicação.
-          </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {items.map((it, i) => {
             const open = openIdx === i;
             return (
               <div
                 key={it.q}
                 style={{
-                  background: "#FFFFFF",
-                  border: `1px solid ${COLOR_BORDER}`,
-                  borderRadius: 12,
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  borderRadius: 10,
                 }}
               >
                 <button
@@ -1561,39 +1378,40 @@ function ReferralFAQ() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 12,
-                    padding: "18px 20px",
+                    padding: "16px 22px",
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
                     textAlign: "left",
-                    fontFamily: FONT_MONTSERRAT,
-                    fontWeight: 700,
-                    fontSize: 16,
-                    lineHeight: "22px",
-                    color: COLOR_HEADING,
+                    fontFamily: FONT_NUNITO,
+                    fontWeight: 600,
+                    fontSize: 14,
+                    lineHeight: "20px",
+                    color: "#FFFFFF",
                   }}
                 >
                   <span>{it.q}</span>
                   <ChevronDown
-                    size={20}
+                    size={18}
                     aria-hidden
                     style={{
                       transition: "transform 0.2s ease",
                       transform: open ? "rotate(180deg)" : "rotate(0deg)",
                       flexShrink: 0,
-                      color: COLOR_PRIMARY,
+                      color: "#FFFFFF",
+                      opacity: 0.8,
                     }}
                   />
                 </button>
                 {open && (
                   <div
                     style={{
-                      padding: "0 20px 20px",
+                      padding: "0 22px 18px",
                       fontFamily: FONT_NUNITO,
                       fontWeight: 500,
-                      fontSize: 14,
-                      lineHeight: "22px",
-                      color: COLOR_SUBTLE,
+                      fontSize: 13,
+                      lineHeight: "20px",
+                      color: "rgba(255,255,255,0.8)",
                     }}
                   >
                     {it.a}
@@ -1642,22 +1460,25 @@ export default function IndiqueUmAmigo() {
         jsonLd={seoSchemas}
       />
       <Header />
-      <main id="main-content">
+      <main
+        id="main-content"
+        style={{ background: COLOR_PRIMARY, color: "#FFFFFF" }}
+      >
         <div style={{ position: "relative" }}>
           <ReferralHero />
           <section
             data-testid="referral-form-section"
             style={{
               background: "transparent",
-              marginTop: -120,
-              paddingBottom: 24,
+              marginTop: -150,
+              paddingBottom: 40,
               position: "relative",
               zIndex: 2,
             }}
           >
             <div
               className="mx-auto px-6 lg:px-0"
-              style={{ maxWidth: 720 }}
+              style={{ maxWidth: 760 }}
             >
               <ReferralForm />
             </div>
