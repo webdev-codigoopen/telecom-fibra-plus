@@ -25,7 +25,7 @@ const router: IRouter = Router();
 // WhatsApp link-preview UA, OR the source was already labeled as a bot
 // (whatsapp-share-bot*) by the backfill cleanup. Built dynamically so admin
 // edits to the crawler-UA list take effect immediately.
-function buildIsBotSqlExpr(): SQL<boolean> {
+export function buildIsBotSqlExpr(): SQL<boolean> {
   const combined = getCombinedUaPattern();
   if (combined) {
     return sql<boolean>`(
