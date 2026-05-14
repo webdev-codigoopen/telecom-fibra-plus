@@ -535,7 +535,8 @@ function ReferralForm() {
             }}
           >
             Nosso time comercial vai entrar em contato com seu amigo em breve.
-            Quando ele assinar, você recebe seu mês grátis. 🎉
+            Quando ele assinar e instalar, você ganha 50% de desconto na sua
+            próxima mensalidade. 🎉
           </p>
           <button
             type="button"
@@ -701,7 +702,8 @@ function ReferralForm() {
               margin: "0 0 18px",
             }}
           >
-            Confirme seus dados de assinante para receber o seu mês grátis.
+            Confirme seus dados de assinante para receber 50% de desconto na
+            sua próxima mensalidade.
           </p>
           <PersonFields
             prefix="indicador"
@@ -897,7 +899,7 @@ function ReferralHero() {
       style={{
         background: `${COLOR_PRIMARY}`,
         paddingTop: 140,
-        paddingBottom: 64,
+        paddingBottom: 180,
         color: "#FFFFFF",
         position: "relative",
         overflow: "hidden",
@@ -1641,22 +1643,26 @@ export default function IndiqueUmAmigo() {
       />
       <Header />
       <main id="main-content">
-        <ReferralHero />
-        <section
-          data-testid="referral-form-section"
-          style={{
-            background: "#FFFFFF",
-            paddingTop: 48,
-            paddingBottom: 24,
-          }}
-        >
-          <div
-            className="mx-auto px-6 lg:px-0"
-            style={{ maxWidth: 720 }}
+        <div style={{ position: "relative" }}>
+          <ReferralHero />
+          <section
+            data-testid="referral-form-section"
+            style={{
+              background: "transparent",
+              marginTop: -120,
+              paddingBottom: 24,
+              position: "relative",
+              zIndex: 2,
+            }}
           >
-            <ReferralForm />
-          </div>
-        </section>
+            <div
+              className="mx-auto px-6 lg:px-0"
+              style={{ maxWidth: 720 }}
+            >
+              <ReferralForm />
+            </div>
+          </section>
+        </div>
         <ReferralRulesBanner />
         <ReferralHowItWorks />
         <ReferralIfYouWereInvited />
