@@ -23,11 +23,18 @@ if (Number.isNaN(port) || port <= 0) {
 // Boot-time validation of required secrets. Fail loud and early so we never
 // silently run with a broken security posture in production.
 // ---------------------------------------------------------------------------
-const REQUIRED_ENV = ["DATABASE_URL", "JWT_SECRET"] as const;
-const missing = REQUIRED_ENV.filter((name) => {
+const REQUIRED_ENV = ["JWT_SECRET"] as const;
+const missing: string[] = REQUIRED_ENV.filter((name) => {
   const v = process.env[name];
   return !v || v.trim().length === 0;
 });
+const hasDbConn =
+  !!process.env["SUPABASE_DB_PASSWORD"]?.trim() ||
+  !!process.env["SUPABASE_DATABASE_URL"]?.trim() ||
+  !!process.env["DATABASE_URL"]?.trim();
+if (!hasDbConn) {
+  missing.push("SUPABASE_DB_PASSWORD|SUPABASE_DATABASE_URL|DATABASE_URL");
+}
 if (missing.length > 0) {
   if (process.env["NODE_ENV"] === "production") {
     logger.fatal({ missing }, "Refusing to start: required env vars missing");
