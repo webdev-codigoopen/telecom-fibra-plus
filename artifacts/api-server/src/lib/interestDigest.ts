@@ -14,6 +14,7 @@ import {
   type WhatsappNotifyFrequency,
 } from "./sendWhatsapp";
 import { logger } from "./logger";
+import { shouldNotifyNow } from "./quietHours";
 
 export type DigestFrequency = "daily" | "weekly";
 
@@ -530,8 +531,15 @@ export async function sendDueWhatsappDigest(now: Date = new Date()): Promise<voi
   // the same cutoff (e.g. brand-new with null lastSentAt) reuse one query.
   const rowsCache = new Map<string, Awaited<ReturnType<typeof fetchInterestsSince>>>();
 
+  // If the configured slot falls inside the global quiet-hours window
+  // (including weekend mute), defer delivery. Each per-destination check
+  // remains "due" until lastSentAt advances past the slot, so a later tick
+  // after the window ends will fire the digest.
+  const quietNow = !(await shouldNotifyNow(now));
+
   for (const t of targets) {
     if (!isDueDigest(t.frequency, t.lastSentAt, now, schedule)) continue;
+    if (quietNow) continue;
     const cacheKey = t.lastSentAt ? t.lastSentAt.toISOString() : "__all__";
     let rows = rowsCache.get(cacheKey);
     if (!rows) {
