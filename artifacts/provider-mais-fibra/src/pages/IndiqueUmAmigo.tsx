@@ -28,8 +28,8 @@ import {
 const BASE = import.meta.env.BASE_URL;
 const API_BASE = BASE.replace(/\/$/, "");
 
-const FONT_NUNITO = "'Nunito', system-ui, sans-serif";
 const FONT_MONTSERRAT = "'Montserrat', system-ui, sans-serif";
+const FONT_NUNITO = FONT_MONTSERRAT;
 
 const COLOR_PRIMARY = "#122AD5";
 const COLOR_GREEN = "#95EB1D";
@@ -511,13 +511,11 @@ function ReferralForm() {
 
   const cardStyle: React.CSSProperties = {
     background: "#FFFFFF",
-    border: "1px solid #E8EBF2",
-    borderRadius: 20,
-    padding: "40px 44px",
-    boxShadow: "0 30px 70px -30px rgba(8, 17, 86, 0.45)",
+    borderRadius: 0,
+    padding: 0,
     display: "flex",
     flexDirection: "column",
-    gap: 28,
+    gap: 32,
     color: COLOR_TEXT,
     position: "relative",
   };
@@ -1378,9 +1376,9 @@ export default function IndiqueUmAmigo() {
           <section
             data-testid="referral-form-section"
             style={{
-              background: "transparent",
-              paddingTop: 60,
-              paddingBottom: 40,
+              background: "#FFFFFF",
+              paddingTop: 80,
+              paddingBottom: 80,
               position: "relative",
               zIndex: 2,
             }}
@@ -1411,10 +1409,9 @@ export default function IndiqueUmAmigo() {
           .referral-grid {
             grid-template-columns: 1fr !important;
           }
-          [data-testid="referral-form"],
-          [data-testid="referral-form-success"] {
-            padding: 28px 22px !important;
-            border-radius: 18px !important;
+          [data-testid="referral-form-section"] {
+            padding-top: 56px !important;
+            padding-bottom: 56px !important;
           }
           .referral-actions {
             flex-direction: column-reverse !important;
