@@ -535,13 +535,25 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
       ? Math.min(50, Math.max(1, limitParam))
       : 7;
 
+    const triggerParamRaw = typeof req.query["trigger"] === "string"
+      ? req.query["trigger"].toLowerCase()
+      : "";
+    const triggerFilter: "manual" | "scheduled" | null =
+      triggerParamRaw === "manual" || triggerParamRaw === "scheduled"
+        ? triggerParamRaw
+        : null;
+
     // Fetch enough recent runs to cover `historyLimit` distinct calendar days
     // even when there are many manual re-runs in a single day. We cap the
     // raw fetch generously so a busy day doesn't push older days off the chart.
     const rawFetchLimit = Math.min(500, Math.max(historyLimit * 20, 50));
-    const historyRowsRaw = await db
+    const baseQuery = db
       .select()
-      .from(botCleanupRunsTable)
+      .from(botCleanupRunsTable);
+    const filteredQuery = triggerFilter
+      ? baseQuery.where(eq(botCleanupRunsTable.trigger, triggerFilter))
+      : baseQuery;
+    const historyRowsRaw = await filteredQuery
       .orderBy(desc(botCleanupRunsTable.finishedAt))
       .limit(rawFetchLimit);
 

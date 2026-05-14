@@ -129,12 +129,15 @@ const UI_STORAGE_KEY = "pmf_admin_ui_state";
 type ChartView = "total" | "source";
 type PreviewMode = "desktop" | "tablet" | "mobile";
 
+type CleanupHistoryFilter = "all" | "manual" | "scheduled";
+
 type StoredUiState = {
   chartView: ChartView;
   previewOpen: boolean;
   previewMode: PreviewMode;
   showBots: boolean;
   cleanupHistoryOpen: boolean;
+  cleanupHistoryFilter: CleanupHistoryFilter;
 };
 
 function loadStoredUiState(): StoredUiState {
@@ -144,6 +147,7 @@ function loadStoredUiState(): StoredUiState {
     previewMode: "desktop",
     showBots: true,
     cleanupHistoryOpen: false,
+    cleanupHistoryFilter: "all",
   };
   try {
     const raw = localStorage.getItem(UI_STORAGE_KEY);
@@ -161,6 +165,12 @@ function loadStoredUiState(): StoredUiState {
         typeof parsed.cleanupHistoryOpen === "boolean"
           ? parsed.cleanupHistoryOpen
           : fallback.cleanupHistoryOpen,
+      cleanupHistoryFilter:
+        parsed.cleanupHistoryFilter === "manual" ||
+        parsed.cleanupHistoryFilter === "scheduled" ||
+        parsed.cleanupHistoryFilter === "all"
+          ? parsed.cleanupHistoryFilter
+          : fallback.cleanupHistoryFilter,
     };
   } catch {
     return fallback;
@@ -257,6 +267,9 @@ export default function Admin() {
   const [showBots, setShowBots] = useState<boolean>(() => loadStoredUiState().showBots);
   const [cleanupHistoryOpen, setCleanupHistoryOpen] = useState<boolean>(
     () => loadStoredUiState().cleanupHistoryOpen,
+  );
+  const [cleanupHistoryFilter, setCleanupHistoryFilter] = useState<CleanupHistoryFilter>(
+    () => loadStoredUiState().cleanupHistoryFilter,
   );
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOverId, setDragOverId] = useState<number | null>(null);
@@ -628,7 +641,12 @@ export default function Admin() {
           : Promise.resolve(null),
         adminFetch(tsUrl, { headers: { Authorization: `Bearer ${key}` } }),
         adminFetch(`${baseUrl}/api/clicks/preview-health`, { headers: { Authorization: `Bearer ${key}` } }),
-        adminFetch(`${baseUrl}/api/clicks/cleanup-status`, { headers: { Authorization: `Bearer ${key}` } }),
+        adminFetch(
+          `${baseUrl}/api/clicks/cleanup-status${
+            cleanupHistoryFilter !== "all" ? `?trigger=${cleanupHistoryFilter}` : ""
+          }`,
+          { headers: { Authorization: `Bearer ${key}` } },
+        ),
         adminFetch(`${baseUrl}/api/clicks/cleanup-alerts`, { headers: { Authorization: `Bearer ${key}` } }),
       ]);
       if (statsRes.ok) {
@@ -680,7 +698,28 @@ export default function Admin() {
     } finally {
       setClickStatsLoading(false);
     }
-  }, [baseUrl]);
+  }, [baseUrl, cleanupHistoryFilter]);
+
+  const refetchCleanupStatus = useCallback(
+    async (filter: CleanupHistoryFilter) => {
+      if (!adminKey) return;
+      try {
+        const url = `${baseUrl}/api/clicks/cleanup-status${
+          filter !== "all" ? `?trigger=${filter}` : ""
+        }`;
+        const res = await adminFetch(url, {
+          headers: { Authorization: `Bearer ${adminKey}` },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as typeof cleanupStatus;
+          setCleanupStatus(data);
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [adminKey, baseUrl],
+  );
 
   const runCleanupNow = useCallback(async () => {
     if (cleanupRunning) return;
@@ -711,6 +750,12 @@ export default function Admin() {
       };
       if (data.status) {
         const newRun = data.status;
+        const skipOptimistic = cleanupHistoryFilter === "scheduled";
+        if (skipOptimistic) {
+          // Manual run is hidden by current filter; refresh from server
+          // so the visible list stays consistent.
+          void refetchCleanupStatus(cleanupHistoryFilter);
+        } else
         setCleanupStatus((prev) => {
           const prevHistory = prev?.history ?? [];
           // Collapse to one entry per calendar day (America/Sao_Paulo). If the
@@ -770,7 +815,7 @@ export default function Admin() {
     } finally {
       setCleanupRunning(false);
     }
-  }, [adminKey, baseUrl, cleanupRunning]);
+  }, [adminKey, baseUrl, cleanupRunning, cleanupHistoryFilter, refetchCleanupStatus]);
 
   const sendCleanupTestAlert = useCallback(async () => {
     if (cleanupTestSending) return;
@@ -941,12 +986,12 @@ export default function Admin() {
     try {
       localStorage.setItem(
         UI_STORAGE_KEY,
-        JSON.stringify({ chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen }),
+        JSON.stringify({ chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen, cleanupHistoryFilter }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen]);
+  }, [chartView, previewOpen, previewMode, showBots, cleanupHistoryOpen, cleanupHistoryFilter]);
 
   async function savePlan(plan: ApiPlan | Omit<ApiPlan, "id">) {
     setSaving(true);
@@ -2377,7 +2422,10 @@ export default function Admin() {
                           )}
                         </>
                       )}
-                      {cleanupStatus.history && cleanupStatus.history.length > 0 && (
+                      {(
+                        (cleanupStatus.history && cleanupStatus.history.length > 0) ||
+                        cleanupHistoryFilter !== "all"
+                      ) && (
                         <div className="mt-3 pt-3 border-t border-[#E0E3EB]">
                           <div className="flex items-baseline justify-between gap-2 mb-2 flex-wrap">
                             <button
@@ -2396,8 +2444,14 @@ export default function Admin() {
                               >
                                 ▶
                               </span>
-                              Histórico recente ({cleanupStatus.history.length}{" "}
-                              {cleanupStatus.history.length === 1 ? "dia" : "dias"})
+                              Histórico recente ({cleanupStatus.history?.length ?? 0}{" "}
+                              {(cleanupStatus.history?.length ?? 0) === 1 ? "dia" : "dias"}
+                              {cleanupHistoryFilter === "manual"
+                                ? " · só manuais"
+                                : cleanupHistoryFilter === "scheduled"
+                                  ? " · só agendadas"
+                                  : ""}
+                              )
                             </button>
                             {cleanupHistoryOpen && (
                               <span className="text-[10px] text-[#7A7F8C]">
@@ -2405,7 +2459,57 @@ export default function Admin() {
                               </span>
                             )}
                           </div>
-                          {cleanupHistoryOpen && (() => {
+                          {cleanupHistoryOpen && (
+                            <div
+                              className="flex items-center gap-1 mb-2"
+                              role="group"
+                              aria-label="Filtrar histórico de limpeza por origem da execução"
+                            >
+                              {(
+                                [
+                                  { v: "all" as const, label: "Todas" },
+                                  { v: "manual" as const, label: "Manuais" },
+                                  { v: "scheduled" as const, label: "Agendadas" },
+                                ]
+                              ).map((opt) => {
+                                const active = cleanupHistoryFilter === opt.v;
+                                return (
+                                  <button
+                                    key={opt.v}
+                                    type="button"
+                                    onClick={() => {
+                                      if (cleanupHistoryFilter === opt.v) return;
+                                      setCleanupHistoryFilter(opt.v);
+                                      void refetchCleanupStatus(opt.v);
+                                    }}
+                                    aria-pressed={active}
+                                    className="text-[10px] px-2 py-0.5 rounded border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0A6B41]"
+                                    style={{
+                                      background: active ? "#2A2D38" : "#FFFFFF",
+                                      color: active ? "#FFFFFF" : "#2A2D38",
+                                      borderColor: active ? "#2A2D38" : "#E0E3EB",
+                                    }}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {cleanupHistoryOpen &&
+                            (cleanupStatus.history == null ||
+                              cleanupStatus.history.length === 0) && (
+                              <p className="text-[11px] text-[#7A7F8C] italic">
+                                Nenhuma execução{" "}
+                                {cleanupHistoryFilter === "manual"
+                                  ? "manual"
+                                  : "agendada"}{" "}
+                                no período recente.
+                              </p>
+                            )}
+                          {cleanupHistoryOpen &&
+                            cleanupStatus.history &&
+                            cleanupStatus.history.length > 0 && (() => {
                             const runs = [...cleanupStatus.history].reverse();
                             const maxRows = Math.max(1, ...runs.map((r) => r.rowsRelabeled));
                             const dayFmt = new Intl.DateTimeFormat("pt-BR", {
