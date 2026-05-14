@@ -1549,6 +1549,12 @@ export default function Admin() {
             <WhatsappDestinationsList
               adminKey={adminKey}
               baseUrl={baseUrl}
+              defaultFrequency={
+                appSettings.whatsapp_notify_frequency === "daily" ||
+                appSettings.whatsapp_notify_frequency === "weekly"
+                  ? appSettings.whatsapp_notify_frequency
+                  : "instant"
+              }
             />
             <DemandInterestsManager adminKey={adminKey} baseUrl={baseUrl} />
           </div>
@@ -8799,11 +8805,14 @@ function WhatsappNotifySettings({
   );
 }
 
+type WhatsappDestinationFrequency = "instant" | "daily" | "weekly";
+
 type WhatsappDestination = {
   id: number;
   label: string | null;
   number: string;
   enabled: boolean;
+  frequency: WhatsappDestinationFrequency;
   lastSentAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -8812,18 +8821,26 @@ type WhatsappDestination = {
 type WhatsappDestinationsListProps = {
   adminKey: string;
   baseUrl: string;
+  defaultFrequency: WhatsappDestinationFrequency;
 };
 
 function WhatsappDestinationsList({
   adminKey,
   baseUrl,
+  defaultFrequency,
 }: WhatsappDestinationsListProps) {
   const [items, setItems] = useState<WhatsappDestination[]>([]);
   const [loading, setLoading] = useState(false);
   const [credentialsConfigured, setCredentialsConfigured] = useState(true);
   const [newNumber, setNewNumber] = useState("");
   const [newLabel, setNewLabel] = useState("");
+  const [newFrequency, setNewFrequency] =
+    useState<WhatsappDestinationFrequency>(defaultFrequency);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setNewFrequency(defaultFrequency);
+  }, [defaultFrequency]);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -8875,6 +8892,7 @@ function WhatsappDestinationsList({
           body: JSON.stringify({
             number: trimmedNew,
             label: newLabel.trim() || undefined,
+            frequency: newFrequency,
           }),
         },
       );
@@ -9044,6 +9062,21 @@ function WhatsappDestinationsList({
             data-testid="whatsapp-destination-label"
           />
         </label>
+        <label className="flex flex-col gap-1 text-xs text-[#7A7F8C] min-w-[160px]">
+          <span>Frequência</span>
+          <select
+            value={newFrequency}
+            onChange={(e) =>
+              setNewFrequency(e.target.value as WhatsappDestinationFrequency)
+            }
+            className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+            data-testid="whatsapp-destination-frequency-new"
+          >
+            <option value="instant">Instantâneo</option>
+            <option value="daily">Diário</option>
+            <option value="weekly">Semanal</option>
+          </select>
+        </label>
         <button
           type="submit"
           disabled={submitting || trimmedNew.length < 10 || newInvalid}
@@ -9091,6 +9124,9 @@ function WhatsappDestinationsList({
                 </th>
                 <th className="text-left px-3 py-2 font-semibold">Status</th>
                 <th className="text-left px-3 py-2 font-semibold">
+                  Frequência
+                </th>
+                <th className="text-left px-3 py-2 font-semibold">
                   Último envio
                 </th>
                 <th className="text-right px-3 py-2 font-semibold">Ações</th>
@@ -9121,6 +9157,24 @@ function WhatsappDestinationsList({
                     >
                       {item.enabled ? "Ativo" : "Pausado"}
                     </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      value={item.frequency}
+                      disabled={busyId === item.id}
+                      onChange={(e) =>
+                        void patchItem(item.id, {
+                          frequency: e.target
+                            .value as WhatsappDestinationFrequency,
+                        })
+                      }
+                      className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-xs text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30 disabled:opacity-50"
+                      data-testid={`whatsapp-destination-frequency-${item.id}`}
+                    >
+                      <option value="instant">Instantâneo</option>
+                      <option value="daily">Diário</option>
+                      <option value="weekly">Semanal</option>
+                    </select>
                   </td>
                   <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
                     {formatTimestamp(item.lastSentAt)}

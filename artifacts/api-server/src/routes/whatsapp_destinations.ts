@@ -28,10 +28,13 @@ const labelSchema = z
   .optional()
   .transform((v) => (v == null || v === "" ? null : v));
 
+const frequencySchema = z.enum(["instant", "daily", "weekly"]);
+
 const createSchema = z.object({
   number: numberSchema,
   label: labelSchema,
   enabled: z.boolean().optional(),
+  frequency: frequencySchema.optional(),
 });
 
 // For updates we keep `label` truly optional: if the caller didn't send it,
@@ -43,6 +46,7 @@ const updateSchema = z.object({
     .union([z.literal(""), z.string().trim().max(60)])
     .optional(),
   enabled: z.boolean().optional(),
+  frequency: frequencySchema.optional(),
 });
 
 router.get(
@@ -81,6 +85,7 @@ router.post(
       return;
     }
     try {
+      await migrateLegacyWhatsappDestination();
       const existing = await db
         .select({ id: whatsappNotifyDestinationsTable.id })
         .from(whatsappNotifyDestinationsTable)
@@ -97,6 +102,7 @@ router.post(
           number: parsed.data.number,
           label: parsed.data.label,
           enabled: parsed.data.enabled ?? true,
+          frequency: parsed.data.frequency ?? "instant",
         })
         .returning();
       res.status(201).json(row);
@@ -147,10 +153,13 @@ router.patch(
         number?: string;
         label?: string | null;
         enabled?: boolean;
+        frequency?: "instant" | "daily" | "weekly";
         updatedAt: Date;
       } = { updatedAt: new Date() };
       if (parsed.data.number !== undefined) patch.number = parsed.data.number;
       if (parsed.data.enabled !== undefined) patch.enabled = parsed.data.enabled;
+      if (parsed.data.frequency !== undefined)
+        patch.frequency = parsed.data.frequency;
       if (Object.prototype.hasOwnProperty.call(req.body ?? {}, "label")) {
         const raw = parsed.data.label;
         patch.label = raw == null || raw === "" ? null : raw;

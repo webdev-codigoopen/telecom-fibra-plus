@@ -347,16 +347,11 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
-    const { enabled, credentials, frequency } = await loadWhatsappNotifyState();
+    const { enabled, credentials } = await loadWhatsappNotifyState();
     if (!enabled || !credentials) return;
-    // Daily/weekly recipients receive the digest later — skip the per-lead message.
-    if (frequency !== "instant") {
-      logger.info(
-        { frequency, city: payload.city },
-        "Interest WhatsApp notification queued for digest",
-      );
-      return;
-    }
+    // Per-recipient cadence: sendWhatsappNotification fans out only to
+    // destinations whose own frequency is "instant"; daily/weekly recipients
+    // are picked up later by the digest loop.
     const waQuiet = await loadWhatsappQuietHoursSettings();
     if (waQuiet.enabled && !(await shouldNotifyNow(payload.createdAt))) {
       logger.info(
@@ -386,10 +381,21 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
     ].join("\n");
     const result = await sendWhatsappNotification(text);
     if (!result.ok) {
-      logger.error(
-        { error: result.error },
-        "Failed to send interest notification via WhatsApp",
-      );
+      // No instant recipients is an expected configuration when every
+      // destination is on a daily/weekly cadence — those will be picked up
+      // by the digest. Demote to info to avoid noisy error logs.
+      const expected = result.error.includes("instantânea");
+      if (expected) {
+        logger.info(
+          { reason: result.error, city: payload.city },
+          "Interest WhatsApp notification deferred to digest (no instant recipients)",
+        );
+      } else {
+        logger.error(
+          { error: result.error },
+          "Failed to send interest notification via WhatsApp",
+        );
+      }
     }
   } catch (err) {
     logger.error({ err }, "Failed to send interest notification via WhatsApp");

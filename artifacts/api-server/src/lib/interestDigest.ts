@@ -4,12 +4,13 @@ import {
   demandInterestsTable,
   emailReportSubscriptionsTable,
 } from "@workspace/db";
-import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import {
-  loadEnabledDestinationNumbers,
+  loadEnabledDestinationsByFrequency,
   loadWhatsappNotifyState,
-  sendWhatsappToAllDestinations,
+  sendWhatsappWithConfig,
+  whatsappNotifyDestinationsTable,
   type WhatsappNotifyFrequency,
 } from "./sendWhatsapp";
 import { logger } from "./logger";
@@ -437,100 +438,139 @@ function buildDigestWhatsappText(
   return [...header, ...body].join("\n");
 }
 
-async function readWhatsappDigestLastSentAt(): Promise<Date | null> {
-  const rows = await db
-    .select({ value: appSettingsTable.value })
-    .from(appSettingsTable)
-    .where(eq(appSettingsTable.key, "whatsapp_notify_digest_last_sent_at"));
-  const raw = rows[0]?.value?.trim() ?? "";
-  if (!raw) return null;
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-async function writeWhatsappDigestLastSentAt(now: Date): Promise<void> {
+async function bumpDestinationLastSent(id: number, now: Date): Promise<void> {
   await db
-    .insert(appSettingsTable)
-    .values({
-      key: "whatsapp_notify_digest_last_sent_at",
-      value: now.toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: appSettingsTable.key,
-      set: { value: now.toISOString(), updatedAt: sql`now()` },
-    });
+    .update(whatsappNotifyDestinationsTable)
+    .set({ lastSentAt: now, updatedAt: now })
+    .where(eq(whatsappNotifyDestinationsTable.id, id));
 }
 
+/**
+ * Send a digest immediately to every enabled WhatsApp destination on a
+ * non-instant cadence. Each destination uses its own `lastSentAt` to compute
+ * which leads to include, so a fresh recipient gets the full backlog while
+ * an existing one only gets new leads since their last send.
+ */
 export async function sendWhatsappDigestNow(
   now: Date = new Date(),
 ): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
-  const { credentials, frequency } = await loadWhatsappNotifyState();
+  const { credentials } = await loadWhatsappNotifyState();
   if (!credentials) {
     return { ok: false, error: "WhatsApp notifications not configured" };
   }
-  if (frequency !== "daily" && frequency !== "weekly") {
+  const daily = await loadEnabledDestinationsByFrequency("daily");
+  const weekly = await loadEnabledDestinationsByFrequency("weekly");
+  const targets: Array<{
+    id: number;
+    number: string;
+    lastSentAt: Date | null;
+    frequency: WhatsappNotifyFrequency;
+  }> = [
+    ...daily.map((d) => ({ ...d, frequency: "daily" as const })),
+    ...weekly.map((d) => ({ ...d, frequency: "weekly" as const })),
+  ];
+  if (targets.length === 0) {
     return {
       ok: false,
       error:
-        "WhatsApp está configurado como instantâneo. Mude para diário ou semanal para enviar um resumo.",
+        "Nenhum destino de WhatsApp com frequência diária ou semanal cadastrado.",
     };
   }
-  const numbers = await loadEnabledDestinationNumbers();
-  if (numbers.length === 0) {
-    return { ok: false, error: "Nenhum destino de WhatsApp ativo cadastrado." };
+  let totalLeads = 0;
+  let sent = 0;
+  const failed: string[] = [];
+  for (const t of targets) {
+    const rows = await fetchInterestsSince(t.lastSentAt);
+    const text = buildDigestWhatsappText(t.frequency, rows, t.lastSentAt, now);
+    const r = await sendWhatsappWithConfig({ ...credentials, to: t.number }, text);
+    if (r.ok) {
+      sent += 1;
+      totalLeads += rows.length;
+      await bumpDestinationLastSent(t.id, now);
+    } else {
+      failed.push(`${t.number}: ${r.error}`);
+    }
   }
-  const lastSentAt = await readWhatsappDigestLastSentAt();
-  const rows = await fetchInterestsSince(lastSentAt);
-  const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
-  const result = await sendWhatsappToAllDestinations(text, { previewUrl: true });
-  if (!result.ok) return { ok: false, error: result.error };
-  await writeWhatsappDigestLastSentAt(now);
-  return { ok: true, count: rows.length };
+  if (sent === 0) {
+    return {
+      ok: false,
+      error:
+        failed[0] ?? "Falha ao enviar resumo para qualquer destino de WhatsApp.",
+    };
+  }
+  if (failed.length > 0) {
+    logger.warn(
+      { failed, sent, total: targets.length },
+      "WhatsApp digest send-now had partial failures",
+    );
+  }
+  return { ok: true, count: totalLeads };
 }
 
 export async function sendDueWhatsappDigest(now: Date = new Date()): Promise<void> {
-  const { enabled, credentials, frequency } = await loadWhatsappNotifyState();
+  const { enabled, credentials } = await loadWhatsappNotifyState();
   if (!enabled || !credentials) return;
-  if (frequency !== "daily" && frequency !== "weekly") return;
 
-  const numbers = await loadEnabledDestinationNumbers();
-  if (numbers.length === 0) return;
+  const daily = await loadEnabledDestinationsByFrequency("daily");
+  const weekly = await loadEnabledDestinationsByFrequency("weekly");
+  const targets: Array<{
+    id: number;
+    number: string;
+    lastSentAt: Date | null;
+    frequency: DigestFrequency;
+  }> = [
+    ...daily.map((d) => ({ ...d, frequency: "daily" as const })),
+    ...weekly.map((d) => ({ ...d, frequency: "weekly" as const })),
+  ];
+  if (targets.length === 0) return;
 
   const schedule = await loadDigestSchedule();
-  const lastSentAt = await readWhatsappDigestLastSentAt();
-  if (!isDueDigest(frequency, lastSentAt, now, schedule)) return;
 
-  const rows = await fetchInterestsSince(lastSentAt);
-  if (rows.length === 0) {
-    // No leads since last digest — just bump the timestamp so we don't
-    // re-evaluate the same slot every tick.
-    await writeWhatsappDigestLastSentAt(now);
-    return;
-  }
-  const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
-  const result = await sendWhatsappToAllDestinations(text, { previewUrl: true });
-  if (!result.ok) {
-    logger.error(
-      {
-        error: result.error,
-        count: rows.length,
-        frequency,
-        failed: result.result?.failed ?? [],
-      },
-      "WhatsApp interest digest failed for every destination",
+  // Cache leads-since lookups by lastSentAt so multiple recipients sharing
+  // the same cutoff (e.g. brand-new with null lastSentAt) reuse one query.
+  const rowsCache = new Map<string, Awaited<ReturnType<typeof fetchInterestsSince>>>();
+
+  for (const t of targets) {
+    if (!isDueDigest(t.frequency, t.lastSentAt, now, schedule)) continue;
+    const cacheKey = t.lastSentAt ? t.lastSentAt.toISOString() : "__all__";
+    let rows = rowsCache.get(cacheKey);
+    if (!rows) {
+      rows = await fetchInterestsSince(t.lastSentAt);
+      rowsCache.set(cacheKey, rows);
+    }
+    if (rows.length === 0) {
+      // No leads since last digest — just bump the per-destination timestamp
+      // so we don't re-evaluate the same slot every tick.
+      await bumpDestinationLastSent(t.id, now);
+      continue;
+    }
+    const text = buildDigestWhatsappText(t.frequency, rows, t.lastSentAt, now);
+    const r = await sendWhatsappWithConfig(
+      { ...credentials, to: t.number },
+      text,
     );
-    return;
+    if (!r.ok) {
+      logger.error(
+        {
+          error: r.error,
+          to: t.number,
+          frequency: t.frequency,
+          count: rows.length,
+        },
+        "WhatsApp interest digest failed for destination",
+      );
+      continue;
+    }
+    await bumpDestinationLastSent(t.id, now);
+    logger.info(
+      {
+        to: t.number,
+        frequency: t.frequency,
+        count: rows.length,
+      },
+      "WhatsApp interest digest sent to destination",
+    );
   }
-  await writeWhatsappDigestLastSentAt(now);
-  logger.info(
-    {
-      frequency,
-      count: rows.length,
-      sent: result.result.sent,
-      failed: result.result.failed.length,
-    },
-    "WhatsApp interest digest sent",
-  );
 }
 
 export async function sendDueInterestDigest(now: Date = new Date()): Promise<void> {
