@@ -32,6 +32,38 @@ const KEYS = [
   "whatsapp_notify_frequency",
 ] as const;
 
+const QUIET_KEYS = [
+  "whatsapp_notify_quiet_hours_enabled",
+  "whatsapp_notify_quiet_hours_digest_enabled",
+] as const;
+
+export type WhatsappQuietHoursSettings = {
+  /** Mute the per-lead WhatsApp ping during the global quiet-hours window. */
+  enabled: boolean;
+  /** Send a single WhatsApp summary at the end of the muted window. */
+  digestEnabled: boolean;
+};
+
+export async function loadWhatsappQuietHoursSettings(): Promise<WhatsappQuietHoursSettings> {
+  try {
+    const rows = await db
+      .select({ key: appSettingsTable.key, value: appSettingsTable.value })
+      .from(appSettingsTable)
+      .where(inArray(appSettingsTable.key, QUIET_KEYS as unknown as string[]));
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    return {
+      enabled:
+        (map.get("whatsapp_notify_quiet_hours_enabled") ?? "false") === "true",
+      digestEnabled:
+        (map.get("whatsapp_notify_quiet_hours_digest_enabled") ?? "false") ===
+        "true",
+    };
+  } catch (err) {
+    logger.warn({ err }, "whatsapp: could not read quiet-hours settings from db");
+    return { enabled: false, digestEnabled: false };
+  }
+}
+
 function normalizeDigits(raw: string): string {
   return raw.replace(/\D/g, "");
 }

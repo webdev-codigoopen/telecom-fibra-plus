@@ -41,6 +41,13 @@ export const SETTING_DEFAULTS = {
   // single digest sent at the same hour/weekday as the email digest.
   whatsapp_notify_frequency: "instant",
   whatsapp_notify_digest_last_sent_at: "",
+  // Mute WhatsApp lead pings during the global quiet-hours window.
+  // Independent from the per-recipient email quiet hours — applies to the
+  // shared WhatsApp webhook (group/team number) as a whole.
+  whatsapp_notify_quiet_hours_enabled: "false",
+  // When true, send a single WhatsApp summary at the end of the muted window
+  // listing the leads received while WhatsApp pings were silenced.
+  whatsapp_notify_quiet_hours_digest_enabled: "false",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
@@ -99,6 +106,8 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "whatsapp_notify_access_token",
   "whatsapp_notify_frequency",
   "whatsapp_notify_digest_last_sent_at",
+  "whatsapp_notify_quiet_hours_enabled",
+  "whatsapp_notify_quiet_hours_digest_enabled",
   "recaptcha_secret_key",
   "meta_capi_token",
   "meta_capi_test_event_code",
@@ -188,6 +197,8 @@ const settingsBodySchema = z
     whatsapp_notify_phone_number_id: z.string().trim().max(40).optional(),
     whatsapp_notify_access_token: z.string().trim().max(500).optional(),
     whatsapp_notify_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
+    whatsapp_notify_quiet_hours_enabled: z.enum(["true", "false"]).optional(),
+    whatsapp_notify_quiet_hours_digest_enabled: z.enum(["true", "false"]).optional(),
     recaptcha_enabled: z.enum(["true", "false"]).optional(),
     recaptcha_site_key: z.string().trim().max(120).optional(),
     recaptcha_secret_key: z.string().trim().max(120).optional(),

@@ -8362,6 +8362,12 @@ function WhatsappNotifySettings({
   const [frequency, setFrequency] = useState<"instant" | "daily" | "weekly">(
     initialFrequency,
   );
+  const [quietEnabled, setQuietEnabled] = useState(
+    settings.whatsapp_notify_quiet_hours_enabled === "true",
+  );
+  const [quietDigestEnabled, setQuietDigestEnabled] = useState(
+    settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
+  );
   const [showToken, setShowToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -8385,11 +8391,17 @@ function WhatsappNotifySettings({
         ? settings.whatsapp_notify_frequency
         : "instant",
     );
+    setQuietEnabled(settings.whatsapp_notify_quiet_hours_enabled === "true");
+    setQuietDigestEnabled(
+      settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
+    );
   }, [
     settings.whatsapp_notify_enabled,
     settings.whatsapp_notify_phone_number_id,
     settings.whatsapp_notify_access_token,
     settings.whatsapp_notify_frequency,
+    settings.whatsapp_notify_quiet_hours_enabled,
+    settings.whatsapp_notify_quiet_hours_digest_enabled,
   ]);
 
   const savedFrequency =
@@ -8401,7 +8413,10 @@ function WhatsappNotifySettings({
     String(enabled) !== settings.whatsapp_notify_enabled ||
     phoneNumberId.trim() !== settings.whatsapp_notify_phone_number_id ||
     accessToken.trim() !== settings.whatsapp_notify_access_token ||
-    frequency !== savedFrequency;
+    frequency !== savedFrequency ||
+    quietEnabled !== (settings.whatsapp_notify_quiet_hours_enabled === "true") ||
+    quietDigestEnabled !==
+      (settings.whatsapp_notify_quiet_hours_digest_enabled === "true");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -8419,6 +8434,10 @@ function WhatsappNotifySettings({
           whatsapp_notify_phone_number_id: phoneNumberId.trim(),
           whatsapp_notify_access_token: accessToken.trim(),
           whatsapp_notify_frequency: frequency,
+          whatsapp_notify_quiet_hours_enabled: quietEnabled ? "true" : "false",
+          whatsapp_notify_quiet_hours_digest_enabled: quietDigestEnabled
+            ? "true"
+            : "false",
         }),
       });
       if (!res.ok) {
@@ -8647,6 +8666,58 @@ function WhatsappNotifySettings({
                 </span>
               </label>
             ))}
+          </div>
+        </fieldset>
+
+        <fieldset
+          className="border border-[#E0E3EB] rounded-lg p-4"
+          data-testid="whatsapp-notify-quiet-hours"
+        >
+          <legend className="px-2 text-xs font-semibold text-[#0D0D0D]">
+            Silêncio do WhatsApp
+          </legend>
+          <p className="text-xs text-[#7A7F8C] mb-3 leading-relaxed">
+            Use a mesma janela do <strong>silêncio de notificações</strong>{" "}
+            (configurado na seção acima) para também segurar as mensagens de
+            WhatsApp. Útil quando o número/grupo de destino é compartilhado pelo
+            time e ninguém quer receber pings fora do expediente.{" "}
+            {settings.quiet_hours_enabled !== "true" && (
+              <span className="text-amber-700">
+                O silêncio de notificações ainda não está ativado — ative-o
+                acima para que esta opção tenha efeito.
+              </span>
+            )}
+          </p>
+          <div className="space-y-2">
+            <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
+              <input
+                type="checkbox"
+                checked={quietEnabled}
+                onChange={(e) => setQuietEnabled(e.target.checked)}
+                className="h-4 w-4 accent-[#0040FF] mt-0.5"
+                data-testid="whatsapp-notify-quiet-enabled"
+              />
+              <span>
+                Não enviar pings de WhatsApp durante o horário de silêncio
+                (vale apenas para a frequência <strong>instantânea</strong>;
+                resumos diário/semanal continuam respeitando o próprio
+                horário).
+              </span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
+              <input
+                type="checkbox"
+                checked={quietDigestEnabled}
+                onChange={(e) => setQuietDigestEnabled(e.target.checked)}
+                disabled={!quietEnabled}
+                className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
+                data-testid="whatsapp-notify-quiet-digest-enabled"
+              />
+              <span>
+                Ao terminar o silêncio, enviar uma única mensagem no WhatsApp
+                com o resumo dos cadastros recebidos no período.
+              </span>
+            </label>
           </div>
         </fieldset>
 

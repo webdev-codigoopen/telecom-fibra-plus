@@ -23,6 +23,8 @@ export type AppSettings = {
   whatsapp_notify_access_token: string;
   whatsapp_notify_frequency: string;
   whatsapp_notify_digest_last_sent_at: string;
+  whatsapp_notify_quiet_hours_enabled: string;
+  whatsapp_notify_quiet_hours_digest_enabled: string;
   recaptcha_enabled: string;
   recaptcha_site_key: string;
   recaptcha_secret_key: string;
@@ -75,6 +77,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   whatsapp_notify_access_token: "",
   whatsapp_notify_frequency: "instant",
   whatsapp_notify_digest_last_sent_at: "",
+  whatsapp_notify_quiet_hours_enabled: "false",
+  whatsapp_notify_quiet_hours_digest_enabled: "false",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",

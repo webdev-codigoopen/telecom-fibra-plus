@@ -11,6 +11,7 @@ import {
 } from "../lib/interestDigest";
 import {
   loadWhatsappNotifyState,
+  loadWhatsappQuietHoursSettings,
   sendWhatsappNotification,
 } from "../lib/sendWhatsapp";
 import {
@@ -356,10 +357,13 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
       );
       return;
     }
-    if (!(await shouldNotifyNow(payload.createdAt))) {
+    const waQuiet = await loadWhatsappQuietHoursSettings();
+    if (waQuiet.enabled && !(await shouldNotifyNow(payload.createdAt))) {
       logger.info(
-        { city: payload.city },
-        "Interest WhatsApp notification suppressed by quiet hours",
+        { city: payload.city, digestEnabled: waQuiet.digestEnabled },
+        waQuiet.digestEnabled
+          ? "Interest WhatsApp notification queued for quiet-hours digest"
+          : "Interest WhatsApp notification suppressed by quiet hours",
       );
       return;
     }

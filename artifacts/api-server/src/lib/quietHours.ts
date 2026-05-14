@@ -9,6 +9,8 @@ import { and, asc, eq, gt, inArray, lte } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import {
   isWhatsappNotifyEnabled,
+  loadWhatsappNotifyState,
+  loadWhatsappQuietHoursSettings,
   sendWhatsappNotification,
 } from "./sendWhatsapp";
 import { logger } from "./logger";
@@ -544,11 +546,25 @@ export async function tickQuietHours(now: Date = new Date()): Promise<void> {
     // ticks don't re-process.
     await setSetting("quiet_hours_active_since", "", now);
 
-    if (!s.digestEnabled) return;
+    const waQuiet = await loadWhatsappQuietHoursSettings();
+    // The quiet-hours WhatsApp digest only makes sense for the "instant"
+    // frequency — daily/weekly already produce their own digest at the
+    // configured hour, so an extra end-of-window message would duplicate
+    // notifications. The Admin UI surfaces the same constraint.
+    const waState = waQuiet.enabled
+      ? await loadWhatsappNotifyState()
+      : null;
+    const wantWhatsappDigest =
+      waQuiet.enabled &&
+      waQuiet.digestEnabled &&
+      waState?.frequency === "instant";
+    if (!s.digestEnabled && !wantWhatsappDigest) return;
 
-    const recipients = await getInstantInterestRecipients();
-    const smtpReady = await isEmailConfigured();
-    const whatsappReady = await isWhatsappNotifyEnabled();
+    const recipients = s.digestEnabled ? await getInstantInterestRecipients() : [];
+    const smtpReady = recipients.length > 0 ? await isEmailConfigured() : false;
+    const whatsappReady = wantWhatsappDigest
+      ? await isWhatsappNotifyEnabled()
+      : false;
 
     if (recipients.length === 0 && !whatsappReady) return;
     if (recipients.length > 0 && !smtpReady) {
