@@ -8,6 +8,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { logger } from "./logger";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
 import type { BotCleanupStatus } from "./botClickBackfillScheduler";
+import { fetchSystemAlertRecipients } from "./systemAlertSubscriptions";
 
 export const BOT_CLEANUP_ALERT_STATE_KEY = "bot_cleanup_alert_state";
 
@@ -61,7 +62,32 @@ async function writeState(state: AlertState): Promise<void> {
 }
 
 async function fetchRecipients(): Promise<string[]> {
+  // Preferred channel: dedicated system_alert subscribers. Once the admin
+  // has configured this list (any row exists, enabled or not), we honor it
+  // exactly — including an empty enabled set, which means "send to nobody".
+  // We only fall back to legacy audiences when the list has never been
+  // configured (truly pre-migration).
+  let systemConfigured = false;
   const recipients = new Set<string>();
+  try {
+    const result = await fetchSystemAlertRecipients();
+    systemConfigured = result.configured;
+    for (const e of result.recipients) recipients.add(e);
+  } catch (err) {
+    logger.warn(
+      { err },
+      "[bot-cleanup-alert] failed to read system_alert subscriptions",
+    );
+  }
+
+  if (systemConfigured) {
+    return Array.from(recipients);
+  }
+
+  // Pre-migration fallback only: include the previous audience
+  // (city_comparison subscribers + legacy interest_notification email) so
+  // cleanup alerts continue to be delivered until an admin configures the
+  // new dedicated list.
   try {
     const subs = await db
       .select({ email: emailReportSubscriptionsTable.email })
@@ -79,7 +105,7 @@ async function fetchRecipients(): Promise<string[]> {
   } catch (err) {
     logger.warn(
       { err },
-      "[bot-cleanup-alert] failed to read subscriptions; falling back to legacy setting",
+      "[bot-cleanup-alert] failed to read city_comparison fallback subscriptions",
     );
   }
 
