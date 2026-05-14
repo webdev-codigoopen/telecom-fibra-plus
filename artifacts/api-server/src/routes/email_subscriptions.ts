@@ -5,8 +5,16 @@ import {
   type Response,
   type NextFunction,
 } from "express";
-import { db, emailReportSubscriptionsTable } from "@workspace/db";
-import { and, asc, eq } from "drizzle-orm";
+import {
+  db,
+  demandInterestsTable,
+  emailReportSubscriptionsTable,
+} from "@workspace/db";
+import { and, asc, count, eq, gt } from "drizzle-orm";
+import {
+  isInRecipientQuietHours,
+  recipientQuietHours,
+} from "../lib/quietHours";
 import { z } from "zod";
 import {
   generateCityComparisonReport,
@@ -256,7 +264,41 @@ router.get(
         .from(emailReportSubscriptionsTable)
         .where(eq(emailReportSubscriptionsTable.reportType, "interest_notification"))
         .orderBy(asc(emailReportSubscriptionsTable.createdAt));
-      res.json({ items: rows, emailConfigured: await isEmailConfigured() });
+      const now = new Date();
+      const items = await Promise.all(
+        rows.map(async (sub) => {
+          const r = recipientQuietHours(sub);
+          // Per-recipient quiet hours are only honored for instant
+          // recipients (see tickRecipientQuietHours). Avoid showing
+          // misleading muted badges for daily/weekly rows.
+          const mutedNow =
+            sub.frequency === "instant" &&
+            r.enabled &&
+            isInRecipientQuietHours(now, r);
+          let queuedCount = 0;
+          if (
+            sub.frequency === "instant" &&
+            r.enabled &&
+            r.mode === "queue" &&
+            sub.quietHoursActiveSince
+          ) {
+            const [row] = await db
+              .select({ n: count() })
+              .from(demandInterestsTable)
+              .where(
+                gt(demandInterestsTable.createdAt, sub.quietHoursActiveSince),
+              );
+            queuedCount = Number(row?.n ?? 0);
+          }
+          return {
+            ...sub,
+            mutedNow,
+            mutedUntil: mutedNow ? r.end : null,
+            queuedCount,
+          };
+        }),
+      );
+      res.json({ items, emailConfigured: await isEmailConfigured() });
     } catch (err) {
       logger.error({ err }, "Failed to list interest notification subscriptions");
       res.status(500).json({ error: "Failed to list interest notification subscriptions" });

@@ -7354,6 +7354,11 @@ type InterestRecipient = {
   quietHoursEnd: string;
   quietHoursWeekends: boolean;
   quietHoursMode: "queue" | "skip";
+  quietHoursActiveSince: string | null;
+  quietHoursLastDigestSentAt: string | null;
+  mutedNow: boolean;
+  mutedUntil: string | null;
+  queuedCount: number;
 };
 
 function interestFreqLabel(f: "instant" | "daily" | "weekly"): string {
@@ -7890,15 +7895,63 @@ function InterestNotificationSettings({
                     </select>
                   </td>
                   <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        sub.enabled
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                          : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB]"
-                      }`}
-                    >
-                      {sub.enabled ? "Ativo" : "Pausado"}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          sub.enabled
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : "bg-[#F5F7FA] text-[#7A7F8C] border border-[#E0E3EB]"
+                        }`}
+                      >
+                        {sub.enabled ? "Ativo" : "Pausado"}
+                      </span>
+                      {sub.mutedNow && sub.quietHoursMode === "skip" && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200"
+                          title="Cadastros recebidos agora não serão enviados a este destinatário"
+                          data-testid={`interest-notification-muted-badge-${sub.id}`}
+                        >
+                          Descartando até {sub.mutedUntil}
+                        </span>
+                      )}
+                      {sub.mutedNow && sub.quietHoursMode !== "skip" && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          title="Cadastros estão sendo enfileirados; um resumo será enviado ao fim do silêncio"
+                          data-testid={`interest-notification-muted-badge-${sub.id}`}
+                        >
+                          Em silêncio até {sub.mutedUntil}
+                          {sub.queuedCount > 0
+                            ? ` · ${sub.queuedCount} na fila`
+                            : ""}
+                        </span>
+                      )}
+                      {!sub.mutedNow &&
+                        sub.quietHoursEnabled &&
+                        sub.frequency === "instant" &&
+                        sub.quietHoursMode !== "skip" &&
+                        sub.queuedCount > 0 && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-[#F5F7FA] text-[#2A2D38] border border-[#E0E3EB]"
+                            title="Cadastros aguardando envio do próximo resumo de silêncio"
+                            data-testid={`interest-notification-queued-badge-${sub.id}`}
+                          >
+                            {sub.queuedCount} na fila
+                          </span>
+                        )}
+                      {sub.quietHoursEnabled &&
+                        sub.frequency === "instant" &&
+                        sub.quietHoursMode !== "skip" &&
+                        sub.quietHoursLastDigestSentAt && (
+                          <span
+                            className="text-[10px] text-[#7A7F8C]"
+                            title="Quando o último resumo de silêncio foi enviado"
+                            data-testid={`interest-notification-last-digest-${sub.id}`}
+                          >
+                            Último resumo: {formatTimestamp(sub.quietHoursLastDigestSentAt)}
+                          </span>
+                        )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-[#2A2D38] whitespace-nowrap">
                     {formatTimestamp(sub.lastSentAt)}
