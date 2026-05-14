@@ -531,13 +531,47 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
       ? Math.min(50, Math.max(1, limitParam))
       : 7;
 
-    const historyRows = await db
+    // Fetch enough recent runs to cover `historyLimit` distinct calendar days
+    // even when there are many manual re-runs in a single day. We cap the
+    // raw fetch generously so a busy day doesn't push older days off the chart.
+    const rawFetchLimit = Math.min(500, Math.max(historyLimit * 20, 50));
+    const historyRowsRaw = await db
       .select()
       .from(botCleanupRunsTable)
       .orderBy(desc(botCleanupRunsTable.finishedAt))
-      .limit(historyLimit);
+      .limit(rawFetchLimit);
 
-    const history = historyRows.map((r) => ({
+    // Group by calendar day in America/Sao_Paulo (admin's local timezone).
+    // For each day, keep the latest run and a count of total runs that day.
+    const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    type DayBucket = {
+      dayKey: string;
+      latest: typeof historyRowsRaw[number];
+      runsOnDay: number;
+    };
+    const dayMap = new Map<string, DayBucket>();
+    for (const r of historyRowsRaw) {
+      const dayKey = dayKeyFmt.format(r.finishedAt);
+      const existing = dayMap.get(dayKey);
+      if (!existing) {
+        dayMap.set(dayKey, { dayKey, latest: r, runsOnDay: 1 });
+      } else {
+        existing.runsOnDay += 1;
+        if (r.finishedAt.getTime() > existing.latest.finishedAt.getTime()) {
+          existing.latest = r;
+        }
+      }
+    }
+    const collapsed = Array.from(dayMap.values())
+      .sort((a, b) => b.latest.finishedAt.getTime() - a.latest.finishedAt.getTime())
+      .slice(0, historyLimit);
+
+    const history = collapsed.map(({ latest: r, runsOnDay }) => ({
       id: r.id,
       startedAt: r.startedAt.toISOString(),
       finishedAt: r.finishedAt.toISOString(),
@@ -551,6 +585,7 @@ router.get("/clicks/cleanup-status", requireAdminKey, async (req, res) => {
       useUserAgent: r.useUserAgent,
       trigger: r.trigger,
       error: r.error,
+      runsOnDay,
     }));
 
     if (history.length > 0) {

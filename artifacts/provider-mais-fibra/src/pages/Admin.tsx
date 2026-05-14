@@ -76,6 +76,7 @@ type CleanupRunRecord = {
   useUserAgent: boolean;
   trigger?: "manual" | "scheduled";
   error: string | null;
+  runsOnDay?: number;
 };
 
 type CleanupStatusResponse = {
@@ -694,7 +695,31 @@ export default function Admin() {
         const newRun = data.status;
         setCleanupStatus((prev) => {
           const prevHistory = prev?.history ?? [];
-          const nextHistory = [newRun, ...prevHistory].slice(0, 7);
+          // Collapse to one entry per calendar day (America/Sao_Paulo). If the
+          // newest run is on the same day as the previous newest, replace it
+          // and bump the runsOnDay counter; otherwise prepend a new day.
+          const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Sao_Paulo",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          });
+          const newDayKey = dayKeyFmt.format(new Date(newRun.finishedAt));
+          const topPrev = prevHistory[0];
+          const topPrevDayKey = topPrev
+            ? dayKeyFmt.format(new Date(topPrev.finishedAt))
+            : null;
+          let nextHistory: CleanupRunRecord[];
+          if (topPrev && topPrevDayKey === newDayKey) {
+            const merged: CleanupRunRecord = {
+              ...newRun,
+              runsOnDay: (topPrev.runsOnDay ?? 1) + 1,
+            };
+            nextHistory = [merged, ...prevHistory.slice(1)].slice(0, 7);
+          } else {
+            const firstOfDay: CleanupRunRecord = { ...newRun, runsOnDay: 1 };
+            nextHistory = [firstOfDay, ...prevHistory].slice(0, 7);
+          }
           return {
             status: newRun,
             recordedAt: new Date().toISOString(),
@@ -2299,20 +2324,33 @@ export default function Admin() {
                                 ▶
                               </span>
                               Histórico recente ({cleanupStatus.history.length}{" "}
-                              {cleanupStatus.history.length === 1 ? "execução" : "execuções"})
+                              {cleanupStatus.history.length === 1 ? "dia" : "dias"})
                             </button>
                             {cleanupHistoryOpen && (
                               <span className="text-[10px] text-[#7A7F8C]">
-                                Linhas reclassificadas por execução
+                                Linhas reclassificadas por dia (última execução)
                               </span>
                             )}
                           </div>
                           {cleanupHistoryOpen && (() => {
                             const runs = [...cleanupStatus.history].reverse();
                             const maxRows = Math.max(1, ...runs.map((r) => r.rowsRelabeled));
+                            const dayFmt = new Intl.DateTimeFormat("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              timeZone: "America/Sao_Paulo",
+                            });
+                            const dayTimeFmt = new Intl.DateTimeFormat("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              timeZone: "America/Sao_Paulo",
+                            });
                             return (
                               <div id="cleanup-history-panel">
-                                <div className="flex items-end gap-1 h-12 mb-2" aria-label="Sparkline de linhas reclassificadas por execução">
+                                <div className="flex items-end gap-1 h-12 mb-2" aria-label="Sparkline de linhas reclassificadas por dia">
                                   {runs.map((r, idx) => {
                                     const heightPct = r.ok
                                       ? Math.max(6, Math.round((r.rowsRelabeled / maxRows) * 100))
@@ -2322,7 +2360,11 @@ export default function Admin() {
                                       : r.rowsRelabeled > 0
                                         ? "#0AAE67"
                                         : "#A1A6B0";
-                                    const when = new Date(r.finishedAt).toLocaleString("pt-BR");
+                                    const when = dayTimeFmt.format(new Date(r.finishedAt));
+                                    const runs_ = r.runsOnDay ?? 1;
+                                    const runsHint = runs_ > 1
+                                      ? ` (${runs_} execuções no dia)`
+                                      : "";
                                     return (
                                       <div
                                         key={r.id ?? `${r.finishedAt}-${idx}`}
@@ -2334,15 +2376,17 @@ export default function Admin() {
                                         }}
                                         title={
                                           r.ok
-                                            ? `${when}: ${r.rowsRelabeled.toLocaleString("pt-BR")} reclassificadas em ${r.burstGroupsFound.toLocaleString("pt-BR")} rajadas`
-                                            : `${when}: falhou${r.error ? ` — ${r.error}` : ""}`
+                                            ? `${when}${runsHint}: ${r.rowsRelabeled.toLocaleString("pt-BR")} reclassificadas em ${r.burstGroupsFound.toLocaleString("pt-BR")} rajadas`
+                                            : `${when}${runsHint}: falhou${r.error ? ` — ${r.error}` : ""}`
                                         }
                                       />
                                     );
                                   })}
                                 </div>
                                 <ul className="text-[11px] text-[#2A2D38] space-y-0.5">
-                                  {cleanupStatus.history.slice(0, 7).map((r, idx) => (
+                                  {cleanupStatus.history.slice(0, 7).map((r, idx) => {
+                                    const runs_ = r.runsOnDay ?? 1;
+                                    return (
                                     <li
                                       key={r.id ?? `${r.finishedAt}-${idx}`}
                                       className="flex items-center gap-2 flex-wrap"
@@ -2358,8 +2402,11 @@ export default function Admin() {
                                         }}
                                         aria-hidden="true"
                                       />
-                                      <span className="text-[#7A7F8C]">
-                                        {new Date(r.finishedAt).toLocaleString("pt-BR")}
+                                      <span
+                                        className="text-[#7A7F8C]"
+                                        title={dayTimeFmt.format(new Date(r.finishedAt))}
+                                      >
+                                        {dayFmt.format(new Date(r.finishedAt))}
                                       </span>
                                       <span
                                         className="text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide font-semibold"
@@ -2370,12 +2417,20 @@ export default function Admin() {
                                         }
                                         title={
                                           r.trigger === "manual"
-                                            ? "Disparada manualmente pelo admin"
-                                            : "Execução agendada (automática)"
+                                            ? "Última execução do dia foi disparada manualmente"
+                                            : "Última execução do dia foi a agendada (automática)"
                                         }
                                       >
                                         {r.trigger === "manual" ? "Manual" : "Agendada"}
                                       </span>
+                                      {runs_ > 1 && (
+                                        <span
+                                          className="text-[10px] px-1.5 py-0.5 rounded font-semibold text-[#7A7F8C] bg-[#F5F7FA]"
+                                          title={`${runs_} execuções neste dia — exibindo a mais recente`}
+                                        >
+                                          {runs_}× no dia
+                                        </span>
+                                      )}
                                       <span className="ml-auto">
                                         {r.ok ? (
                                           <>
@@ -2390,7 +2445,8 @@ export default function Admin() {
                                         )}
                                       </span>
                                     </li>
-                                  ))}
+                                    );
+                                  })}
                                 </ul>
                               </div>
                             );
