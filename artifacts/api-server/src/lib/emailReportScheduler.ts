@@ -11,7 +11,7 @@ import {
   type Frequency,
 } from "./cityComparisonReport";
 import { checkAndSendPreviewHealthAlert } from "./previewHealthAlert";
-import { sendDueInterestDigest } from "./interestDigest";
+import { sendDueInterestDigest, sendDueWhatsappDigest } from "./interestDigest";
 import { tickQuietHours, tickRecipientQuietHours } from "./quietHours";
 import { tickBelowTargetDigest } from "./cityBelowTargetDigest";
 
@@ -41,6 +41,12 @@ export async function tick(now: Date = new Date()): Promise<void> {
       await sendDueInterestDigest(now);
     } catch (err) {
       logger.error({ err }, "Interest digest check failed");
+    }
+
+    try {
+      await sendDueWhatsappDigest(now);
+    } catch (err) {
+      logger.error({ err }, "WhatsApp interest digest check failed");
     }
 
     try {

@@ -8,20 +8,29 @@ export type WhatsappNotifyConfig = {
   accessToken: string;
 };
 
+export type WhatsappNotifyFrequency = "instant" | "daily" | "weekly";
+
 const KEYS = [
   "whatsapp_notify_enabled",
   "whatsapp_notify_to",
   "whatsapp_notify_phone_number_id",
   "whatsapp_notify_access_token",
+  "whatsapp_notify_frequency",
 ] as const;
 
 function normalizeDigits(raw: string): string {
   return raw.replace(/\D/g, "");
 }
 
-async function loadConfig(): Promise<{
+function parseFrequency(raw: string | undefined): WhatsappNotifyFrequency {
+  const v = (raw ?? "").trim();
+  return v === "daily" || v === "weekly" ? v : "instant";
+}
+
+export async function loadWhatsappNotifyState(): Promise<{
   enabled: boolean;
   config: WhatsappNotifyConfig | null;
+  frequency: WhatsappNotifyFrequency;
 }> {
   try {
     const rows = await db
@@ -33,14 +42,23 @@ async function loadConfig(): Promise<{
     const to = normalizeDigits((map.get("whatsapp_notify_to") ?? "").trim());
     const phoneNumberId = (map.get("whatsapp_notify_phone_number_id") ?? "").trim();
     const accessToken = (map.get("whatsapp_notify_access_token") ?? "").trim();
+    const frequency = parseFrequency(map.get("whatsapp_notify_frequency"));
     if (!to || !phoneNumberId || !accessToken) {
-      return { enabled, config: null };
+      return { enabled, config: null, frequency };
     }
-    return { enabled, config: { to, phoneNumberId, accessToken } };
+    return { enabled, config: { to, phoneNumberId, accessToken }, frequency };
   } catch (err) {
     logger.warn({ err }, "whatsapp: could not read settings from db");
-    return { enabled: false, config: null };
+    return { enabled: false, config: null, frequency: "instant" };
   }
+}
+
+async function loadConfig(): Promise<{
+  enabled: boolean;
+  config: WhatsappNotifyConfig | null;
+}> {
+  const { enabled, config } = await loadWhatsappNotifyState();
+  return { enabled, config };
 }
 
 export async function isWhatsappNotifyConfigured(): Promise<boolean> {
@@ -51,6 +69,24 @@ export async function isWhatsappNotifyConfigured(): Promise<boolean> {
 export async function isWhatsappNotifyEnabled(): Promise<boolean> {
   const { enabled, config } = await loadConfig();
   return enabled && config !== null;
+}
+
+export async function getWhatsappNotifyFrequency(): Promise<WhatsappNotifyFrequency> {
+  const { frequency } = await loadWhatsappNotifyState();
+  return frequency;
+}
+
+export async function sendWhatsappWithConfig(
+  cfg: WhatsappNotifyConfig,
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const body = {
+    messaging_product: "whatsapp",
+    to: cfg.to,
+    type: "text",
+    text: { preview_url: true, body: text.slice(0, 4096) },
+  };
+  return callMetaCloudApi(cfg, body);
 }
 
 async function callMetaCloudApi(

@@ -21,6 +21,8 @@ export type AppSettings = {
   whatsapp_notify_to: string;
   whatsapp_notify_phone_number_id: string;
   whatsapp_notify_access_token: string;
+  whatsapp_notify_frequency: string;
+  whatsapp_notify_digest_last_sent_at: string;
   recaptcha_enabled: string;
   recaptcha_site_key: string;
   recaptcha_secret_key: string;
@@ -71,6 +73,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   whatsapp_notify_to: "",
   whatsapp_notify_phone_number_id: "",
   whatsapp_notify_access_token: "",
+  whatsapp_notify_frequency: "instant",
+  whatsapp_notify_digest_last_sent_at: "",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",

@@ -37,6 +37,10 @@ export const SETTING_DEFAULTS = {
   whatsapp_notify_to: "",
   whatsapp_notify_phone_number_id: "",
   whatsapp_notify_access_token: "",
+  // 'instant' fires one message per lead. 'daily'/'weekly' group leads into a
+  // single digest sent at the same hour/weekday as the email digest.
+  whatsapp_notify_frequency: "instant",
+  whatsapp_notify_digest_last_sent_at: "",
   recaptcha_enabled: "false",
   recaptcha_site_key: "",
   recaptcha_secret_key: "",
@@ -93,6 +97,8 @@ const PRIVATE_KEYS = new Set<keyof typeof SETTING_DEFAULTS>([
   "whatsapp_notify_to",
   "whatsapp_notify_phone_number_id",
   "whatsapp_notify_access_token",
+  "whatsapp_notify_frequency",
+  "whatsapp_notify_digest_last_sent_at",
   "recaptcha_secret_key",
   "meta_capi_token",
   "meta_capi_test_event_code",
@@ -181,6 +187,7 @@ const settingsBodySchema = z
       .optional(),
     whatsapp_notify_phone_number_id: z.string().trim().max(40).optional(),
     whatsapp_notify_access_token: z.string().trim().max(500).optional(),
+    whatsapp_notify_frequency: z.enum(["instant", "daily", "weekly"]).optional(),
     recaptcha_enabled: z.enum(["true", "false"]).optional(),
     recaptcha_site_key: z.string().trim().max(120).optional(),
     recaptcha_secret_key: z.string().trim().max(120).optional(),
@@ -339,6 +346,25 @@ router.post("/settings/whatsapp/test", requireAdminKey, async (_req, res) => {
       return;
     }
     res.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// WhatsApp digest send-now: builds and sends a digest of new interests right
+// now (only valid when frequency is daily/weekly).
+// ---------------------------------------------------------------------------
+router.post("/settings/whatsapp/digest/send-now", requireAdminKey, async (_req, res) => {
+  try {
+    const { sendWhatsappDigestNow } = await import("../lib/interestDigest");
+    const result = await sendWhatsappDigestNow(new Date());
+    if (!result.ok) {
+      res.status(400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, count: result.count });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro desconhecido";
     res.status(500).json({ error: msg });

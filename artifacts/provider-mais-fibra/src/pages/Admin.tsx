@@ -7023,6 +7023,14 @@ function WhatsappNotifySettings({
   const [accessToken, setAccessToken] = useState(
     settings.whatsapp_notify_access_token,
   );
+  const initialFrequency: "instant" | "daily" | "weekly" =
+    settings.whatsapp_notify_frequency === "daily" ||
+    settings.whatsapp_notify_frequency === "weekly"
+      ? settings.whatsapp_notify_frequency
+      : "instant";
+  const [frequency, setFrequency] = useState<"instant" | "daily" | "weekly">(
+    initialFrequency,
+  );
   const [showToken, setShowToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -7031,25 +7039,42 @@ function WhatsappNotifySettings({
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(
     null,
   );
+  const [sendingDigest, setSendingDigest] = useState(false);
+  const [digestMsg, setDigestMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     setEnabled(settings.whatsapp_notify_enabled === "true");
     setTo(settings.whatsapp_notify_to);
     setPhoneNumberId(settings.whatsapp_notify_phone_number_id);
     setAccessToken(settings.whatsapp_notify_access_token);
+    setFrequency(
+      settings.whatsapp_notify_frequency === "daily" ||
+        settings.whatsapp_notify_frequency === "weekly"
+        ? settings.whatsapp_notify_frequency
+        : "instant",
+    );
   }, [
     settings.whatsapp_notify_enabled,
     settings.whatsapp_notify_to,
     settings.whatsapp_notify_phone_number_id,
     settings.whatsapp_notify_access_token,
+    settings.whatsapp_notify_frequency,
   ]);
 
   const trimmedTo = to.replace(/\D/g, "");
+  const savedFrequency =
+    settings.whatsapp_notify_frequency === "daily" ||
+    settings.whatsapp_notify_frequency === "weekly"
+      ? settings.whatsapp_notify_frequency
+      : "instant";
   const dirty =
     String(enabled) !== settings.whatsapp_notify_enabled ||
     trimmedTo !== settings.whatsapp_notify_to ||
     phoneNumberId.trim() !== settings.whatsapp_notify_phone_number_id ||
-    accessToken.trim() !== settings.whatsapp_notify_access_token;
+    accessToken.trim() !== settings.whatsapp_notify_access_token ||
+    frequency !== savedFrequency;
 
   const toInvalid = trimmedTo.length > 0 && (trimmedTo.length < 10 || trimmedTo.length > 15);
 
@@ -7073,6 +7098,7 @@ function WhatsappNotifySettings({
           whatsapp_notify_to: trimmedTo,
           whatsapp_notify_phone_number_id: phoneNumberId.trim(),
           whatsapp_notify_access_token: accessToken.trim(),
+          whatsapp_notify_frequency: frequency,
         }),
       });
       if (!res.ok) {
@@ -7130,6 +7156,42 @@ function WhatsappNotifySettings({
     trimmedTo.length >= 10 &&
     phoneNumberId.trim().length > 0 &&
     accessToken.trim().length > 0;
+
+  async function handleSendDigestNow() {
+    setSendingDigest(true);
+    setDigestMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/settings/whatsapp/digest/send-now`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+        },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDigestMsg({ ok: false, text: body?.error || `HTTP ${res.status}` });
+        return;
+      }
+      const count = typeof body?.count === "number" ? body.count : 0;
+      setDigestMsg({
+        ok: true,
+        text: `Resumo enviado com ${count} cadastro(s).`,
+      });
+    } catch (err) {
+      setDigestMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : "Falha de rede.",
+      });
+    } finally {
+      setSendingDigest(false);
+    }
+  }
+
+  const canSendDigest = canTest && (frequency === "daily" || frequency === "weekly");
 
   return (
     <section
@@ -7230,6 +7292,51 @@ function WhatsappNotifySettings({
           </label>
         </div>
 
+        <fieldset className="border border-[#E0E3EB] rounded-lg p-4">
+          <legend className="px-2 text-xs font-semibold text-[#0D0D0D]">
+            Frequência de envio
+          </legend>
+          <p className="text-xs text-[#7A7F8C] mb-3 leading-relaxed">
+            Escolha como o time recebe os leads no WhatsApp.{" "}
+            <strong>Instantâneo</strong> envia uma mensagem por cadastro.{" "}
+            <strong>Diário</strong> e <strong>semanal</strong> juntam todos os
+            leads do período em uma única mensagem, no mesmo horário do resumo
+            por e-mail.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {(
+              [
+                { v: "instant", label: "Instantâneo", hint: "Uma msg por lead" },
+                { v: "daily", label: "Diário", hint: "Resumo único por dia" },
+                { v: "weekly", label: "Semanal", hint: "Resumo único por semana" },
+              ] as const
+            ).map((opt) => (
+              <label
+                key={opt.v}
+                className={`flex items-start gap-2 border rounded-md px-3 py-2 cursor-pointer text-sm ${
+                  frequency === opt.v
+                    ? "border-[#0040FF] bg-[#F2F5FF]"
+                    : "border-[#E0E3EB] hover:border-[#0040FF]/40"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="whatsapp-notify-frequency"
+                  value={opt.v}
+                  checked={frequency === opt.v}
+                  onChange={() => setFrequency(opt.v)}
+                  className="mt-0.5 h-4 w-4 accent-[#0040FF]"
+                  data-testid={`whatsapp-notify-frequency-${opt.v}`}
+                />
+                <span className="flex flex-col">
+                  <span className="font-semibold text-[#0D0D0D]">{opt.label}</span>
+                  <span className="text-[11px] text-[#7A7F8C]">{opt.hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
         {errorMsg && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
             {errorMsg}
@@ -7259,10 +7366,37 @@ function WhatsappNotifySettings({
           >
             {testing ? "Enviando..." : "Enviar teste"}
           </button>
+          <button
+            type="button"
+            onClick={() => void handleSendDigestNow()}
+            disabled={sendingDigest || !canSendDigest}
+            className="text-sm font-semibold px-4 py-2 rounded-md border border-[#E0E3EB] text-[#0D0D0D] hover:border-[#0040FF]/50 disabled:opacity-50"
+            data-testid="whatsapp-notify-digest-send-now"
+            title={
+              !canSendDigest
+                ? "Salve as configurações e selecione diário ou semanal para enviar um resumo."
+                : "Enviar resumo agora"
+            }
+          >
+            {sendingDigest ? "Enviando..." : "Enviar resumo agora"}
+          </button>
           {savedAt && !dirty && (
             <span className="text-xs text-emerald-700">Salvo.</span>
           )}
         </div>
+
+        {digestMsg && (
+          <div
+            className={`rounded-lg px-4 py-2 text-sm border ${
+              digestMsg.ok
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-red-50 border-red-200 text-red-700"
+            }`}
+            data-testid="whatsapp-notify-digest-result"
+          >
+            {digestMsg.text}
+          </div>
+        )}
 
         {testMsg && (
           <div

@@ -4,7 +4,10 @@ import { db, demandInterestsTable, planClicksTable, appSettingsTable, emailRepor
 import { and, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "../lib/sendEmail";
 import { sendInterestDigestToSubscription } from "../lib/interestDigest";
-import { isWhatsappNotifyEnabled, sendWhatsappNotification } from "../lib/sendWhatsapp";
+import {
+  loadWhatsappNotifyState,
+  sendWhatsappNotification,
+} from "../lib/sendWhatsapp";
 import {
   shouldNotifyNow,
   recipientQuietHours,
@@ -336,7 +339,16 @@ async function notifyAdminOfNewInterestViaWhatsapp(payload: {
   createdAt: Date;
 }): Promise<void> {
   try {
-    if (!(await isWhatsappNotifyEnabled())) return;
+    const { enabled, config, frequency } = await loadWhatsappNotifyState();
+    if (!enabled || !config) return;
+    // Daily/weekly recipients receive the digest later — skip the per-lead message.
+    if (frequency !== "instant") {
+      logger.info(
+        { frequency, city: payload.city },
+        "Interest WhatsApp notification queued for digest",
+      );
+      return;
+    }
     if (!(await shouldNotifyNow(payload.createdAt))) {
       logger.info(
         { city: payload.city },

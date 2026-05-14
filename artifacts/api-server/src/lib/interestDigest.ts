@@ -4,8 +4,13 @@ import {
   demandInterestsTable,
   emailReportSubscriptionsTable,
 } from "@workspace/db";
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import { isEmailConfigured, sendEmail } from "./sendEmail";
+import {
+  loadWhatsappNotifyState,
+  sendWhatsappWithConfig,
+  type WhatsappNotifyFrequency,
+} from "./sendWhatsapp";
 import { logger } from "./logger";
 
 export type DigestFrequency = "daily" | "weekly";
@@ -323,6 +328,117 @@ export async function sendInterestDigestToSubscription(
     .set({ lastSentAt: now, updatedAt: now })
     .where(eq(emailReportSubscriptionsTable.id, sub.id));
   return { count: rows.length };
+}
+
+function buildDigestWhatsappText(
+  frequency: WhatsappNotifyFrequency,
+  rows: Array<{
+    city: string;
+    neighborhood: string;
+    whatsapp: string;
+    createdAt: Date;
+  }>,
+  since: Date | null,
+  now: Date,
+): string {
+  const label = frequency === "daily" ? "diário" : "semanal";
+  const periodLabel = since
+    ? `${fmtDateTimeBR(since)} até ${fmtDateTimeBR(now)}`
+    : `até ${fmtDateTimeBR(now)}`;
+  const header = [
+    `🔔 *Resumo ${label} de interesses*`,
+    `${rows.length} novo(s) cadastro(s) em /demanda`,
+    `Período: ${periodLabel}`,
+    "",
+  ];
+  const body = rows.map((r) => {
+    const display = formatWhatsappDisplay(r.whatsapp);
+    const link = whatsappLink(r.whatsapp);
+    return [
+      `• ${fmtDateTimeBR(r.createdAt)}`,
+      `  📍 ${r.city} — ${r.neighborhood}`,
+      `  📱 ${display}`,
+      `  ${link}`,
+    ].join("\n");
+  });
+  return [...header, ...body].join("\n");
+}
+
+async function readWhatsappDigestLastSentAt(): Promise<Date | null> {
+  const rows = await db
+    .select({ value: appSettingsTable.value })
+    .from(appSettingsTable)
+    .where(eq(appSettingsTable.key, "whatsapp_notify_digest_last_sent_at"));
+  const raw = rows[0]?.value?.trim() ?? "";
+  if (!raw) return null;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+async function writeWhatsappDigestLastSentAt(now: Date): Promise<void> {
+  await db
+    .insert(appSettingsTable)
+    .values({
+      key: "whatsapp_notify_digest_last_sent_at",
+      value: now.toISOString(),
+    })
+    .onConflictDoUpdate({
+      target: appSettingsTable.key,
+      set: { value: now.toISOString(), updatedAt: sql`now()` },
+    });
+}
+
+export async function sendWhatsappDigestNow(
+  now: Date = new Date(),
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const { config, frequency } = await loadWhatsappNotifyState();
+  if (!config) return { ok: false, error: "WhatsApp notifications not configured" };
+  if (frequency !== "daily" && frequency !== "weekly") {
+    return {
+      ok: false,
+      error:
+        "WhatsApp está configurado como instantâneo. Mude para diário ou semanal para enviar um resumo.",
+    };
+  }
+  const lastSentAt = await readWhatsappDigestLastSentAt();
+  const rows = await fetchInterestsSince(lastSentAt);
+  const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
+  const result = await sendWhatsappWithConfig(config, text);
+  if (!result.ok) return result;
+  await writeWhatsappDigestLastSentAt(now);
+  return { ok: true, count: rows.length };
+}
+
+export async function sendDueWhatsappDigest(now: Date = new Date()): Promise<void> {
+  const { enabled, config, frequency } = await loadWhatsappNotifyState();
+  if (!enabled || !config) return;
+  if (frequency !== "daily" && frequency !== "weekly") return;
+
+  const schedule = await loadDigestSchedule();
+  const lastSentAt = await readWhatsappDigestLastSentAt();
+  if (!isDueDigest(frequency, lastSentAt, now, schedule)) return;
+
+  const rows = await fetchInterestsSince(lastSentAt);
+  if (rows.length === 0) {
+    // No leads since last digest — just bump the timestamp so we don't
+    // re-evaluate the same slot every tick.
+    await writeWhatsappDigestLastSentAt(now);
+    return;
+  }
+  const text = buildDigestWhatsappText(frequency, rows, lastSentAt, now);
+  const result = await sendWhatsappWithConfig(config, text);
+  if (!result.ok) {
+    logger.error(
+      { error: result.error, count: rows.length, frequency },
+      "WhatsApp interest digest failed",
+    );
+    return;
+  }
+  await writeWhatsappDigestLastSentAt(now);
+  logger.info(
+    { frequency, count: rows.length },
+    "WhatsApp interest digest sent",
+  );
 }
 
 export async function sendDueInterestDigest(now: Date = new Date()): Promise<void> {
