@@ -1027,7 +1027,6 @@ function ReferralHowItWorks() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  marginTop: -42,
                   boxShadow: "0 6px 18px -8px rgba(0,0,0,0.35)",
                 }}
               >
