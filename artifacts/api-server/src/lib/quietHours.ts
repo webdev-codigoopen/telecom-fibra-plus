@@ -355,7 +355,7 @@ function fmtDateTimeBR(d: Date): string {
   }).format(d);
 }
 
-async function fetchInterestsBetween(
+export async function fetchInterestsBetween(
   fromExclusive: Date,
   toInclusive: Date,
 ): Promise<
@@ -378,7 +378,7 @@ async function fetchInterestsBetween(
     .orderBy(asc(demandInterestsTable.createdAt));
 }
 
-async function getInstantInterestRecipients(): Promise<string[]> {
+export async function getInstantInterestRecipients(): Promise<string[]> {
   const { emailReportSubscriptionsTable, appSettingsTable: settingsTable } =
     await import("@workspace/db");
   const { eq } = await import("drizzle-orm");
@@ -421,7 +421,7 @@ async function getInstantInterestRecipients(): Promise<string[]> {
   return Array.from(recipients);
 }
 
-function buildQuietDigestEmail(
+export function buildQuietDigestEmail(
   rows: Array<{
     city: string;
     neighborhood: string;
@@ -482,7 +482,7 @@ function buildQuietDigestEmail(
   return { subject, html, text };
 }
 
-function buildQuietDigestWhatsappText(
+export function buildQuietDigestWhatsappText(
   rows: Array<{
     city: string;
     neighborhood: string;
@@ -512,6 +512,165 @@ function buildQuietDigestWhatsappText(
     body += `\n\n…e mais ${rows.length - included} cadastro(s). Veja todos no painel.`;
   }
   return body;
+}
+
+function findLastMutedWindow(
+  now: Date,
+  s: QuietHoursSettings,
+): { start: Date; end: Date } | null {
+  const STEP_MS = 60_000;
+  const MAX_STEPS = 8 * 24 * 60;
+  let t = new Date(now.getTime() - STEP_MS);
+  for (let i = 0; i < MAX_STEPS; i++) {
+    if (isInQuietHours(t, s)) {
+      const start = computeMutedSince(t, s) ?? t;
+      const end = new Date(t.getTime() + STEP_MS);
+      return { start, end };
+    }
+    t = new Date(t.getTime() - STEP_MS);
+  }
+  return null;
+}
+
+export type QuietHoursDigestPreview = {
+  leadCount: number;
+  windowStart: string;
+  windowEnd: string;
+  fallbackWindow: boolean;
+  inQuietHours: boolean;
+  email: { subject: string; html: string; text: string };
+  whatsapp: { text: string };
+  delivery: {
+    emailEnabled: boolean;
+    emailRecipients: string[];
+    emailReady: boolean;
+    whatsappEnabled: boolean;
+    whatsappReady: boolean;
+  };
+};
+
+export async function previewQuietHoursDigest(
+  now: Date = new Date(),
+): Promise<QuietHoursDigestPreview> {
+  const s = await loadQuietHoursSettings();
+  const inWindow = isInQuietHours(now, s);
+
+  let windowStart: Date | null = null;
+  let windowEnd: Date = now;
+  if (inWindow) {
+    windowStart = computeMutedSince(now, s) ?? s.activeSince ?? now;
+    windowEnd = now;
+  } else {
+    const last = findLastMutedWindow(now, s);
+    if (last) {
+      windowStart = last.start;
+      windowEnd = last.end;
+    }
+  }
+
+  const fallbackWindow = !windowStart;
+  if (!windowStart) {
+    windowEnd = now;
+    windowStart = new Date(now.getTime() - 10 * 60 * 60 * 1000);
+  }
+
+  const rows = await fetchInterestsBetween(windowStart, windowEnd);
+  const email = buildQuietDigestEmail(rows, windowStart, windowEnd);
+  const whatsappText = buildQuietDigestWhatsappText(rows, windowStart, windowEnd);
+
+  const recipients = s.digestEnabled ? await getInstantInterestRecipients() : [];
+  const emailReady = recipients.length > 0 ? await isEmailConfigured() : false;
+  const waQuiet = await loadWhatsappQuietHoursSettings();
+  const waState = waQuiet.enabled ? await loadWhatsappNotifyState() : null;
+  const whatsappEnabled =
+    waQuiet.enabled && waQuiet.digestEnabled && waState?.frequency === "instant";
+  const whatsappReady = whatsappEnabled ? await isWhatsappNotifyEnabled() : false;
+
+  return {
+    leadCount: rows.length,
+    windowStart: windowStart.toISOString(),
+    windowEnd: windowEnd.toISOString(),
+    fallbackWindow,
+    inQuietHours: inWindow,
+    email,
+    whatsapp: { text: whatsappText },
+    delivery: {
+      emailEnabled: s.digestEnabled,
+      emailRecipients: recipients,
+      emailReady,
+      whatsappEnabled,
+      whatsappReady,
+    },
+  };
+}
+
+export type QuietHoursDigestTestResult = {
+  leadCount: number;
+  email: { attempted: number; delivered: number; recipients: string[] };
+  whatsapp: { attempted: boolean; delivered: boolean; error?: string };
+};
+
+export async function sendQuietHoursDigestTest(
+  now: Date = new Date(),
+): Promise<QuietHoursDigestTestResult> {
+  const preview = await previewQuietHoursDigest(now);
+  const result: QuietHoursDigestTestResult = {
+    leadCount: preview.leadCount,
+    email: {
+      attempted: 0,
+      delivered: 0,
+      recipients: preview.delivery.emailRecipients,
+    },
+    whatsapp: { attempted: false, delivered: false },
+  };
+
+  const subject = `[TESTE] ${preview.email.subject}`;
+  const html = preview.email.html.replace(
+    /<h2 ([^>]*)>/,
+    `<h2 $1><span style="display:inline-block;background:#FFE5A8;color:#7A4F00;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;margin-right:8px;vertical-align:middle">TESTE</span>`,
+  );
+  const text = `[TESTE — pré-visualização do resumo do silêncio noturno]\n\n${preview.email.text}`;
+  const waText = `*[TESTE]*\n${preview.whatsapp.text}`;
+
+  if (
+    preview.delivery.emailEnabled &&
+    preview.delivery.emailReady &&
+    preview.delivery.emailRecipients.length > 0
+  ) {
+    result.email.attempted = preview.delivery.emailRecipients.length;
+    const sent = await Promise.all(
+      preview.delivery.emailRecipients.map((to) =>
+        sendEmail({ to, subject, html, text })
+          .then(() => true)
+          .catch((err) => {
+            logger.error(
+              { err, to },
+              "Failed to send quiet-hours digest TEST to recipient",
+            );
+            return false;
+          }),
+      ),
+    );
+    result.email.delivered = sent.filter(Boolean).length;
+  }
+
+  if (preview.delivery.whatsappEnabled && preview.delivery.whatsappReady) {
+    result.whatsapp.attempted = true;
+    try {
+      const out = await sendWhatsappNotification(waText);
+      if (out.ok) {
+        result.whatsapp.delivered = true;
+      } else {
+        result.whatsapp.error = out.error;
+      }
+    } catch (err) {
+      result.whatsapp.error =
+        err instanceof Error ? err.message : "Erro desconhecido";
+      logger.error({ err }, "Failed to send quiet-hours digest TEST via WhatsApp");
+    }
+  }
+
+  return result;
 }
 
 /**

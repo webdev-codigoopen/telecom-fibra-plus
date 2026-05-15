@@ -8196,6 +8196,23 @@ function InterestNotificationSettings({
   );
 }
 
+type QuietDigestPreview = {
+  leadCount: number;
+  windowStart: string;
+  windowEnd: string;
+  fallbackWindow: boolean;
+  inQuietHours: boolean;
+  email: { subject: string; html: string; text: string };
+  whatsapp: { text: string };
+  delivery: {
+    emailEnabled: boolean;
+    emailRecipients: string[];
+    emailReady: boolean;
+    whatsappEnabled: boolean;
+    whatsappReady: boolean;
+  };
+};
+
 type QuietHoursSettingsProps = {
   settings: AppSettings;
   adminKey: string;
@@ -8224,6 +8241,13 @@ function QuietHoursSettings({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<QuietDigestPreview | null>(null);
+  const [previewTab, setPreviewTab] = useState<"email" | "whatsapp">("email");
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
 
   useEffect(() => {
     setEnabled(settings.quiet_hours_enabled === "true");
@@ -8293,6 +8317,70 @@ function QuietHoursSettings({
       : start < end
         ? `Silêncio das ${start} às ${end} (mesmo dia).`
         : `Silêncio das ${start} às ${end} do dia seguinte (passa da meia-noite).`;
+
+  async function loadPreview() {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setTestStatus(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings/quiet-hours/preview`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      setPreview(body as QuietDigestPreview);
+      setPreviewTab("email");
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Erro ao carregar prévia.");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  async function openPreview() {
+    setPreviewOpen(true);
+    if (!preview && !previewLoading) {
+      await loadPreview();
+    }
+  }
+
+  async function handleSendTest() {
+    setSendingTest(true);
+    setTestStatus(null);
+    try {
+      const res = await adminFetch(`${baseUrl}/api/settings/quiet-hours/send-test`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminKey}` },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+      const parts: string[] = [];
+      if (body.email?.attempted > 0) {
+        parts.push(
+          `email: ${body.email.delivered}/${body.email.attempted} entregue(s)`,
+        );
+      } else {
+        parts.push("email não enviado (canal desativado ou SMTP indisponível)");
+      }
+      if (body.whatsapp?.attempted) {
+        parts.push(
+          body.whatsapp.delivered
+            ? "WhatsApp enviado"
+            : `WhatsApp falhou${body.whatsapp.error ? `: ${body.whatsapp.error}` : ""}`,
+        );
+      } else {
+        parts.push("WhatsApp não enviado (canal desativado ou indisponível)");
+      }
+      setTestStatus(parts.join(" • "));
+    } catch (err) {
+      setTestStatus(
+        `Erro: ${err instanceof Error ? err.message : "Falha ao enviar teste."}`,
+      );
+    } finally {
+      setSendingTest(false);
+    }
+  }
 
   return (
     <section
@@ -8411,7 +8499,7 @@ function QuietHoursSettings({
           </div>
         )}
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
             disabled={saving || !dirty}
@@ -8420,11 +8508,209 @@ function QuietHoursSettings({
           >
             {saving ? "Salvando..." : "Salvar"}
           </button>
+          <button
+            type="button"
+            onClick={() => void openPreview()}
+            className="text-sm font-semibold px-4 py-2 rounded-md border border-[#0040FF] text-[#0040FF] hover:bg-[#0040FF]/5"
+            data-testid="quiet-hours-preview-button"
+          >
+            Pré-visualizar resumo
+          </button>
           {savedAt && !dirty && (
             <span className="text-xs text-emerald-700">Salvo.</span>
           )}
         </div>
       </form>
+
+      {previewOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          data-testid="quiet-hours-preview-modal"
+          onClick={() => setPreviewOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl border border-[#E0E3EB] shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-start justify-between px-6 py-4 border-b border-[#E0E3EB]">
+              <div>
+                <h3 className="font-bold text-[#0D0D0D] text-base">
+                  Pré-visualização do resumo do silêncio
+                </h3>
+                <p className="text-xs text-[#7A7F8C] mt-1">
+                  Conteúdo exato que seria enviado ao terminar o silêncio.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(false)}
+                className="text-[#7A7F8C] hover:text-[#0D0D0D] text-xl leading-none"
+                aria-label="Fechar"
+                data-testid="quiet-hours-preview-close"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="px-6 py-4 overflow-y-auto flex-1">
+              {previewLoading && (
+                <div className="text-sm text-[#7A7F8C]">Carregando prévia…</div>
+              )}
+              {previewError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
+                  {previewError}
+                </div>
+              )}
+              {!previewLoading && !previewError && preview && (
+                <div className="space-y-4" data-testid="quiet-hours-preview-content">
+                  <div className="bg-[#F5F7FA] border border-[#E0E3EB] rounded-lg px-4 py-3 text-xs text-[#0D0D0D] space-y-1">
+                    <div>
+                      <strong>{preview.leadCount}</strong> cadastro(s) na janela{" "}
+                      {new Date(preview.windowStart).toLocaleString("pt-BR")} →{" "}
+                      {new Date(preview.windowEnd).toLocaleString("pt-BR")}
+                    </div>
+                    {preview.fallbackWindow && (
+                      <div className="text-[#7A4F00]">
+                        Nenhum silêncio recente encontrado — usando uma janela das
+                        últimas 10 horas só para a prévia.
+                      </div>
+                    )}
+                    {preview.inQuietHours && (
+                      <div className="text-emerald-700">
+                        Você está em silêncio agora — esta prévia mostra o que
+                        seria enviado se o silêncio terminasse neste instante.
+                      </div>
+                    )}
+                    <div className="text-[#7A7F8C]">
+                      Email: {preview.delivery.emailEnabled ? "ativado" : "desativado"}
+                      {preview.delivery.emailEnabled &&
+                        ` • destinatários: ${preview.delivery.emailRecipients.length}`}
+                      {preview.delivery.emailEnabled &&
+                        !preview.delivery.emailReady &&
+                        " • SMTP não configurado"}
+                      {" • "}
+                      WhatsApp: {preview.delivery.whatsappEnabled ? "ativado" : "desativado"}
+                      {preview.delivery.whatsappEnabled &&
+                        !preview.delivery.whatsappReady &&
+                        " (não pronto para enviar)"}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 border-b border-[#E0E3EB]" role="tablist">
+                    <button
+                      type="button"
+                      role="tab"
+                      onClick={() => setPreviewTab("email")}
+                      className={`text-sm font-semibold px-3 py-2 -mb-px border-b-2 ${previewTab === "email" ? "border-[#0040FF] text-[#0040FF]" : "border-transparent text-[#7A7F8C]"}`}
+                      data-testid="quiet-hours-preview-tab-email"
+                    >
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      onClick={() => setPreviewTab("whatsapp")}
+                      className={`text-sm font-semibold px-3 py-2 -mb-px border-b-2 ${previewTab === "whatsapp" ? "border-[#0040FF] text-[#0040FF]" : "border-transparent text-[#7A7F8C]"}`}
+                      data-testid="quiet-hours-preview-tab-whatsapp"
+                    >
+                      WhatsApp
+                    </button>
+                  </div>
+
+                  {previewTab === "email" && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-[#7A7F8C]">Assunto</div>
+                      <div
+                        className="bg-white border border-[#E0E3EB] rounded-md px-3 py-2 text-sm text-[#0D0D0D] font-medium"
+                        data-testid="quiet-hours-preview-email-subject"
+                      >
+                        {preview.email.subject}
+                      </div>
+                      <div className="text-xs text-[#7A7F8C] mt-2">
+                        Pré-visualização do HTML
+                      </div>
+                      <iframe
+                        title="Pré-visualização do email"
+                        srcDoc={preview.email.html}
+                        className="w-full h-[400px] border border-[#E0E3EB] rounded-md bg-white"
+                        sandbox=""
+                        data-testid="quiet-hours-preview-email-html"
+                      />
+                    </div>
+                  )}
+
+                  {previewTab === "whatsapp" && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-[#7A7F8C]">Texto do WhatsApp</div>
+                      <pre
+                        className="bg-[#0B141A] text-[#E9EDEF] rounded-md p-4 text-sm whitespace-pre-wrap break-words font-sans"
+                        data-testid="quiet-hours-preview-whatsapp-text"
+                      >
+                        {preview.whatsapp.text}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <footer className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-[#E0E3EB]">
+              <div className="text-xs text-[#7A7F8C] flex-1 min-w-[200px]">
+                {testStatus && (
+                  <span data-testid="quiet-hours-preview-test-status">{testStatus}</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void loadPreview()}
+                  disabled={previewLoading}
+                  className="text-sm font-semibold px-3 py-2 rounded-md border border-[#E0E3EB] text-[#0D0D0D] hover:bg-[#F5F7FA] disabled:opacity-50"
+                  data-testid="quiet-hours-preview-refresh"
+                >
+                  Atualizar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSendTest()}
+                  disabled={
+                    sendingTest ||
+                    previewLoading ||
+                    !preview ||
+                    (!(
+                      preview.delivery.emailEnabled &&
+                      preview.delivery.emailReady &&
+                      preview.delivery.emailRecipients.length > 0
+                    ) &&
+                      !(
+                        preview.delivery.whatsappEnabled &&
+                        preview.delivery.whatsappReady
+                      ))
+                  }
+                  className="text-sm font-semibold px-3 py-2 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-50"
+                  data-testid="quiet-hours-preview-send-test"
+                  title={
+                    preview &&
+                    !(
+                      preview.delivery.emailEnabled &&
+                      preview.delivery.emailReady &&
+                      preview.delivery.emailRecipients.length > 0
+                    ) &&
+                    !(
+                      preview.delivery.whatsappEnabled &&
+                      preview.delivery.whatsappReady
+                    )
+                      ? "Nenhum canal pronto para enviar."
+                      : undefined
+                  }
+                >
+                  {sendingTest ? "Enviando..." : "Enviar teste agora"}
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

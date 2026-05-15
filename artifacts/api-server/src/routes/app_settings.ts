@@ -369,6 +369,37 @@ router.post("/settings/whatsapp/test", requireAdminKey, async (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Quiet-hours digest preview: renders the email + WhatsApp content that would
+// be sent at the end of the current (or most recent) muted window without
+// actually sending anything.
+// ---------------------------------------------------------------------------
+router.post("/settings/quiet-hours/preview", requireAdminKey, async (_req, res) => {
+  try {
+    const { previewQuietHoursDigest } = await import("../lib/quietHours");
+    const preview = await previewQuietHoursDigest(new Date());
+    res.json(preview);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Quiet-hours digest send-test: delivers the preview content right now to the
+// configured email/WhatsApp recipients, prefixed with "[TESTE]".
+// ---------------------------------------------------------------------------
+router.post("/settings/quiet-hours/send-test", requireAdminKey, async (_req, res) => {
+  try {
+    const { sendQuietHoursDigestTest } = await import("../lib/quietHours");
+    const result = await sendQuietHoursDigestTest(new Date());
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    res.status(500).json({ error: msg });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // WhatsApp digest send-now: builds and sends a digest of new interests right
 // now (only valid when frequency is daily/weekly).
 // ---------------------------------------------------------------------------
