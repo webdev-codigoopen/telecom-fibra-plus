@@ -58,7 +58,7 @@ title = "family-contact-photo"
 id = "n-y1r-5gJLKgUUoaVwFRo"
 uri = "file://.local/deploy/provider-mais-fibra-hostinger.zip"
 type = "unspecified"
-title = "ZIP novo — com pnpm 9 fixado (sobe esse na Hostinger)"
+title = "ZIP final — pnpm 11.1.2 (sobe esse)"
 
 [[outputs]]
 id = "TFC0Aiv5WFN-OfLHZoHYI"
