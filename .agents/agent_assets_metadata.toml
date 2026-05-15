@@ -58,7 +58,7 @@ title = "family-contact-photo"
 id = "n-y1r-5gJLKgUUoaVwFRo"
 uri = "file://.local/deploy/provider-mais-fibra-hostinger.zip"
 type = "unspecified"
-title = "ZIP final — pnpm 11.1.2 (sobe esse)"
+title = "ZIP corrigido — desliga a verificação de scripts do pnpm 11"
 
 [[outputs]]
 id = "TFC0Aiv5WFN-OfLHZoHYI"
