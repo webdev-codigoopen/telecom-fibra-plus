@@ -69,8 +69,15 @@ export default function BannerCarousel() {
       <div style={{ position: "relative", width: "100%" }}>
         {banners.map((b, i) => {
           const isActive = i === active;
+          const isFirst = i === 0;
           const content = (
-            <picture>
+            <picture
+              style={{
+                display: "block",
+                width: "100%",
+                height: isFirst ? "auto" : "100%",
+              }}
+            >
               <source media="(max-width: 768px)" srcSet={resolveUrl(b.mobileImageUrl)} />
               <img
                 src={resolveUrl(b.desktopImageUrl)}
@@ -78,20 +85,31 @@ export default function BannerCarousel() {
                 style={{
                   display: "block",
                   width: "100%",
-                  height: "auto",
-                  margin: "0 auto",
+                  height: isFirst ? "auto" : "100%",
+                  objectFit: "cover",
+                  objectPosition: "center",
                 }}
-                loading={i === 0 ? "eager" : "lazy"}
+                loading={isFirst ? "eager" : "lazy"}
               />
             </picture>
           );
-          const layerStyle: React.CSSProperties = {
-            position: i === 0 ? "relative" : "absolute",
-            inset: 0,
-            opacity: isActive ? 1 : 0,
-            transition: `opacity ${FADE_MS}ms ease-in-out`,
-            pointerEvents: isActive ? "auto" : "none",
-          };
+          const layerStyle: React.CSSProperties = isFirst
+            ? {
+                position: "relative",
+                width: "100%",
+                opacity: isActive ? 1 : 0,
+                transition: `opacity ${FADE_MS}ms ease-in-out`,
+                pointerEvents: isActive ? "auto" : "none",
+              }
+            : {
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                opacity: isActive ? 1 : 0,
+                transition: `opacity ${FADE_MS}ms ease-in-out`,
+                pointerEvents: isActive ? "auto" : "none",
+              };
           return (
             <div
               key={b.id}
@@ -104,7 +122,7 @@ export default function BannerCarousel() {
                   href={b.linkUrl}
                   target={/^https?:\/\//i.test(b.linkUrl) ? "_blank" : undefined}
                   rel={/^https?:\/\//i.test(b.linkUrl) ? "noopener noreferrer" : undefined}
-                  style={{ display: "block" }}
+                  style={{ display: "block", width: "100%", height: isFirst ? "auto" : "100%" }}
                   tabIndex={isActive ? 0 : -1}
                 >
                   {content}
