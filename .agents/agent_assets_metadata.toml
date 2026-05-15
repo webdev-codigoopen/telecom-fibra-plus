@@ -58,7 +58,7 @@ title = "family-contact-photo"
 id = "n-y1r-5gJLKgUUoaVwFRo"
 uri = "file://.local/deploy/provider-mais-fibra-hostinger.zip"
 type = "unspecified"
-title = "ZIP do projeto pra subir na Hostinger (17.7 MB)"
+title = "ZIP atualizado com .npmrc corrigido (sobe esse novo na Hostinger)"
 
 [[outputs]]
 id = "TFC0Aiv5WFN-OfLHZoHYI"

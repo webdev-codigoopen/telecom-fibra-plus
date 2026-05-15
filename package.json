@@ -17,6 +17,13 @@
     "overrides": {
       "path-to-regexp@>=8.0.0 <8.4.0": "^8.4.0",
       "@tootallnate/once": "^3.0.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "bcrypt",
+      "@swc/core",
+      "@parcel/watcher"
+    ]
   }
 }
