@@ -2786,12 +2786,23 @@ function CityTrendPanel({
       if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
       return s;
     };
-    const header = ["bucket", "label", "current_total", "previous_total"];
+    const sourceNames = sortedSources.map((s) => s.source);
+    const header = [
+      "bucket",
+      "label",
+      "current_total",
+      "previous_total",
+      ...sourceNames.map((s) => escape(`source_${s}`)),
+    ];
     const rows = points.map((p) => [
       escape(p.bucket),
       escape(p.label),
       String(p.total),
       hasComparison && p.previous !== null ? String(p.previous) : "",
+      ...sourceNames.map((s) => {
+        const v = p.bySource[s];
+        return v ? String(v) : "";
+      }),
     ]);
     const csv = [header, ...rows].map((r) => r.join(",")).join("\r\n") + "\r\n";
 
