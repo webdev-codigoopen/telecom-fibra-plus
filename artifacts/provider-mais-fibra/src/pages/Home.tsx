@@ -43,10 +43,10 @@ export default function Home() {
       />
       <Header />
       <main id="main-content" tabIndex={-1} className="focus:outline-none">
+        <BannerCarousel />
         <Hero />
         <About />
         <Differentials />
-        <BannerCarousel />
         <ComboPowerTop />
         <WatchBanner />
         <AppSection />
