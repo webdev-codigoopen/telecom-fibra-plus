@@ -8218,6 +8218,9 @@ function QuietHoursSettings({
   const [digestEnabled, setDigestEnabled] = useState(
     settings.quiet_hours_digest_enabled === "true",
   );
+  const [whatsappDigestEnabled, setWhatsappDigestEnabled] = useState(
+    settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
+  );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -8228,12 +8231,16 @@ function QuietHoursSettings({
     setEnd(settings.quiet_hours_end || "08:00");
     setMuteWeekends(settings.quiet_hours_weekends === "true");
     setDigestEnabled(settings.quiet_hours_digest_enabled === "true");
+    setWhatsappDigestEnabled(
+      settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
+    );
   }, [
     settings.quiet_hours_enabled,
     settings.quiet_hours_start,
     settings.quiet_hours_end,
     settings.quiet_hours_weekends,
     settings.quiet_hours_digest_enabled,
+    settings.whatsapp_notify_quiet_hours_digest_enabled,
   ]);
 
   const dirty =
@@ -8241,7 +8248,9 @@ function QuietHoursSettings({
     start !== (settings.quiet_hours_start || "22:00") ||
     end !== (settings.quiet_hours_end || "08:00") ||
     muteWeekends !== (settings.quiet_hours_weekends === "true") ||
-    digestEnabled !== (settings.quiet_hours_digest_enabled === "true");
+    digestEnabled !== (settings.quiet_hours_digest_enabled === "true") ||
+    whatsappDigestEnabled !==
+      (settings.whatsapp_notify_quiet_hours_digest_enabled === "true");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -8260,6 +8269,9 @@ function QuietHoursSettings({
           quiet_hours_end: end,
           quiet_hours_weekends: muteWeekends ? "true" : "false",
           quiet_hours_digest_enabled: digestEnabled ? "true" : "false",
+          whatsapp_notify_quiet_hours_digest_enabled: whatsappDigestEnabled
+            ? "true"
+            : "false",
         }),
       });
       if (!res.ok) {
@@ -8348,21 +8360,50 @@ function QuietHoursSettings({
           <span>Silenciar o fim de semana inteiro (sábado e domingo)</span>
         </label>
 
-        <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
-          <input
-            type="checkbox"
-            checked={digestEnabled}
-            onChange={(e) => setDigestEnabled(e.target.checked)}
-            disabled={!enabled}
-            className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
-            data-testid="quiet-hours-digest-enabled"
-          />
-          <span>
-            Ao terminar o silêncio, enviar um email de resumo com os interesses
-            recebidos no período (para os destinatários cadastrados como
-            "instantâneo").
-          </span>
-        </label>
+        <fieldset
+          className="border border-[#E0E3EB] rounded-lg p-4"
+          data-testid="quiet-hours-digest-channels"
+        >
+          <legend className="px-2 text-xs font-semibold text-[#0D0D0D]">
+            Resumo ao terminar o silêncio
+          </legend>
+          <p className="text-xs text-[#7A7F8C] mb-3 leading-relaxed">
+            Escolha por quais canais o resumo dos interesses recebidos durante o
+            silêncio deve ser enviado. Os canais funcionam de forma
+            independente — você pode marcar só um, os dois, ou nenhum.
+          </p>
+          <div className="space-y-2">
+            <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
+              <input
+                type="checkbox"
+                checked={digestEnabled}
+                onChange={(e) => setDigestEnabled(e.target.checked)}
+                disabled={!enabled}
+                className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
+                data-testid="quiet-hours-digest-enabled"
+              />
+              <span>
+                Enviar resumo por <strong>email</strong> (para os destinatários
+                cadastrados como "instantâneo").
+              </span>
+            </label>
+            <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
+              <input
+                type="checkbox"
+                checked={whatsappDigestEnabled}
+                onChange={(e) => setWhatsappDigestEnabled(e.target.checked)}
+                disabled={!enabled}
+                className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
+                data-testid="quiet-hours-digest-whatsapp-enabled"
+              />
+              <span>
+                Enviar resumo por <strong>WhatsApp</strong> (requer notificação
+                por WhatsApp configurada na frequência instantânea, com o
+                silêncio do WhatsApp ativado).
+              </span>
+            </label>
+          </div>
+        </fieldset>
 
         {errorMsg && (
           <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">
@@ -8421,9 +8462,6 @@ function WhatsappNotifySettings({
   const [quietEnabled, setQuietEnabled] = useState(
     settings.whatsapp_notify_quiet_hours_enabled === "true",
   );
-  const [quietDigestEnabled, setQuietDigestEnabled] = useState(
-    settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
-  );
   const [showToken, setShowToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -8448,16 +8486,12 @@ function WhatsappNotifySettings({
         : "instant",
     );
     setQuietEnabled(settings.whatsapp_notify_quiet_hours_enabled === "true");
-    setQuietDigestEnabled(
-      settings.whatsapp_notify_quiet_hours_digest_enabled === "true",
-    );
   }, [
     settings.whatsapp_notify_enabled,
     settings.whatsapp_notify_phone_number_id,
     settings.whatsapp_notify_access_token,
     settings.whatsapp_notify_frequency,
     settings.whatsapp_notify_quiet_hours_enabled,
-    settings.whatsapp_notify_quiet_hours_digest_enabled,
   ]);
 
   const savedFrequency =
@@ -8470,9 +8504,7 @@ function WhatsappNotifySettings({
     phoneNumberId.trim() !== settings.whatsapp_notify_phone_number_id ||
     accessToken.trim() !== settings.whatsapp_notify_access_token ||
     frequency !== savedFrequency ||
-    quietEnabled !== (settings.whatsapp_notify_quiet_hours_enabled === "true") ||
-    quietDigestEnabled !==
-      (settings.whatsapp_notify_quiet_hours_digest_enabled === "true");
+    quietEnabled !== (settings.whatsapp_notify_quiet_hours_enabled === "true");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -8491,9 +8523,6 @@ function WhatsappNotifySettings({
           whatsapp_notify_access_token: accessToken.trim(),
           whatsapp_notify_frequency: frequency,
           whatsapp_notify_quiet_hours_enabled: quietEnabled ? "true" : "false",
-          whatsapp_notify_quiet_hours_digest_enabled: quietDigestEnabled
-            ? "true"
-            : "false",
         }),
       });
       if (!res.ok) {
@@ -8757,21 +8786,9 @@ function WhatsappNotifySettings({
                 Não enviar pings de WhatsApp durante o horário de silêncio
                 (vale apenas para a frequência <strong>instantânea</strong>;
                 resumos diário/semanal continuam respeitando o próprio
-                horário).
-              </span>
-            </label>
-            <label className="flex items-start gap-3 text-sm text-[#0D0D0D]">
-              <input
-                type="checkbox"
-                checked={quietDigestEnabled}
-                onChange={(e) => setQuietDigestEnabled(e.target.checked)}
-                disabled={!quietEnabled}
-                className="h-4 w-4 accent-[#0040FF] mt-0.5 disabled:opacity-50"
-                data-testid="whatsapp-notify-quiet-digest-enabled"
-              />
-              <span>
-                Ao terminar o silêncio, enviar uma única mensagem no WhatsApp
-                com o resumo dos cadastros recebidos no período.
+                horário). O resumo por WhatsApp ao final do silêncio é
+                ativado na seção <strong>Silêncio de notificações</strong>{" "}
+                acima.
               </span>
             </label>
           </div>
