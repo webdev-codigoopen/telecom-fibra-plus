@@ -5210,6 +5210,7 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
   const [mutedOnly, setMutedOnly] = useState<boolean>(false);
+  const [mutedBacklogCount, setMutedBacklogCount] = useState<number>(0);
   const [savingId, setSavingId] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>("");
@@ -5233,6 +5234,20 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
     return params;
   }, [cityFilter, statusFilter, fromDate, toDate, mutedOnly]);
 
+  const fetchBacklogCount = useCallback(async () => {
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/demand/interests/count?status=novo&mutedOnly=true`,
+        { headers: { Authorization: `Bearer ${adminKey}` } },
+      );
+      if (!res.ok) return;
+      const backlog: { total?: number } = await res.json();
+      setMutedBacklogCount(typeof backlog.total === "number" ? backlog.total : 0);
+    } catch {
+      // Non-fatal: backlog banner is a hint, not core data.
+    }
+  }, [adminKey, baseUrl]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setErrorMsg(null);
@@ -5254,12 +5269,13 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
         const cityData: InterestCity[] = await citiesRes.json();
         setCities(cityData);
       }
+      void fetchBacklogCount();
     } catch {
       setErrorMsg("Não foi possível carregar os interesses.");
     } finally {
       setLoading(false);
     }
-  }, [adminKey, baseUrl, buildParams]);
+  }, [adminKey, baseUrl, buildParams, fetchBacklogCount]);
 
   async function updateInterest(
     id: number,
@@ -5280,6 +5296,11 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
           it.id === id ? { ...it, status: updated.status, note: updated.note, updatedAt: updated.updatedAt } : it,
         ),
       );
+      if (patch.status !== undefined) {
+        // Status change can move a lead in or out of the silenced backlog;
+        // refresh the banner so it stays accurate during triage.
+        void fetchBacklogCount();
+      }
       return true;
     } catch {
       setErrorMsg("Não foi possível salvar a alteração.");
@@ -5450,6 +5471,31 @@ function DemandInterestsManager({ adminKey, baseUrl }: DemandInterestsManagerPro
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm mb-4">
           {errorMsg}
         </div>
+      )}
+
+      {mutedBacklogCount > 0 && !mutedOnly && (
+        <button
+          type="button"
+          onClick={() => setMutedOnly(true)}
+          className="w-full text-left bg-[#EEF2FF] border border-[#C7D2FE] hover:bg-[#E0E7FF] rounded-lg px-4 py-3 text-sm mb-3 flex items-center gap-3 transition-colors"
+          data-testid="interest-muted-backlog-banner"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#3730A3] shrink-0" fill="currentColor">
+            <path d="M12 3a4 4 0 0 0-4 4v3.6L4.3 18h15.4L16 10.6V7a4 4 0 0 0-4-4zm-2 17a2 2 0 0 0 4 0h-4z" />
+          </svg>
+          <span className="text-[#3730A3]">
+            <strong>
+              {mutedBacklogCount === 1
+                ? "1 interesse recebido"
+                : `${mutedBacklogCount} interesses recebidos`}
+            </strong>{" "}
+            durante o silêncio noturno{" "}
+            {mutedBacklogCount === 1 ? "está em aberto" : "estão em aberto"}.
+          </span>
+          <span className="ml-auto text-xs font-semibold text-[#3730A3] underline">
+            Ver agora
+          </span>
+        </button>
       )}
 
       <div className="text-xs text-[#7A7F8C] mb-2">{loading ? "Carregando..." : totalLabel}</div>

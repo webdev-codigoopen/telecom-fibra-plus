@@ -416,10 +416,36 @@ router.get("/demand/interests/count", requireAdminKey, async (req, res) => {
     const cityParam = typeof req.query["city"] === "string" && req.query["city"].length > 0
       ? req.query["city"].slice(0, MAX_CITY_LEN)
       : undefined;
+    const mutedOnly = req.query["mutedOnly"] === "true" || req.query["mutedOnly"] === "1";
+    const statusParam = typeof req.query["status"] === "string" && isValidStatus(req.query["status"])
+      ? (req.query["status"] as InterestStatus)
+      : undefined;
+
     const conditions: SQL[] = [];
     if (sinceDate) conditions.push(gte(demandInterestsTable.createdAt, sinceDate));
     if (untilDate) conditions.push(lt(demandInterestsTable.createdAt, untilDate));
     if (cityParam) conditions.push(eq(demandInterestsTable.city, cityParam));
+    if (statusParam) conditions.push(eq(demandInterestsTable.status, statusParam));
+
+    if (mutedOnly) {
+      // We need the row timestamps to apply the quiet-hours predicate, since
+      // `mutedByQuietHours` is computed at read-time from the global window.
+      const baseSelect = db
+        .select({ createdAt: demandInterestsTable.createdAt })
+        .from(demandInterestsTable);
+      const filtered = conditions.length > 0
+        ? baseSelect.where(conditions.length === 1 ? conditions[0]! : and(...conditions))
+        : baseSelect;
+      const rows = await filtered;
+      const quietSettings = await loadQuietHoursSettings();
+      const total = rows.reduce(
+        (acc, r) => (isInQuietHours(r.createdAt, quietSettings) ? acc + 1 : acc),
+        0,
+      );
+      res.json({ total });
+      return;
+    }
+
     const baseSelect = db
       .select({ total: sql<number>`cast(count(*) as int)` })
       .from(demandInterestsTable);
