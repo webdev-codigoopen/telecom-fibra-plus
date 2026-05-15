@@ -65,3 +65,9 @@ id = "TFC0Aiv5WFN-OfLHZoHYI"
 uri = "file://.local/deploy/INSTRUCOES-HOSTINGER.md"
 type = "text"
 title = "Instruções de deploy passo a passo"
+
+[[outputs]]
+id = "B1vNVIGICDy5VtkPxhEPS"
+uri = "file://.local/deploy/hostinger.env.txt"
+type = "text"
+title = "Arquivo .env pronto pra importar (renomeie pra .env antes)"
