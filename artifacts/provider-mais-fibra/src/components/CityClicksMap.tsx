@@ -196,21 +196,45 @@ type PersistentUnderperformanceResponse = {
   rows: PersistentUnderperformanceRow[];
 };
 
-const PERSISTENT_PERIODS = 4;
-const PERSISTENT_PERIOD_DAYS = 7;
-const PERSISTENT_MIN_BELOW = 3;
+type PersistentThresholds = {
+  periodDays: number;
+  periods: number;
+  minBelow: number;
+  minPreviews: number;
+};
+
+type PersistentThresholdBounds = {
+  periodDays: { min: number; max: number };
+  periods: { min: number; max: number };
+  minPreviews: { min: number; max: number };
+};
+
+const PERSISTENT_THRESHOLDS_DEFAULT: PersistentThresholds = {
+  periodDays: 7,
+  periods: 4,
+  minBelow: 3,
+  minPreviews: 5,
+};
+
+const PERSISTENT_THRESHOLD_BOUNDS_DEFAULT: PersistentThresholdBounds = {
+  periodDays: { min: 1, max: 60 },
+  periods: { min: 2, max: 12 },
+  minPreviews: { min: 1, max: 1000 },
+};
+
 const PERSISTENT_SEEN_KEY_PREFIX = "pmf:persistentUnderperformanceSeen";
 
 async function fetchPersistentUnderperformance(
   baseUrl: string,
   adminKey: string,
   defaultTargetPct: number | null,
+  thresholds: PersistentThresholds,
 ): Promise<PersistentUnderperformanceResponse> {
   const params = new URLSearchParams();
-  params.set("periods", String(PERSISTENT_PERIODS));
-  params.set("periodDays", String(PERSISTENT_PERIOD_DAYS));
-  params.set("minBelow", String(PERSISTENT_MIN_BELOW));
-  params.set("minPreviews", String(BELOW_TARGET_MIN_PREVIEWS));
+  params.set("periods", String(thresholds.periods));
+  params.set("periodDays", String(thresholds.periodDays));
+  params.set("minBelow", String(thresholds.minBelow));
+  params.set("minPreviews", String(thresholds.minPreviews));
   if (defaultTargetPct != null) {
     params.set("defaultTargetPct", String(defaultTargetPct));
   }
@@ -218,6 +242,70 @@ async function fetchPersistentUnderperformance(
   const res = await fetch(url, { headers: { Authorization: `Bearer ${adminKey}` } });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as PersistentUnderperformanceResponse;
+}
+
+function sanitizePersistentThresholds(
+  input: unknown,
+  bounds: PersistentThresholdBounds = PERSISTENT_THRESHOLD_BOUNDS_DEFAULT,
+): PersistentThresholds {
+  const out: PersistentThresholds = { ...PERSISTENT_THRESHOLDS_DEFAULT };
+  if (input && typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    const pd = Number(obj.periodDays);
+    if (Number.isFinite(pd))
+      out.periodDays = Math.max(bounds.periodDays.min, Math.min(bounds.periodDays.max, Math.floor(pd)));
+    const p = Number(obj.periods);
+    if (Number.isFinite(p))
+      out.periods = Math.max(bounds.periods.min, Math.min(bounds.periods.max, Math.floor(p)));
+    const mp = Number(obj.minPreviews);
+    if (Number.isFinite(mp))
+      out.minPreviews = Math.max(bounds.minPreviews.min, Math.min(bounds.minPreviews.max, Math.floor(mp)));
+    const mb = Number(obj.minBelow);
+    if (Number.isFinite(mb)) out.minBelow = Math.max(1, Math.min(out.periods, Math.floor(mb)));
+  }
+  if (out.minBelow > out.periods) out.minBelow = out.periods;
+  if (out.minBelow < 1) out.minBelow = 1;
+  return out;
+}
+
+async function fetchPersistentThresholds(
+  baseUrl: string,
+  adminKey: string | undefined,
+): Promise<{ thresholds: PersistentThresholds; bounds: PersistentThresholdBounds }> {
+  const res = await adminFetch(`${baseUrl}/api/admin/persistent-underperformance-thresholds`, {
+    headers: adminKey ? { Authorization: `Bearer ${adminKey}` } : undefined,
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as {
+    thresholds?: unknown;
+    bounds?: Partial<PersistentThresholdBounds>;
+  };
+  const bounds: PersistentThresholdBounds = {
+    periodDays: data.bounds?.periodDays ?? PERSISTENT_THRESHOLD_BOUNDS_DEFAULT.periodDays,
+    periods: data.bounds?.periods ?? PERSISTENT_THRESHOLD_BOUNDS_DEFAULT.periods,
+    minPreviews: data.bounds?.minPreviews ?? PERSISTENT_THRESHOLD_BOUNDS_DEFAULT.minPreviews,
+  };
+  return {
+    thresholds: sanitizePersistentThresholds(data.thresholds, bounds),
+    bounds,
+  };
+}
+
+async function persistPersistentThresholds(
+  baseUrl: string,
+  adminKey: string | undefined,
+  thresholds: PersistentThresholds,
+): Promise<PersistentThresholds> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (adminKey) headers.Authorization = `Bearer ${adminKey}`;
+  const res = await adminFetch(`${baseUrl}/api/admin/persistent-underperformance-thresholds`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(thresholds),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { thresholds?: unknown };
+  return sanitizePersistentThresholds(data.thresholds);
 }
 
 type ConversionScale = { mode: "auto" } | { mode: "target"; targetPct: number };
@@ -378,7 +466,14 @@ export default function CityClicksMap(props: Props) {
   const [persistent, setPersistent] = useState<PersistentUnderperformanceResponse | null>(null);
   const [persistentError, setPersistentError] = useState<string | null>(null);
   const [persistentDismissed, setPersistentDismissed] = useState<Set<string>>(new Set());
+  const [persistentThresholds, setPersistentThresholds] =
+    useState<PersistentThresholds>(PERSISTENT_THRESHOLDS_DEFAULT);
+  const [persistentThresholdBounds, setPersistentThresholdBounds] =
+    useState<PersistentThresholdBounds>(PERSISTENT_THRESHOLD_BOUNDS_DEFAULT);
+  const [persistentThresholdsLoaded, setPersistentThresholdsLoaded] = useState(false);
+  const [persistentThresholdsError, setPersistentThresholdsError] = useState<string | null>(null);
   const persistentReqIdRef = useRef(0);
+  const persistentThresholdsReqIdRef = useRef(0);
   const reqIdRef = useRef(0);
   const targetsReqIdRef = useRef(0);
   const targetsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -488,11 +583,39 @@ export default function CityClicksMap(props: Props) {
   // targets change — not when the selected `range` changes.
   const defaultTargetForPersistent =
     conversionScale.mode === "target" ? conversionScale.targetPct : null;
+
+  // Load admin-tunable thresholds once per admin/baseUrl change.
+  useEffect(() => {
+    if (!isAdminMode || !baseUrl) return;
+    const myReq = ++persistentThresholdsReqIdRef.current;
+    setPersistentThresholdsError(null);
+    fetchPersistentThresholds(baseUrl, adminKey)
+      .then(({ thresholds, bounds }) => {
+        if (myReq !== persistentThresholdsReqIdRef.current) return;
+        setPersistentThresholds(thresholds);
+        setPersistentThresholdBounds(bounds);
+        setPersistentThresholdsLoaded(true);
+      })
+      .catch(() => {
+        if (myReq !== persistentThresholdsReqIdRef.current) return;
+        setPersistentThresholdsError(
+          "Não foi possível carregar os limites do alerta. Usando os valores padrão.",
+        );
+        setPersistentThresholdsLoaded(true);
+      });
+  }, [isAdminMode, baseUrl, adminKey]);
+
   useEffect(() => {
     if (!isAdminMode || !adminKey || !baseUrl) return;
+    if (!persistentThresholdsLoaded) return;
     const myReq = ++persistentReqIdRef.current;
     setPersistentError(null);
-    fetchPersistentUnderperformance(baseUrl, adminKey, defaultTargetForPersistent)
+    fetchPersistentUnderperformance(
+      baseUrl,
+      adminKey,
+      defaultTargetForPersistent,
+      persistentThresholds,
+    )
       .then((data) => {
         if (myReq !== persistentReqIdRef.current) return;
         setPersistent(data);
@@ -501,7 +624,30 @@ export default function CityClicksMap(props: Props) {
         if (myReq !== persistentReqIdRef.current) return;
         setPersistentError("Não foi possível carregar o alerta de cidades persistentemente abaixo da meta.");
       });
-  }, [isAdminMode, adminKey, baseUrl, defaultTargetForPersistent, perCityTargets]);
+  }, [
+    isAdminMode,
+    adminKey,
+    baseUrl,
+    defaultTargetForPersistent,
+    perCityTargets,
+    persistentThresholds,
+    persistentThresholdsLoaded,
+  ]);
+
+  async function savePersistentThresholds(next: PersistentThresholds) {
+    if (!isAdminMode || !baseUrl) return;
+    const sanitized = sanitizePersistentThresholds(next, persistentThresholdBounds);
+    setPersistentThresholds(sanitized);
+    setPersistentThresholdsError(null);
+    try {
+      const saved = await persistPersistentThresholds(baseUrl, adminKey, sanitized);
+      setPersistentThresholds(saved);
+    } catch {
+      setPersistentThresholdsError(
+        "Falha ao salvar os limites do alerta. Tente novamente.",
+      );
+    }
+  }
 
   function targetPctForCity(name: string): number | null {
     const override = perCityTargets[name];
@@ -1651,6 +1797,10 @@ export default function CityClicksMap(props: Props) {
           }}
           onSelectCity={onSelectCity ?? null}
           selectedCity={selectedCity}
+          thresholds={persistentThresholds}
+          bounds={persistentThresholdBounds}
+          thresholdsError={persistentThresholdsError}
+          onSaveThresholds={savePersistentThresholds}
         />
       )}
       {effectiveColorMode === "conversion" && (
@@ -1799,6 +1949,10 @@ function PersistentUnderperformancePanel({
   onResetAcknowledgements,
   onSelectCity,
   selectedCity,
+  thresholds,
+  bounds,
+  thresholdsError,
+  onSaveThresholds,
 }: {
   data: PersistentUnderperformanceResponse | null;
   error: string | null;
@@ -1807,13 +1961,18 @@ function PersistentUnderperformancePanel({
   onResetAcknowledgements: () => void;
   onSelectCity: ((city: string | null) => void) | null;
   selectedCity: string | null;
+  thresholds: PersistentThresholds;
+  bounds: PersistentThresholdBounds;
+  thresholdsError: string | null;
+  onSaveThresholds: (next: PersistentThresholds) => void | Promise<void>;
 }) {
+  const [showSettings, setShowSettings] = useState(false);
   // Always render the panel so the signal is visible regardless of date range.
   // We show explanatory states for "no target set", "no data yet", and the
   // happy path where every city is hitting target.
-  const periodsLabel = data
-    ? `${data.minBelow} de ${data.periods} últimas semanas`
-    : `${PERSISTENT_MIN_BELOW} de ${PERSISTENT_PERIODS} últimas semanas`;
+  const effectivePeriods = data?.periods ?? thresholds.periods;
+  const effectiveMinBelow = data?.minBelow ?? thresholds.minBelow;
+  const periodsLabel = `${effectiveMinBelow} de ${effectivePeriods} últimas janelas`;
   const rows = data?.rows ?? [];
   const hasUnacknowledged = rows.some((r) => !dismissed.has(r.city));
   const noTargetConfigured =
@@ -1858,8 +2017,25 @@ function PersistentUnderperformancePanel({
               Limpar marcações
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setShowSettings((v) => !v)}
+            className="text-[10px] text-[#0040FF] underline hover:no-underline"
+            data-testid="persistent-underperformance-settings-toggle"
+            aria-expanded={showSettings}
+          >
+            {showSettings ? "Fechar ajustes" : "Ajustar limites"}
+          </button>
         </div>
       </div>
+      {showSettings && (
+        <PersistentThresholdsEditor
+          thresholds={thresholds}
+          bounds={bounds}
+          error={thresholdsError}
+          onSave={onSaveThresholds}
+        />
+      )}
       {error ? (
         <p className="text-[11px] text-red-600">{error}</p>
       ) : data == null ? (
@@ -1981,6 +2157,186 @@ function PersistentUnderperformancePanel({
           })}
         </ol>
       )}
+    </div>
+  );
+}
+
+function PersistentThresholdsEditor({
+  thresholds,
+  bounds,
+  error,
+  onSave,
+}: {
+  thresholds: PersistentThresholds;
+  bounds: PersistentThresholdBounds;
+  error: string | null;
+  onSave: (next: PersistentThresholds) => void | Promise<void>;
+}) {
+  const [draft, setDraft] = useState({
+    periodDays: String(thresholds.periodDays),
+    periods: String(thresholds.periods),
+    minBelow: String(thresholds.minBelow),
+    minPreviews: String(thresholds.minPreviews),
+  });
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    setDraft({
+      periodDays: String(thresholds.periodDays),
+      periods: String(thresholds.periods),
+      minBelow: String(thresholds.minBelow),
+      minPreviews: String(thresholds.minPreviews),
+    });
+  }, [thresholds]);
+
+  function parseAndValidate(): PersistentThresholds | null {
+    const periodDays = Number(draft.periodDays);
+    const periods = Number(draft.periods);
+    const minBelow = Number(draft.minBelow);
+    const minPreviews = Number(draft.minPreviews);
+    if (
+      !Number.isFinite(periodDays) ||
+      !Number.isInteger(periodDays) ||
+      periodDays < bounds.periodDays.min ||
+      periodDays > bounds.periodDays.max
+    ) {
+      setValidationError(
+        `Tamanho da janela deve ser um inteiro entre ${bounds.periodDays.min} e ${bounds.periodDays.max} dias.`,
+      );
+      return null;
+    }
+    if (
+      !Number.isFinite(periods) ||
+      !Number.isInteger(periods) ||
+      periods < bounds.periods.min ||
+      periods > bounds.periods.max
+    ) {
+      setValidationError(
+        `Número de janelas deve ser um inteiro entre ${bounds.periods.min} e ${bounds.periods.max}.`,
+      );
+      return null;
+    }
+    if (!Number.isFinite(minBelow) || !Number.isInteger(minBelow) || minBelow < 1 || minBelow > periods) {
+      setValidationError(
+        `"Abaixo em N" deve ser um inteiro entre 1 e ${periods}.`,
+      );
+      return null;
+    }
+    if (
+      !Number.isFinite(minPreviews) ||
+      !Number.isInteger(minPreviews) ||
+      minPreviews < bounds.minPreviews.min ||
+      minPreviews > bounds.minPreviews.max
+    ) {
+      setValidationError(
+        `Mínimo de previews deve ser um inteiro entre ${bounds.minPreviews.min} e ${bounds.minPreviews.max}.`,
+      );
+      return null;
+    }
+    setValidationError(null);
+    return { periodDays, periods, minBelow, minPreviews };
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const next = parseAndValidate();
+    if (!next) return;
+    setSaving(true);
+    try {
+      await onSave(next);
+      setSavedAt(Date.now());
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function field(
+    key: "periodDays" | "periods" | "minBelow" | "minPreviews",
+    label: string,
+    hint: string,
+    min: number,
+    max: number,
+  ) {
+    return (
+      <label className="flex flex-col gap-1 text-[11px] text-[#2A2D38]">
+        <span className="font-semibold">{label}</span>
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={1}
+          value={draft[key]}
+          onChange={(e) =>
+            setDraft((d) => ({ ...d, [key]: e.target.value }))
+          }
+          className="w-full rounded border border-[#E0E3EB] px-2 py-1 text-[12px] tabular-nums focus:outline-none focus:ring-1 focus:ring-[#0040FF]"
+          data-testid={`persistent-threshold-${key}`}
+        />
+        <span className="text-[10px] text-[#7A7F8C]">{hint}</span>
+      </label>
+    );
+  }
+
+  return (
+    <div
+      className="mb-2 rounded-md border border-[#E0E3EB] bg-[#FAFAFA] p-2"
+      data-testid="persistent-underperformance-settings"
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {field(
+            "periodDays",
+            "Janela (dias)",
+            `${bounds.periodDays.min}–${bounds.periodDays.max}`,
+            bounds.periodDays.min,
+            bounds.periodDays.max,
+          )}
+          {field(
+            "periods",
+            "Nº de janelas",
+            `${bounds.periods.min}–${bounds.periods.max}`,
+            bounds.periods.min,
+            bounds.periods.max,
+          )}
+          {field(
+            "minBelow",
+            "Abaixo em N de M",
+            `1–${draft.periods || bounds.periods.max}`,
+            1,
+            bounds.periods.max,
+          )}
+          {field(
+            "minPreviews",
+            "Previews mín./janela",
+            `${bounds.minPreviews.min}–${bounds.minPreviews.max}`,
+            bounds.minPreviews.min,
+            bounds.minPreviews.max,
+          )}
+        </div>
+        {(validationError || error) && (
+          <p className="text-[11px] text-red-600" data-testid="persistent-threshold-error">
+            {validationError ?? error}
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded bg-[#0040FF] text-white text-[11px] font-semibold px-3 py-1 hover:bg-[#0030CC] disabled:opacity-60"
+            data-testid="persistent-threshold-save"
+          >
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
+          {savedAt && !saving && !validationError && !error && (
+            <span className="text-[10px] text-[#00802B]">Limites salvos.</span>
+          )}
+          <span className="ml-auto text-[10px] text-[#7A7F8C]">
+            Compartilhado entre administradores
+          </span>
+        </div>
+      </form>
     </div>
   );
 }

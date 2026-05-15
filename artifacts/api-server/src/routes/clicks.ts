@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { db, planClicksTable, appSettingsTable, botCleanupRunsTable } from "@workspace/db";
 import { and, desc, eq, gte, isNotNull, lt, sql, type SQL } from "drizzle-orm";
 import { requireAdmin as requireAdminKey } from "../lib/auth";
+import { loadPersistentThresholds } from "./persistent_underperformance_thresholds";
 import {
   BOT_CLEANUP_STATUS_KEY,
   type BotCleanupStatus,
@@ -292,22 +293,27 @@ router.get(
   requireAdminKey,
   async (req, res) => {
     try {
+      // Defaults come from the admin-tunable thresholds in app_settings,
+      // so different installations / cities can pick the cadence that
+      // matches their volume without code changes. Query params still win
+      // for one-off overrides (e.g. integration tests).
+      const stored = await loadPersistentThresholds();
       const periodsRaw = Number(req.query["periods"]);
       const periods = Number.isFinite(periodsRaw)
         ? Math.max(2, Math.min(12, Math.floor(periodsRaw)))
-        : 4;
+        : stored.periods;
       const periodDaysRaw = Number(req.query["periodDays"]);
       const periodDays = Number.isFinite(periodDaysRaw)
         ? Math.max(1, Math.min(60, Math.floor(periodDaysRaw)))
-        : 7;
+        : stored.periodDays;
       const minBelowRaw = Number(req.query["minBelow"]);
       const minBelow = Number.isFinite(minBelowRaw)
         ? Math.max(1, Math.min(periods, Math.floor(minBelowRaw)))
-        : Math.min(periods, 3);
+        : Math.min(periods, stored.minBelow);
       const minPreviewsRaw = Number(req.query["minPreviews"]);
       const minPreviews = Number.isFinite(minPreviewsRaw)
         ? Math.max(1, Math.min(1000, Math.floor(minPreviewsRaw)))
-        : 5;
+        : stored.minPreviews;
       const defaultTargetRaw = Number(req.query["defaultTargetPct"]);
       const defaultTargetPct =
         Number.isFinite(defaultTargetRaw) &&
