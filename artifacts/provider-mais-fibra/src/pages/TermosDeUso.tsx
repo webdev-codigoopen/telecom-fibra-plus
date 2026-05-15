@@ -176,10 +176,10 @@ export default function TermosDeUso() {
               <br />
               E-mail:{" "}
               <a
-                href="mailto:contato@providermaisfibra.com.br"
+                href="mailto:contato@maisfibratelecom.net.br"
                 className="text-[#122AD5] underline"
               >
-                contato@providermaisfibra.com.br
+                contato@maisfibratelecom.net.br
               </a>
             </p>
           </article>

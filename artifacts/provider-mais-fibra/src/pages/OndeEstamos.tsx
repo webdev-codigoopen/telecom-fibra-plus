@@ -41,7 +41,7 @@ export default function OndeEstamos() {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             name: "Cidades atendidas pela Provider Mais Fibra",
-            url: "https://www.providermaisfibra.com.br/onde-estamos",
+            url: "https://www.maisfibratelecom.net.br/onde-estamos",
             inLanguage: "pt-BR",
             hasPart: cities.map((c) => ({
               "@type": "Place",

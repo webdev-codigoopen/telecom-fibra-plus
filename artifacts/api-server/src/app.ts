@@ -1,4 +1,7 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -24,8 +27,8 @@ app.disable("x-powered-by");
 // production so the workspace preview pane keeps working.
 // ---------------------------------------------------------------------------
 const PROD_ALLOWED = new Set<string>([
-  "https://www.providermaisfibra.com.br",
-  "https://providermaisfibra.com.br",
+  "https://www.maisfibratelecom.net.br",
+  "https://maisfibratelecom.net.br",
 ]);
 
 function isAllowedOrigin(origin: string | undefined): boolean {
@@ -150,6 +153,43 @@ app.use("/api", (req, res, next) => {
 });
 
 app.use("/api", router);
+
+// ---------------------------------------------------------------------------
+// Static frontend (single-deploy mode). When STATIC_ROOT is set or the
+// expected dist/public directory exists relative to the bundled API, serve
+// the SPA from it and fall back to index.html for any non-/api route.
+// ---------------------------------------------------------------------------
+const __apiDir = path.dirname(fileURLToPath(import.meta.url));
+const candidateRoots = [
+  process.env["STATIC_ROOT"]?.trim() || "",
+  path.resolve(__apiDir, "../../provider-mais-fibra/dist/public"),
+  path.resolve(__apiDir, "../provider-mais-fibra/dist/public"),
+  path.resolve(__apiDir, "./public"),
+].filter(Boolean);
+const staticRoot = candidateRoots.find((p) => existsSync(p));
+if (staticRoot) {
+  logger.info({ staticRoot }, "serving SPA static files");
+  app.use(
+    express.static(staticRoot, {
+      index: "index.html",
+      maxAge: isProduction ? "1h" : 0,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else if (/\.(?:js|css|woff2?|png|jpe?g|svg|webp|gif|ico)$/i.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
+  app.get(/^\/(?!api\/).*/, (req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET") return next();
+    const indexFile = path.join(staticRoot, "index.html");
+    res.sendFile(indexFile, (err) => {
+      if (err) next(err);
+    });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Production error handler — never leak stack traces to clients.

@@ -115,10 +115,10 @@ export default function PoliticaPrivacidade() {
               Para exercer qualquer um desses direitos, entre em contato pelo
               WhatsApp <strong>(77) 99844-4757</strong> ou pelo e-mail{" "}
               <a
-                href="mailto:contato@providermaisfibra.com.br"
+                href="mailto:contato@maisfibratelecom.net.br"
                 className="text-[#122AD5] underline"
               >
-                contato@providermaisfibra.com.br
+                contato@maisfibratelecom.net.br
               </a>
               .
             </p>
@@ -161,10 +161,10 @@ export default function PoliticaPrivacidade() {
               <br />
               E-mail:{" "}
               <a
-                href="mailto:contato@providermaisfibra.com.br"
+                href="mailto:contato@maisfibratelecom.net.br"
                 className="text-[#122AD5] underline"
               >
-                contato@providermaisfibra.com.br
+                contato@maisfibratelecom.net.br
               </a>
             </p>
           </article>

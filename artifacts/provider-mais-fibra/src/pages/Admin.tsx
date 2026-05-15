@@ -6165,7 +6165,7 @@ function EmailReportSubscriptionsManager({
             required
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="time@providermaisfibra.com.br"
+            placeholder="time@maisfibratelecom.net.br"
             className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
             data-testid="email-subscription-email"
           />
@@ -6642,7 +6642,7 @@ function BelowTargetDigestManager({
             required
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="time@providermaisfibra.com.br"
+            placeholder="time@maisfibratelecom.net.br"
             className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
             data-testid="below-target-new-email"
           />
@@ -6988,7 +6988,7 @@ function PreviewHealthAlertSubscriptionsManager({
             required
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="time@providermaisfibra.com.br"
+            placeholder="time@maisfibratelecom.net.br"
             className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
             data-testid="preview-health-new-email"
           />
@@ -7276,7 +7276,7 @@ function SystemAlertSubscriptionsManager({
             required
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="ops@providermaisfibra.com.br"
+            placeholder="ops@maisfibratelecom.net.br"
             className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
             data-testid="system-alert-new-email"
           />
@@ -7857,7 +7857,7 @@ function InterestNotificationSettings({
             required
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
-            placeholder="time@providermaisfibra.com.br"
+            placeholder="time@maisfibratelecom.net.br"
             className="border border-[#E0E3EB] rounded-md px-3 py-2 bg-white text-sm text-[#0D0D0D] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
             data-testid="interest-notification-email"
           />

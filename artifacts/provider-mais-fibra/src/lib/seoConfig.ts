@@ -2,7 +2,7 @@ export const SITE_URL =
   (typeof import.meta !== "undefined" &&
     (import.meta as { env?: Record<string, string | undefined> }).env
       ?.VITE_SITE_URL) ||
-  "https://www.providermaisfibra.com.br";
+  "https://www.maisfibratelecom.net.br";
 
 export const SITE_NAME = "Provider Mais Fibra";
 export const BRAND = "Provider Mais Fibra";
@@ -56,9 +56,87 @@ export const WEBSITE_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: SITE_NAME,
+  alternateName: ["Provider Fibra", "Mais Fibra Telecom"],
   url: SITE_URL,
   inLanguage: "pt-BR",
   publisher: { "@type": "Organization", name: SITE_NAME },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE_URL}/onde-estamos?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// SiteNavigationElement — informa ao Google a navegação principal do site.
+// Aumenta a chance dos sitelinks aparecerem no resultado da busca.
+// ---------------------------------------------------------------------------
+
+const MAIN_NAV: { name: string; description: string; path: string }[] = [
+  {
+    name: "Planos de Internet",
+    description:
+      "Internet 100% fibra óptica de 300 Mega a 900 Mega, com instalação grátis, Wi-Fi e IPTV inclusos a partir de R$ 69,90/mês.",
+    path: "/#planos",
+  },
+  {
+    name: "Onde Estamos",
+    description:
+      "Cidades atendidas pela Provider Mais Fibra no Oeste da Bahia: Barreiras, Luís Eduardo Magalhães, Correntina, Wanderley, Santa Rita de Cássia e mais.",
+    path: "/onde-estamos",
+  },
+  {
+    name: "Quem Somos",
+    description:
+      "Provedor de internet 100% fibra óptica desde 2016, presente em 12 cidades do Oeste da Bahia, com infraestrutura própria e suporte humano.",
+    path: "/quem-somos",
+  },
+  {
+    name: "Contato e Suporte",
+    description:
+      "Fale pelo WhatsApp (77) 99844-4757, Instagram @provider.fibra ou na unidade mais próxima. Suporte técnico 24h pelo WhatsApp.",
+    path: "/contato",
+  },
+  {
+    name: "Mapa de Demanda",
+    description:
+      "Cadastre sua cidade ou bairro e ajude a definir as próximas regiões com cobertura de internet fibra óptica.",
+    path: "/demanda",
+  },
+  {
+    name: "Indique um Amigo",
+    description:
+      "Indique amigos e familiares para a Provider Mais Fibra e receba 50% de desconto na próxima mensalidade.",
+    path: "/indique-amigo",
+  },
+];
+
+export const SITE_NAVIGATION_SCHEMA = MAIN_NAV.map((it, i) => ({
+  "@context": "https://schema.org",
+  "@type": "SiteNavigationElement",
+  position: i + 1,
+  name: it.name,
+  description: it.description,
+  url: `${SITE_URL}${it.path}`,
+}));
+
+export const MAIN_DESTINATIONS_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "Principais seções da Provider Mais Fibra",
+  url: SITE_URL,
+  itemListOrder: "https://schema.org/ItemListOrderAscending",
+  numberOfItems: MAIN_NAV.length,
+  itemListElement: MAIN_NAV.map((it, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name: it.name,
+    description: it.description,
+    url: `${SITE_URL}${it.path}`,
+  })),
 };
 
 // ---------------------------------------------------------------------------

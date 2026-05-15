@@ -324,7 +324,7 @@ export default function Contato() {
             "@context": "https://schema.org",
             "@type": "ContactPage",
             name: "Contato — Provider Mais Fibra",
-            url: "https://www.providermaisfibra.com.br/contato",
+            url: "https://www.maisfibratelecom.net.br/contato",
             inLanguage: "pt-BR",
           },
           buildBreadcrumbSchema([

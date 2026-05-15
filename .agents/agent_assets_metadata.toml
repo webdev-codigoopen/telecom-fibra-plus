@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "IaAmiOAqU1zk7GPPcz_k7"
@@ -54,3 +53,15 @@ id = "Xq07EKKvtqpAsxPzKskdO"
 uri = "file://artifacts/provider-mais-fibra/public/images/photos/family-contact.png"
 type = "image"
 title = "family-contact-photo"
+
+[[outputs]]
+id = "n-y1r-5gJLKgUUoaVwFRo"
+uri = "file://.local/deploy/provider-mais-fibra-hostinger.zip"
+type = "unspecified"
+title = "ZIP do projeto pra subir na Hostinger (17.7 MB)"
+
+[[outputs]]
+id = "TFC0Aiv5WFN-OfLHZoHYI"
+uri = "file://.local/deploy/INSTRUCOES-HOSTINGER.md"
+type = "text"
+title = "Instruções de deploy passo a passo"

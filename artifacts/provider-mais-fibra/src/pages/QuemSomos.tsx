@@ -74,7 +74,7 @@ export default function QuemSomos() {
             "@context": "https://schema.org",
             "@type": "AboutPage",
             name: "Quem Somos — Provider Mais Fibra",
-            url: "https://www.providermaisfibra.com.br/quem-somos",
+            url: "https://www.maisfibratelecom.net.br/quem-somos",
             inLanguage: "pt-BR",
             about: { "@type": "Organization", name: "Provider Mais Fibra" },
           },

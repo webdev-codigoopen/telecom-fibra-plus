@@ -5,13 +5,16 @@ import { cities } from "../src/lib/cities";
 import {
   FAQ_SCHEMA,
   OFFER_CATALOG_SCHEMA,
+  SITE_NAVIGATION_SCHEMA,
+  MAIN_DESTINATIONS_SCHEMA,
+  WEBSITE_SCHEMA,
   buildBreadcrumbSchema,
   buildLocalBusinessSchemas,
 } from "../src/lib/seoConfig";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, "..", "dist", "public");
-const SITE_URL = (process.env.VITE_SITE_URL || "https://www.providermaisfibra.com.br").replace(
+const SITE_URL = (process.env.VITE_SITE_URL || "https://www.maisfibratelecom.net.br").replace(
   /\/$/,
   "",
 );
@@ -84,7 +87,14 @@ function homeRoute(): RouteSpec {
       "IPTV Bahia",
       "Wi-Fi 6",
     ],
-    jsonLd: [ORG_LD, WEBSITE_LD, OFFER_CATALOG_SCHEMA, FAQ_SCHEMA],
+    jsonLd: [
+      ORG_LD,
+      WEBSITE_SCHEMA,
+      MAIN_DESTINATIONS_SCHEMA,
+      ...SITE_NAVIGATION_SCHEMA,
+      OFFER_CATALOG_SCHEMA,
+      FAQ_SCHEMA,
+    ],
     changefreq: "weekly",
     priority: 1.0,
     bodyHtml: `

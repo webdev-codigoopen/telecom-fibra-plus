@@ -10,6 +10,6 @@ Disallow: /api/
 User-agent: Googlebot-Image
 Allow: /
 
-Host: https://www.providermaisfibra.com.br
+Host: https://www.maisfibratelecom.net.br
 
-Sitemap: https://www.providermaisfibra.com.br/sitemap.xml
+Sitemap: https://www.maisfibratelecom.net.br/sitemap.xml
