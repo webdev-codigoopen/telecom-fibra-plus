@@ -8848,6 +8848,69 @@ function WhatsappDestinationsList({
   const [busyId, setBusyId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editNumber, setEditNumber] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function startEdit(item: WhatsappDestination) {
+    setEditingId(item.id);
+    setEditLabel(item.label ?? "");
+    setEditNumber(item.number);
+    setEditError(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditLabel("");
+    setEditNumber("");
+    setEditError(null);
+  }
+
+  async function saveEdit(item: WhatsappDestination) {
+    const trimmedNumber = editNumber.replace(/\D/g, "");
+    if (trimmedNumber.length < 10 || trimmedNumber.length > 15) {
+      setEditError("Use 10 a 15 dígitos. Ex.: 5577998444757.");
+      return;
+    }
+    const trimmedLabel = editLabel.trim();
+    const patch: Record<string, unknown> = {};
+    if (trimmedNumber !== item.number) patch.number = trimmedNumber;
+    if (trimmedLabel !== (item.label ?? "")) patch.label = trimmedLabel;
+    if (Object.keys(patch).length === 0) {
+      cancelEdit();
+      return;
+    }
+    setBusyId(item.id);
+    setEditError(null);
+    setErrorMsg(null);
+    try {
+      const res = await adminFetch(
+        `${baseUrl}/api/whatsapp-notify-destinations/${item.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${adminKey}`,
+          },
+          body: JSON.stringify(patch),
+        },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      setFeedback("Destino atualizado.");
+      cancelEdit();
+      await fetchData();
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Não foi possível atualizar.",
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -9137,18 +9200,49 @@ function WhatsappDestinationsList({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {items.map((item) => {
+                const isEditing = editingId === item.id;
+                return (
                 <tr
                   key={item.id}
                   className="border-t border-[#E0E3EB] hover:bg-[#F8FAFF]"
                   data-testid={`whatsapp-destination-row-${item.id}`}
                 >
                   <td className="px-3 py-2 text-[#0D0D0D] font-medium font-mono">
-                    {item.number}
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={editNumber}
+                        onChange={(e) => setEditNumber(e.target.value)}
+                        className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-xs text-[#0D0D0D] font-mono w-[160px] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                        data-testid={`whatsapp-destination-edit-number-${item.id}`}
+                      />
+                    ) : (
+                      item.number
+                    )}
                   </td>
                   <td className="px-3 py-2 text-[#2A2D38]">
-                    {item.label ?? (
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                        maxLength={60}
+                        placeholder="ex.: Comercial 1"
+                        className="border border-[#E0E3EB] rounded-md px-2 py-1 bg-white text-xs text-[#0D0D0D] w-[180px] focus:outline-none focus:ring-2 focus:ring-[#0040FF]/30"
+                        data-testid={`whatsapp-destination-edit-label-${item.id}`}
+                      />
+                    ) : item.label ?? (
                       <span className="text-[#7A7F8C]">—</span>
+                    )}
+                    {isEditing && editError && (
+                      <div
+                        className="text-[11px] text-red-600 mt-1"
+                        data-testid={`whatsapp-destination-edit-error-${item.id}`}
+                      >
+                        {editError}
+                      </div>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -9185,44 +9279,79 @@ function WhatsappDestinationsList({
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     <div className="inline-flex flex-wrap gap-1.5 justify-end">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void patchItem(item.id, { enabled: !item.enabled })
-                        }
-                        disabled={busyId === item.id}
-                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
-                        data-testid={`whatsapp-destination-toggle-${item.id}`}
-                      >
-                        {item.enabled ? "Pausar" : "Ativar"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void testItem(item)}
-                        disabled={busyId === item.id || !credentialsConfigured}
-                        title={
-                          credentialsConfigured
-                            ? "Enviar mensagem de teste para este número"
-                            : "Configure as credenciais da Meta para enviar"
-                        }
-                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
-                        data-testid={`whatsapp-destination-test-${item.id}`}
-                      >
-                        Testar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void remove(item)}
-                        disabled={busyId === item.id}
-                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
-                        data-testid={`whatsapp-destination-remove-${item.id}`}
-                      >
-                        Remover
-                      </button>
+                      {isEditing ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => void saveEdit(item)}
+                            disabled={busyId === item.id}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-[#0040FF] text-white hover:bg-[#0033CC] disabled:opacity-40"
+                            data-testid={`whatsapp-destination-edit-save-${item.id}`}
+                          >
+                            {busyId === item.id ? "Salvando..." : "Salvar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            disabled={busyId === item.id}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                            data-testid={`whatsapp-destination-edit-cancel-${item.id}`}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(item)}
+                            disabled={busyId === item.id || editingId !== null}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                            data-testid={`whatsapp-destination-edit-${item.id}`}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void patchItem(item.id, { enabled: !item.enabled })
+                            }
+                            disabled={busyId === item.id}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#E0E3EB] text-[#2A2D38] hover:border-[#0040FF]/50 disabled:opacity-40"
+                            data-testid={`whatsapp-destination-toggle-${item.id}`}
+                          >
+                            {item.enabled ? "Pausar" : "Ativar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void testItem(item)}
+                            disabled={busyId === item.id || !credentialsConfigured}
+                            title={
+                              credentialsConfigured
+                                ? "Enviar mensagem de teste para este número"
+                                : "Configure as credenciais da Meta para enviar"
+                            }
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-[#0040FF]/30 text-[#0040FF] hover:bg-[#0040FF]/5 disabled:opacity-40"
+                            data-testid={`whatsapp-destination-test-${item.id}`}
+                          >
+                            Testar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void remove(item)}
+                            disabled={busyId === item.id}
+                            className="text-[11px] font-semibold px-2.5 py-1 rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
+                            data-testid={`whatsapp-destination-remove-${item.id}`}
+                          >
+                            Remover
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
