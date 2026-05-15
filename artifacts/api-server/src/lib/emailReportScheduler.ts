@@ -14,6 +14,7 @@ import { checkAndSendPreviewHealthAlert } from "./previewHealthAlert";
 import { sendDueInterestDigest, sendDueWhatsappDigest } from "./interestDigest";
 import { tickQuietHours, tickRecipientQuietHours } from "./quietHours";
 import { tickBelowTargetDigest } from "./cityBelowTargetDigest";
+import { tickPersistentUnderperformanceAlert } from "./cityPersistentUnderperformanceAlert";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
 
@@ -65,6 +66,12 @@ export async function tick(now: Date = new Date()): Promise<void> {
       await tickBelowTargetDigest(now);
     } catch (err) {
       logger.error({ err }, "Below-target digest tick failed");
+    }
+
+    try {
+      await tickPersistentUnderperformanceAlert(now);
+    } catch (err) {
+      logger.error({ err }, "Persistent-underperformance alert tick failed");
     }
 
     const subs = await db
