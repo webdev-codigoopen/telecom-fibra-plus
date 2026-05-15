@@ -79,7 +79,10 @@ export default function BannerCarousel() {
                 height: isFirst ? "auto" : "100%",
               }}
             >
-              <source media="(max-width: 768px)" srcSet={resolveUrl(b.mobileImageUrl)} />
+              <source
+                media="(max-width: 768px)"
+                srcSet={resolveUrl(b.mobileImageUrl?.trim() ? b.mobileImageUrl : b.desktopImageUrl)}
+              />
               <img
                 src={resolveUrl(b.desktopImageUrl)}
                 alt={b.description ?? b.name}

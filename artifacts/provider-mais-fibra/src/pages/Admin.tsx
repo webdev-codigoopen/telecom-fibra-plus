@@ -12872,8 +12872,8 @@ function BannerManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
       setErr("O nome do banner é obrigatório.");
       return;
     }
-    if (!draft.desktopImageUrl || !draft.mobileImageUrl) {
-      setErr("Envie a imagem de desktop e a imagem de mobile.");
+    if (!draft.desktopImageUrl) {
+      setErr("Envie a imagem de desktop.");
       return;
     }
     if (draft.startDate && draft.endDate) {
@@ -12895,7 +12895,7 @@ function BannerManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
         name: draft.name.trim(),
         description: draft.description.trim() || null,
         desktopImageUrl: draft.desktopImageUrl.trim(),
-        mobileImageUrl: draft.mobileImageUrl.trim(),
+        mobileImageUrl: draft.mobileImageUrl.trim() || draft.desktopImageUrl.trim(),
         linkUrl: draft.linkUrl.trim() || null,
         startDate: fromLocalInput(draft.startDate),
         endDate: fromLocalInput(draft.endDate),
@@ -13083,7 +13083,12 @@ function BannerManager({ adminKey, baseUrl }: { adminKey: string; baseUrl: strin
               const url = field === "desktop" ? draft.desktopImageUrl : draft.mobileImageUrl;
               return (
                 <div key={field} className={labelCls}>
-                  Imagem {field === "desktop" ? "desktop" : "mobile"}
+                  Imagem {field === "desktop" ? "desktop" : "mobile (opcional)"}
+                  {field === "mobile" && (
+                    <span className="block text-[11px] font-normal text-[#7A7F8C] mt-0.5">
+                      Se não enviar, usaremos a imagem de desktop também no celular.
+                    </span>
+                  )}
                   <div className="mt-1 flex items-center gap-3">
                     <input
                       type="file"
