@@ -11,6 +11,7 @@ import About from "@/components/sections/About";
 import Differentials from "@/components/sections/Differentials";
 import ComboPowerTop from "@/components/sections/ComboPowerTop";
 import BannerCarousel from "@/components/sections/BannerCarousel";
+import WatchBanner from "@/components/sections/WatchBanner";
 import AppSection from "@/components/sections/AppSection";
 import WhatsAppSection from "@/components/sections/WhatsAppSection";
 import Testimonials from "@/components/sections/Testimonials";
@@ -47,6 +48,7 @@ export default function Home() {
         <Differentials />
         <BannerCarousel />
         <ComboPowerTop />
+        <WatchBanner />
         <AppSection />
         <WhatsAppSection />
         <Testimonials />
