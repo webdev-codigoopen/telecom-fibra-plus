@@ -58,6 +58,7 @@ export default function BannerCarousel() {
       aria-label="Banners promocionais"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      className="mt-16 md:mt-[88px]"
       style={{
         width: "100%",
         backgroundColor: "#020B2E",
