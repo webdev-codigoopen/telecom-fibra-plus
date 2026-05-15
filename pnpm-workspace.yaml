@@ -37,8 +37,11 @@ minimumReleaseAgeExclude:
 
 onlyBuiltDependencies:
   - '@swc/core'
+  - '@parcel/watcher'
+  - bcrypt
   - esbuild
   - msw
+  - sharp
   - unrs-resolver
 
 overrides:
