@@ -34,7 +34,7 @@ export default function Hero() {
     <section
       id="planos"
       data-testid="hero-section"
-      className="plans-section relative overflow-hidden pt-[88px] md:pt-[142px]"
+      className="plans-section relative overflow-hidden pt-[60px] md:pt-[60px]"
       style={{
         paddingBottom: 100,
         background:
